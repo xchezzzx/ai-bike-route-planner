@@ -55,3 +55,13 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+## Visual Studio 2022 / .NET 10+ Solution Files
+# DO NOT ignore the solution layout file itself
+!*.slnx
+
+## Hidden user settings and temporary files
+.vs/
+*.suo
+*.user
+*slnx.sqlite

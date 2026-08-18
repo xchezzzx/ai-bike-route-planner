@@ -1,0 +1,6 @@
+@CyclingRoutes.Api_HostAddress = http://localhost:5007
+
+GET {{CyclingRoutes.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
