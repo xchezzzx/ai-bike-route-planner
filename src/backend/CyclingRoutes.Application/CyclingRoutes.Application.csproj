@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\CyclingRoutes.Contracts\CyclingRoutes.Contracts.csproj" />
+    <ProjectReference Include="..\CyclingRoutes.Domain\CyclingRoutes.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -9,8 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CyclingRoutes.Application\CyclingRoutes.Application.csproj" />
+    <ProjectReference Include="..\CyclingRoutes.Contracts\CyclingRoutes.Contracts.csproj" />
+    <ProjectReference Include="..\CyclingRoutes.Infrastructure\CyclingRoutes.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
