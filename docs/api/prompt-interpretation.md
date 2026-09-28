@@ -170,6 +170,13 @@ The separate probe set also encountered one timeout and two 503 failures.
 This is evidence of improvement, not full qualification or guaranteed injection
 resistance. All original expectations remain unchanged.
 
+The new mixed injection/cafe guard returned the expected `unsupported` response
+with the ride preferences preserved; the standalone injection guard received 503
+(`artifacts/injection-v2-probes-20260928T215851.json`). One explicitly selected
+process-local smoke request to `gemini-3.5-flash-lite`, after checking its free
+tier and structured-output support, timed out at the 30-second application limit.
+No further calls to that model were made; saved model configuration was not changed.
+
 Live qualification remains pending until the corpus completes successfully.
 Do not call fixture or fake-provider test results a multilingual model pass rate. Stage 6b, agentic
 route refinement, the React UI, and manual road/device checks are separate work.
