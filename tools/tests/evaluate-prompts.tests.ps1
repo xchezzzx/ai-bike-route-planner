@@ -24,7 +24,7 @@ try {
         Assert-True ($LASTEXITCODE -ne 0) "Invalid corpus accepted: $mutation"
     }
 
-    foreach ($scenario in @('pass', 'mismatch', 'quota', 'auth')) {
+    foreach ($scenario in @('pass', 'mismatch', 'quota', 'auth', 'array-status')) {
         $responses = @($corpus.cases | ForEach-Object {
             $case = $_
             $body = @{ status = $case.expectedStatus; draft = @{}; intent = @{};
@@ -39,6 +39,7 @@ try {
                 $node[$parts[-1]] = $case.expectedFields[$path]
             }
             if ($scenario -eq 'mismatch') { $body.status = 'wrong' }
+            if ($scenario -eq 'array-status') { $body.status = @($case.expectedStatus, 'invalid-extra-status') }
             $status = 200
             if ($scenario -in @('quota', 'auth')) {
                 $status = 503
@@ -95,7 +96,7 @@ try {
             Remove-Job $job -Force
         }
     }
-    Write-Output 'Evaluation runner tests passed (offline validation, malformed corpus, pass, mismatch, quota, auth).'
+    Write-Output 'Evaluation runner tests passed (offline validation, malformed corpus, pass, mismatch, quota, auth, array-status).'
 } finally {
     Get-ChildItem -LiteralPath $temp -File | Remove-Item -Force
     Remove-Item -LiteralPath $temp

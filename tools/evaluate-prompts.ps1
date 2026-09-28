@@ -93,7 +93,7 @@ try {
                     if ($body -is [Collections.IDictionary] -and $body.Contains('code') -and $body.code -cin @('ai_not_configured', 'ai_credentials_rejected', 'ai_rate_limited', 'ai_unavailable', 'ai_timeout', 'ai_request_rejected', 'ai_invalid_response')) { $entry.error = $body.code }
                     if ($entry.error -in @('ai_not_configured', 'ai_credentials_rejected', 'ai_rate_limited')) { $stop = $true }
                 } else {
-                    $match = $body.status -ceq $case.expectedStatus
+                    $match = $body.status -is [string] -and $body.status -ceq $case.expectedStatus
                     $entry.actualStatus = $body.status
                     foreach ($path in $case.expectedFields.Keys) {
                         $field = Read-Field $body $path

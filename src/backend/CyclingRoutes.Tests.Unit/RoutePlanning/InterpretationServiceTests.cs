@@ -202,6 +202,50 @@ public class InterpretationServiceTests
 		Assert.Equal(before ? 0 : 1, stub.Calls);
 	}
 
+	[Theory]
+	[InlineData("ambiguous")]
+	[InlineData("invalid_value")]
+	public async Task UnresolvedElevation_DoesNotInventDraftDefault(string code)
+	{
+		var result = (await Run(Complete with { Elevation = null, Issues = [new("elevation", code)] })).Response!;
+		Assert.Null(result.Draft.Elevation);
+		Assert.Null(result.Intent);
+		Assert.Empty(result.Assumptions);
+		Assert.Contains(result.Clarifications, x => x.Field == "elevation" && x.Code == code);
+	}
+
+	[Theory]
+	[InlineData(true, null)]
+	[InlineData(false, 0L)]
+	[InlineData(false, 922337203686L)]
+	public async Task KnownDistanceLimit_RemainsVisibleAlongsideUnrelatedQuestions(bool missingStart, long? duration)
+	{
+		var result = (await Run(Complete with { TargetDistanceMeters = 100001, TargetDurationSeconds = duration },
+			Request() with { Start = missingStart ? null : Request().Start })).Response!;
+		Assert.Equal("needsClarification", result.Status);
+		Assert.Contains("loop_search_distance_out_of_range", result.Limitations);
+		Assert.Null(result.Intent);
+	}
+
+	[Fact]
+	public async Task KnownDurationLimit_RemainsVisibleWhenStartIsMissing()
+	{
+		var result = (await Run(Complete with { TargetDistanceMeters = null, TargetDurationSeconds = 18001 },
+			Request() with { Start = null })).Response!;
+		Assert.Contains("loop_search_distance_out_of_range", result.Limitations);
+		Assert.Equal("needsClarification", result.Status);
+	}
+
+	[Theory]
+	[InlineData("targetDistanceMeters")]
+	[InlineData("shape")]
+	[InlineData("profile")]
+	public async Task AmbiguousSearchFields_DoNotClaimDistanceLimitation(string field)
+	{
+		var result = (await Run(Complete with { TargetDistanceMeters = 100001, Issues = [new(field, "ambiguous")] })).Response!;
+		Assert.DoesNotContain("loop_search_distance_out_of_range", result.Limitations);
+	}
+
 	private sealed class Stub(RouteIntentExtraction value, Action? action = null) : IRouteIntentInterpreter
 	{
 		public int Calls { get; private set; }

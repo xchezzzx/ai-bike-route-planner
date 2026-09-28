@@ -22,12 +22,13 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 		cancellationToken.ThrowIfCancellationRequested();
 		var issues = extracted.Issues.Distinct().ToArray();
 		var assumptions = new List<string>();
-		if (extracted.Elevation is null && !issues.Any(x => x.Field == "elevation"))
+		var defaultElevation = extracted.Elevation is null && !issues.Any(x => x.Field == "elevation");
+		if (defaultElevation)
 			assumptions.Add("elevation_balanced");
 		var draft = new RouteIntentRequest
 		{
 			Start = request.Start, Destination = request.Destination, Shape = extracted.Shape,
-			Profile = extracted.Profile, Elevation = extracted.Elevation ?? "balanced",
+			Profile = extracted.Profile, Elevation = extracted.Elevation ?? (defaultElevation ? "balanced" : null),
 			TargetDistanceMeters = extracted.TargetDistanceMeters, TargetDurationSeconds = extracted.TargetDurationSeconds
 		};
 		var blocked = issues.Where(x => x.Code != "unsupported_preference").Select(x => x.Field).ToHashSet();
@@ -57,9 +58,15 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 		if (candidate.Profile == "gravel") limitations.Add("gravel_not_supported");
 		if (candidate.Shape == "pointToPoint" && candidate.Elevation is "minimize" or "seekClimbs")
 			limitations.Add("point_to_point_elevation_not_supported");
-		if (validation.Intent is { Shape: Domain.RoutePlanning.RouteShape.Loop, Profile: Domain.RoutePlanning.CyclingProfile.Road } intent)
+		if (candidate.Shape == "loop" && candidate.Profile == "road" && !blocked.Contains("targetDistanceMeters"))
 		{
-			var length = intent.TargetDistance?.Meters ?? intent.TargetDuration!.Value.TotalSeconds * 20000 / 3600;
+			// Capability limits depend on known search parameters, not unrelated missing fields.
+			double? length = null;
+			if (candidate.TargetDistanceMeters is { } meters && double.IsFinite(meters) && meters > 0)
+				length = meters;
+			else if (candidate.TargetDistanceMeters is null && candidate.TargetDurationSeconds is > 0
+				&& candidate.TargetDurationSeconds <= TimeSpan.MaxValue.Ticks / TimeSpan.TicksPerSecond)
+				length = (double)candidate.TargetDurationSeconds.Value * 20000 / 3600;
 			if (length is < 1000 or > 100000) limitations.Add("loop_search_distance_out_of_range");
 		}
 		var clarifications = questions.Distinct().OrderBy(x => Array.IndexOf(FieldOrder, x.Field.Split('.')[0]))

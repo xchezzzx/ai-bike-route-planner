@@ -10,7 +10,7 @@
 
 **Spec:** [Approved design](../api/prompt-interpretation-design.md).
 
-**Status:** Approved by the user on 2026-09-28; implementation and verification in progress.
+**Status:** Implementation and offline verification complete. Live model qualification and Docker smoke remain open.
 
 **Execution:** Native implementation in this thread, logical local commits, then an independent whole-branch review. Do not push, create a PR, or merge. Update checkboxes only when the corresponding evidence exists.
 
@@ -219,8 +219,8 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
 - [x] **3. Author corpus, runner, and runbook.** Use real EN/HE/RU text (Unicode is required here). Make live execution sequential, one request per case, no retries; stop on quota or credentials failure and mark remaining cases unrun. Require a loopback BaseUrl in this MVP runner to avoid sending synthetic data or calls to arbitrary servers by mistake. Do not count unrun/error cases as passes. Runbook explains selecting a currently free structured-output model, configuring secrets without committing them, privacy, no billing automation, static fake-test limitations, and the resubmit-full-prompt clarification workflow.
 - [x] **4. Run green and offline runner checks.** `pwsh -NoProfile -File tools/evaluate-prompts.ps1` must report a valid corpus without requiring any server/key. `pwsh -NoProfile -File tools/tests/evaluate-prompts.tests.ps1` must exit 0 after checking invalid corpus/expectations, ready/mismatch reports, auth/quota early stop, and exit codes through its loopback HTTP stub. The harness cleans up its own listener and temporary reports in finally. Run full shared verification. Reconcile README/roadmap with actual delivered behavior, keeping stage 6b and manual road/device checks open.
 - [ ] **5. Perform live qualification only when configured intentionally.** Verify current official model/pricing documentation, then run the explicit opt-in corpus using synthetic prompts only. If credentials/model are unavailable, leave this checkbox incomplete and report live qualification as blocked on configuration, not passed. Do not install a model, create an account, or enable billing to satisfy this step.
-- [ ] **6. Request an independent whole-branch review.** Read the requesting-code-review skill; reviewer checks the complete diff against spec and this plan, including privacy, status semantics, request/response bounds, cancellation, fixture honesty, and existing route regressions. Implement confirmed fixes with focused regression tests and rerun the full suite. If reviewer tooling is unavailable, state that limitation and perform an explicit self-review without claiming independence.
-- [ ] **7. Commit task files and any separate review fixes.** Message: `test: add multilingual interpretation evaluation and runbook`. Report exact commit hashes, fresh test counts, container evidence, remaining live qualification, and clean git status. No push/PR/merge.
+- [x] **6. Request an independent whole-branch review.** Read the requesting-code-review skill; reviewer checks the complete diff against spec and this plan, including privacy, status semantics, request/response bounds, cancellation, fixture honesty, and existing route regressions. Implement confirmed fixes with focused regression tests and rerun the full suite. If reviewer tooling is unavailable, state that limitation and perform an explicit self-review without claiming independence.
+- [x] **7. Commit task files and any separate review fixes.** Message: `test: add multilingual interpretation evaluation and runbook`. Report exact commit hashes, fresh test counts, container evidence, remaining live qualification, and clean git status. No push/PR/merge.
 
 ## Execution Evidence
 
@@ -238,4 +238,14 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
   This verifies host behavior but does not replace the missing Docker smoke.
 - No live model evaluation: credentials/model have not been intentionally configured
   for this task. No accounts, billing changes, public deployment, push or PR.
-- Independent review requested; findings and final verification will be recorded below.
+- Task 4 corpus/runbook committed as c8029b3.
+- Independent whole-branch review completed with three P2 findings: unresolved
+  elevation received an undisclosed default; unrelated questions hid a known
+  search-length limitation; array-valued evaluation statuses could falsely pass.
+- Confirmed RED: six new unit failures and a loopback evaluator case falsely
+  reporting 25/25 before its assertion failed. Fixed all three, adding nine unit
+  cases including guards against claiming a limitation from ambiguous inputs.
+- Final GREEN: 399 .NET tests (217 unit, 182 integration); complete PowerShell
+  harness passed, including the malformed-status regression. No skipped tests.
+- Final branch is retained locally; no push or PR. The two unchecked verification
+  steps above remain deliberately open, not silently counted as completed.
