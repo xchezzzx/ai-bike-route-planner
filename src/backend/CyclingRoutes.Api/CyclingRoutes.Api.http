@@ -1,5 +1,31 @@
 @CyclingRoutes.Api_HostAddress = https://localhost:7221
 
+### Ranked road loops; up to three ORS calls, requires the server-side key
+POST {{CyclingRoutes.Api_HostAddress}}/api/routes/candidates
+Content-Type: application/json
+Accept: application/json
+
+{
+  "start": { "latitude": 32.0853, "longitude": 34.7818 },
+  "shape": "loop",
+  "profile": "road",
+  "targetDistanceMeters": 20000,
+  "elevation": "balanced"
+}
+
+### Duration-only loop search; explicit initial length assumption of 20 km/h
+POST {{CyclingRoutes.Api_HostAddress}}/api/routes/candidates
+Content-Type: application/json
+Accept: application/json
+
+{
+  "start": { "latitude": 32.0853, "longitude": 34.7818 },
+  "shape": "loop",
+  "profile": "road",
+  "targetDurationSeconds": 3600,
+  "elevation": "minimize"
+}
+
 ### Real point-to-point road route; requires the server-side ORS key
 POST {{CyclingRoutes.Api_HostAddress}}/api/routes/generate
 Content-Type: application/json

@@ -30,20 +30,7 @@ public static class RouteGenerationEndpoints
 		}
 		catch (RoutingException error)
 		{
-			var (status, code) = error.Failure switch
-			{
-				RoutingFailure.NotConfigured => (503, "routing_not_configured"),
-				RoutingFailure.CredentialsRejected => (503, "routing_credentials_rejected"),
-				RoutingFailure.UnsupportedIntent => (422, "unsupported_intent"),
-				RoutingFailure.NoRoute => (422, "route_not_found"),
-				RoutingFailure.RateLimited => (503, "routing_rate_limited"),
-				RoutingFailure.Unavailable => (503, "routing_unavailable"),
-				RoutingFailure.Timeout => (504, "routing_timeout"),
-				RoutingFailure.InvalidResponse => (502, "routing_invalid_response"),
-				_ => throw new InvalidOperationException("Unknown routing failure.")
-			};
-			return TypedResults.Problem(statusCode: status, title: "Route generation failed.",
-				extensions: new Dictionary<string, object?> { ["code"] = code });
+			return RoutingProblemMapper.ToProblem(error.Failure);
 		}
 	}
 }

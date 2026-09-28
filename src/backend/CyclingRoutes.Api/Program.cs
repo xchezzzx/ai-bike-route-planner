@@ -22,6 +22,9 @@ builder.Services.AddHttpClient<IRoutingProvider, OpenRouteServiceProvider>(clien
 	client.MaxResponseContentBufferSize = 8 * 1024 * 1024;
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddTransient<RouteGenerationService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<RouteCandidateRanker>();
+builder.Services.AddTransient<RouteCandidateService>();
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
 // Keep malformed requests as 400 responses in Development as well as Production.
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
@@ -39,6 +42,7 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapRouteIntentEndpoints();
 app.MapRouteGenerationEndpoints();
+app.MapRouteCandidatesEndpoints();
 
 app.UseHttpsRedirection();
 

@@ -11,22 +11,38 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 	private const string Endpoint = "https://api.heigit.org/openrouteservice/v2/directions/cycling-road/geojson";
 	private const string Attribution = "openrouteservice.org | OpenStreetMap contributors";
 
-	public async Task<RoutedPath> GetRoadRouteAsync(GeoCoordinate start, GeoCoordinate destination, CancellationToken cancellationToken)
-	{
-		cancellationToken.ThrowIfCancellationRequested();
-		if (string.IsNullOrWhiteSpace(options.ApiKey)) throw new RoutingException(RoutingFailure.NotConfigured);
-
-		using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint);
-		if (!request.Headers.TryAddWithoutValidation("Authorization", options.ApiKey))
-			throw new RoutingException(RoutingFailure.CredentialsRejected);
-		request.Content = JsonContent.Create(new
+	public Task<RoutedPath> GetRoadRouteAsync(GeoCoordinate start, GeoCoordinate destination, CancellationToken cancellationToken) =>
+		SendAsync(new
 		{
 			coordinates = new[] { new[] { start.Longitude, start.Latitude }, new[] { destination.Longitude, destination.Latitude } },
 			elevation = true,
 			instructions = false,
 			units = "m",
 			options = new { avoid_features = new[] { "ferries", "fords", "steps" } }
-		});
+		}, cancellationToken);
+
+	public Task<RoutedPath> GetRoadLoopAsync(GeoCoordinate start, double requestedLengthMeters, int seed, CancellationToken cancellationToken) =>
+		SendAsync(new
+		{
+			coordinates = new[] { new[] { start.Longitude, start.Latitude } },
+			elevation = true,
+			instructions = false,
+			units = "m",
+			options = new
+			{
+				avoid_features = new[] { "ferries", "fords", "steps" },
+				round_trip = new { length = requestedLengthMeters, points = 3, seed }
+			}
+		}, cancellationToken);
+
+	private async Task<RoutedPath> SendAsync<T>(T payload, CancellationToken cancellationToken)
+	{
+		cancellationToken.ThrowIfCancellationRequested();
+		if (string.IsNullOrWhiteSpace(options.ApiKey)) throw new RoutingException(RoutingFailure.NotConfigured);
+		using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint);
+		if (!request.Headers.TryAddWithoutValidation("Authorization", options.ApiKey))
+			throw new RoutingException(RoutingFailure.CredentialsRejected);
+		request.Content = JsonContent.Create(payload);
 
 		try
 		{
@@ -40,7 +56,7 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 			catch (InvalidOperationException) { throw InvalidResponse(); }
 			if (!response.IsSuccessStatusCode)
 			{
-				throw new RoutingException(IsNoRoute(body) ? RoutingFailure.NoRoute : RoutingFailure.InvalidResponse);
+				throw new RoutingException(ParseFailure(body));
 			}
 			return ParseRoute(body);
 		}
@@ -54,17 +70,24 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 		}
 	}
 
-	private static bool IsNoRoute(string body)
+	private static RoutingFailure ParseFailure(string body)
 	{
 		try
 		{
 			using var json = JsonDocument.Parse(body);
-			return json.RootElement.ValueKind == JsonValueKind.Object
+			if (json.RootElement.ValueKind == JsonValueKind.Object
 				&& json.RootElement.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.Object
 				&& error.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.Number
-				&& code.TryGetInt32(out var value) && value is 2009 or 2010;
+				&& code.TryGetInt32(out var value))
+				return value switch
+				{
+					2004 => RoutingFailure.LimitExceeded,
+					2009 or 2010 => RoutingFailure.NoRoute,
+					_ => RoutingFailure.InvalidResponse
+				};
 		}
-		catch (JsonException) { return false; }
+		catch (JsonException) { }
+		return RoutingFailure.InvalidResponse;
 	}
 
 	private static RoutedPath ParseRoute(string body)
