@@ -10,7 +10,7 @@
 
 **Spec:** [Approved design](../api/prompt-interpretation-design.md).
 
-**Status:** Implementation and offline verification complete. Live model qualification and Docker smoke remain open.
+**Status:** Implementation, offline verification, and Docker smoke complete. Live model qualification remains open.
 
 **Execution:** Native implementation in this thread, logical local commits, then an independent whole-branch review. Do not push, create a PR, or merge. Update checkboxes only when the corresponding evidence exists.
 
@@ -195,7 +195,7 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
 
 - [x] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Integration --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~InterpretRouteIntentEndpointTests` must fail, initially with endpoint absent.
 - [x] **3. Implement reader, endpoint, DI, and safe problems.** Manually read the bounded body before JSON deserialization instead of an endpoint filter that runs after model binding. Accept JSON media types including +json, require UTF-8 (or no charset), reject unsupported charset with 415, and parse with configured strict HTTP JSON options. RequestAborted is never translated into an AI timeout. Use explicit Accepts/Produces metadata. Register options from Ai:Gemini:ApiKey/Model, typed client with redirects disabled, TimeProvider.System already registered, and transient interpretation service. Adapter owns its deadline; use an infinite HttpClient timeout to avoid competing timers. Never validate missing configuration at startup.
-- [ ] **4. Run green, full shared verification, and container smoke.** Build the existing Dockerfile. Run an isolated loopback-bound container without keys; check health 200, valid interpretation request 503 ai_not_configured, malformed request 400. Remove only this smoke container afterward; do not leave a configured API exposed. Add synthetic EN/HE/RU examples to the existing .http file without keys.
+- [x] **4. Run green, full shared verification, and container smoke.** Build the existing Dockerfile. Run an isolated loopback-bound container without keys; check health 200, valid interpretation request 503 ai_not_configured, malformed request 400. Remove only this smoke container afterward; do not leave a configured API exposed. Add synthetic EN/HE/RU examples to the existing .http file without keys.
 - [x] **5. Commit task files.** Message: `feat: expose prompt interpretation API with strict request limits`.
 
 ### Task 4: Evaluation Corpus, Runbook, and Delivery Review
@@ -228,14 +228,17 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
 - Task 1: RED missing new types; GREEN 315 tests; commit e9a511a.
 - Task 2: RED missing adapter; GREEN 361 tests; commit c13fb27.
 - Task 3: RED 28 endpoint tests (endpoint absent); GREEN 389 tests; commit 851b5d2.
-- Task 3 container: compilation passed with zero warnings/errors, Docker daemon
-  disconnected during publish (EOF). The engine pipe remains unavailable on
-  retry. Container runtime smoke is not verified; step 4 remains open for that reason.
+- Task 3 container: initial attempt stopped when Docker disconnected during
+  publish (EOF). After the user restarted Docker on 2026-09-28, the image built
+  successfully with zero warnings/errors. An isolated loopback-bound container
+  without keys passed health 200 Healthy, interpretation 503 ai_not_configured,
+  malformed JSON 400, and oversized JSON 413. Runtime UID was 1654. The smoke
+  container was stopped and automatically removed; step 4 is complete.
 - Task 4: RED missing corpus and missing runner; GREEN 390 .NET tests plus
   PowerShell runner tests with a loopback stub. Stub results are not Gemini results.
 - Real local Kestrel smoke passed without keys: health 200, interpretation 503,
   malformed JSON 400, oversized JSON 413. The temporary process was stopped.
-  This verifies host behavior but does not replace the missing Docker smoke.
+  Docker runtime behavior was subsequently verified separately as recorded above.
 - No live model evaluation: credentials/model have not been intentionally configured
   for this task. No accounts, billing changes, public deployment, push or PR.
 - Task 4 corpus/runbook committed as c8029b3.
@@ -247,5 +250,5 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
   cases including guards against claiming a limitation from ambiguous inputs.
 - Final GREEN: 399 .NET tests (217 unit, 182 integration); complete PowerShell
   harness passed, including the malformed-status regression. No skipped tests.
-- Final branch is retained locally; no push or PR. The two unchecked verification
-  steps above remain deliberately open, not silently counted as completed.
+- Final branch is retained locally; no push or PR. The live qualification step
+  remains deliberately open, not silently counted as completed.

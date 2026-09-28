@@ -2,7 +2,7 @@
 
 Status: written specification approved by the user on 2026-09-28.
 Implementation plan approved; feature implemented on the local feature branch.
-Live model qualification and container smoke remain open; see the execution plan.
+Container smoke passed. Live model qualification remains open; see the execution plan.
 
 ## Intent and scope
 
