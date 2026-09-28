@@ -8,10 +8,12 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    main, pull-request workflow, /health integration test. Completed previously.
 2. Route planning domain (issue #4): GeoCoordinate, Distance, profile/shape/
    elevation enums, RouteIntent, invariant tests and documentation. Implemented
-   and tested locally; submitted for review before merging.
+   and tested; merged through PR #5.
 3. Application/API boundary: explicit request DTOs with units, mapping into the
    domain, validation errors as ProblemDetails, request cancellation and tests.
-   Incomplete AI extraction must be distinguished from a valid RouteIntent.
+   Implemented and tested on oleg/route-intent-api, submitted separately for
+   review. See [API contract](api/route-intent-validation.md). Incomplete AI
+   extraction remains future work and must stay distinct from a valid RouteIntent.
 4. First real route: provider interface and one adapter; route geometry,
    metrics and GPX export. Verify actual road/gravel quality on known Israeli
    routes. Start with a reproducible request before adding natural-language input.
