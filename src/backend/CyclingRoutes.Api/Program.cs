@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using CyclingRoutes.Application.Interpretation;
+using CyclingRoutes.Infrastructure.Interpretation;
 using CyclingRoutes.Api.RoutePlanning;
 using CyclingRoutes.Application.RoutePlanning;
 using CyclingRoutes.Application.Routing;
@@ -23,6 +25,16 @@ builder.Services.AddHttpClient<IRoutingProvider, OpenRouteServiceProvider>(clien
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddTransient<RouteGenerationService>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(new GeminiOptions
+{
+	ApiKey = builder.Configuration["Ai:Gemini:ApiKey"] ?? "",
+	Model = builder.Configuration["Ai:Gemini:Model"] ?? ""
+});
+builder.Services.AddHttpClient<IRouteIntentInterpreter, GeminiRouteIntentInterpreter>(client =>
+{
+	client.Timeout = Timeout.InfiniteTimeSpan;
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddTransient<InterpretationService>();
 builder.Services.AddSingleton<RouteCandidateRanker>();
 builder.Services.AddTransient<RouteCandidateService>();
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
@@ -43,6 +55,7 @@ app.MapHealthChecks("/health");
 app.MapRouteIntentEndpoints();
 app.MapRouteGenerationEndpoints();
 app.MapRouteCandidatesEndpoints();
+app.MapInterpretRouteIntentEndpoints();
 
 app.UseHttpsRedirection();
 

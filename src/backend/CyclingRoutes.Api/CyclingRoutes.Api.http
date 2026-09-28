@@ -72,3 +72,36 @@ Accept: application/problem+json
 }
 
 ###
+
+POST {{CyclingRoutes.Api_HostAddress}}/api/route-intents/interpret
+Content-Type: application/json
+
+{
+  "prompt": "A road loop of 20 km with fewer climbs",
+  "locale": "en",
+  "start": { "latitude": 32.0853, "longitude": 34.7818 }
+}
+
+###
+
+POST {{CyclingRoutes.Api_HostAddress}}/api/route-intents/interpret
+Content-Type: application/json
+
+{
+  "prompt": "Кольцевой шоссейный маршрут на 20 км, поменьше подъёмов",
+  "locale": "ru",
+  "start": { "latitude": 32.0853, "longitude": 34.7818 }
+}
+
+###
+
+POST {{CyclingRoutes.Api_HostAddress}}/api/route-intents/interpret
+Content-Type: application/json
+
+{
+  "prompt": "מסלול כביש מעגלי של 20 קילומטר עם פחות עליות",
+  "locale": "he",
+  "start": { "latitude": 32.0853, "longitude": 34.7818 }
+}
+
+###
