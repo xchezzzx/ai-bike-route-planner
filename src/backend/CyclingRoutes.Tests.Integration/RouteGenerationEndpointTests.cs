@@ -45,6 +45,7 @@ public class RouteGenerationEndpointTests : IClassFixture<WebApplicationFactory<
 	[InlineData(503, "do not expose this", 503, "routing_unavailable")]
 	[InlineData(200, "{}", 502, "routing_invalid_response")]
 	[InlineData(404, "{\"error\":{\"code\":2009}}", 422, "route_not_found")]
+	[InlineData(400, "{\"error\":{\"code\":2004}}", 422, "routing_limit_exceeded")]
 	public async Task UpstreamFailures_ReturnPublicCodes(int upstreamStatus, string upstreamBody, int status, string code)
 	{
 		using var factory = WithProviderResponse(upstreamStatus, upstreamBody);
@@ -66,6 +67,23 @@ public class RouteGenerationEndpointTests : IClassFixture<WebApplicationFactory<
 				.ConfigurePrimaryHttpMessageHandler(() => new OpenRouteServiceProviderTests.StubHandler(
 					(_, _) => Task.FromResult(OpenRouteServiceProviderTests.Response(status, body))));
 		}));
+
+	[Fact]
+	public async Task ProviderTimeout_Returns504()
+	{
+		using var factory = _factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+		{
+			services.AddSingleton(new OpenRouteServiceOptions { ApiKey = "test-key" });
+			services.AddHttpClient<IRoutingProvider, OpenRouteServiceProvider>()
+				.ConfigurePrimaryHttpMessageHandler(() => new OpenRouteServiceProviderTests.StubHandler((_, _) => throw new TaskCanceledException()));
+		}));
+		using var client = factory.CreateClient(new() { BaseAddress = new("https://localhost") });
+		using var content = ValidContent();
+		using var response = await client.PostAsync("/api/routes/generate", content, TestContext.Current.CancellationToken);
+		Assert.Equal(504, (int)response.StatusCode);
+		using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+		Assert.Equal("routing_timeout", json.RootElement.GetProperty("code").GetString());
+	}
 
 	private static StringContent ValidContent() => new("""
 		{"start":{"latitude":32.0853,"longitude":34.7818},"destination":{"latitude":32.1,"longitude":34.82},"shape":"pointToPoint","profile":"road","targetDistanceMeters":10000}

@@ -17,11 +17,18 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
 4. First real route: provider interface and one adapter; route geometry,
    metrics and GPX export. Verify actual road/gravel quality on known Israeli
    routes. Start with a reproducible request before adding natural-language input.
-   Point-to-point road adapter and GPX are implemented and submitted for review, with a successful
+   Point-to-point road adapter and GPX are implemented and merged through PR #7, with a successful
    live Tel Aviv request. Manual route-quality/device checks remain; gravel is
    explicitly unsupported in this first adapter. See [generation contract](api/route-generation.md).
 5. Candidate generation and ranking: loops, distance/time/elevation preferences,
    explainable trade-offs, provider limitations and infeasible-request handling.
+   Implemented locally with bounded three-seed ORS search, pure ranking, exact
+   deduplication and partial results. One live Tel Aviv search returned three
+   closed loops within distance tolerance; all GPX files passed schema validation.
+   See [candidate contract](api/route-candidates.md). Local verification passes
+   275 tests after review fixes; Docker smoke and live GPX validation passed during
+   initial implementation. A repeated independent Application review completed.
+   Manual road/device checks remain separate from automated verification.
 6. Prompt interpretation: RU/EN/HE structured extraction, clarification for
    missing parameters, strict validation, test prompts and provider abstraction.
    AI guides candidate construction/refinement through routing tools; graph-based

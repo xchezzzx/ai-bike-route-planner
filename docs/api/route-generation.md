@@ -4,7 +4,8 @@ Stage 4 implements one provider-backed point-to-point road route, not preference
 optimization. POST /api/routes/generate consumes the existing RouteIntentRequest.
 It accepts shape=pointToPoint, profile=road, elevation omitted or balanced.
 Other valid intents return 422 unsupported_intent before any provider call.
-Loops, gravel-specific routing and elevation optimization remain later work.
+Loops and sampled preference ranking are available through the separate
+[candidates endpoint](route-candidates.md). Gravel-specific routing remains later work.
 
 200 returns geometry (named latitude/longitude/elevationMeters), distanceMeters,
 estimatedDurationSeconds, ascentMeters/descentMeters when available, attribution,
@@ -18,7 +19,7 @@ contain an extension code, never the upstream body, coordinates or credentials:
 
 | HTTP | code |
 | --- | --- |
-| 422 | unsupported_intent, route_not_found |
+| 422 | unsupported_intent, route_not_found, routing_limit_exceeded |
 | 503 | routing_not_configured, routing_credentials_rejected, routing_rate_limited, routing_unavailable |
 | 504 | routing_timeout |
 | 502 | routing_invalid_response |

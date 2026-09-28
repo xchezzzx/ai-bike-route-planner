@@ -9,7 +9,9 @@ public enum RoutingFailure
 	RateLimited,
 	Unavailable,
 	Timeout,
-	InvalidResponse
+	InvalidResponse,
+	SearchDistanceOutOfRange,
+	LimitExceeded
 }
 
 public sealed class RoutingException(RoutingFailure failure) : Exception($"Routing failed: {failure}.")
