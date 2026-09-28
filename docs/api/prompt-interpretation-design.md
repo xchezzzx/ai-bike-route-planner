@@ -1,7 +1,7 @@
 # Prompt interpretation with Gemini
 
-Status: architectural direction approved on 2026-09-28. This written specification
-is proposed for user review; product implementation has not started.
+Status: written specification approved by the user on 2026-09-28.
+Product implementation awaits review of the implementation plan.
 
 ## Intent and scope
 
