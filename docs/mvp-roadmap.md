@@ -31,6 +31,11 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    Manual road/device checks remain separate from automated verification.
 6. Prompt interpretation: RU/EN/HE structured extraction, clarification for
    missing parameters, strict validation, test prompts and provider abstraction.
+   Stage 6a is implemented on the feature branch: Gemini adapter, bounded HTTP
+   endpoint, deterministic clarification policy and a 25-case evaluation corpus.
+   Offline tests pass; real Gemini qualification is still pending configuration.
+   See [interpretation contract and runbook](api/prompt-interpretation.md).
+   Stage 6b remains future work:
    AI guides candidate construction/refinement through routing tools; graph-based
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
 7. React interface: start-point map selection, prompt, visible interpreted

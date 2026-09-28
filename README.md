@@ -4,8 +4,10 @@ An Israel-first cycling route planner, intended to turn English, Hebrew, and
 Russian preferences into rideable routes and downloadable GPX tracks.
 
 Current implementation: .NET 10 API, route-intent validation, provider-backed
-point-to-point road routing, ranked road-loop candidates, and GPX export.
-Gravel-specific routing, AI, persistence, and the React UI are not yet implemented.
+point-to-point road routing, ranked road-loop candidates, GPX export, and a
+Gemini-backed prompt interpretation API with clarifications. Interpretation is
+offline-tested; live model qualification is pending. Gravel-specific routing,
+agentic route refinement, persistence, and the React UI are not yet implemented.
 
 ## Local development
 
@@ -49,6 +51,12 @@ See the [candidate contract and limitations](docs/api/route-candidates.md).
 
 Do not expose a configured API publicly before adding authentication/rate limits.
 
+POST /api/route-intents/interpret accepts a prompt, locale (en/he/ru), and optional
+map coordinates. It returns inspectable preferences or clarifications, never a
+generated route. Configure Ai:Gemini:ApiKey and Ai:Gemini:Model separately from
+ORS. Without them this endpoint returns 503; the rest of the API still works.
+See the [interpretation contract, privacy notes and evaluation runbook](docs/api/prompt-interpretation.md).
+
 Tests use xUnit v3 4.0.0 with the explicit `xunit.v3.mtp-off` package, the
 Visual Studio adapter, and VSTest. This preserves the existing GitHub Actions
 commands. The plain `xunit.v3` 4.0.0 package enables MTP v2 and requires a
@@ -75,7 +83,7 @@ chosen hosting service before deployment.
 - Domain: immutable values and RouteIntent invariants, no external dependencies.
 - Application: validation, route generation, candidate ranking, provider interface, GPX.
 - Contracts: API request/response DTOs with explicit units.
-- Infrastructure: openrouteservice HTTP adapter; AI/persistence remain future work.
+- Infrastructure: openrouteservice and Gemini HTTP adapters; persistence remains future work.
 - Api: host and HTTP endpoints.
 - Tests.Unit / Tests.Integration: domain rules and in-memory HTTP verification.
 

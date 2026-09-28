@@ -10,7 +10,7 @@
 
 **Spec:** [Approved design](../api/prompt-interpretation-design.md).
 
-**Status:** Proposed implementation plan, awaiting user review. No product code is implemented by this document.
+**Status:** Approved by the user on 2026-09-28; implementation and verification in progress.
 
 **Execution:** Native implementation in this thread, logical local commits, then an independent whole-branch review. Do not push, create a PR, or merge. Update checkboxes only when the corresponding evidence exists.
 
@@ -78,7 +78,7 @@ afterward. Tests need neither a running API nor live keys.
 - `InterpretationFailure`: NotConfigured, CredentialsRejected, RateLimited, Unavailable, Timeout, RequestRejected, InvalidResponse. `InterpretationException(InterpretationFailure failure)` exposes Failure and a generic message without upstream data or an inner exception.
 - `ClarificationMessages.Get(string locale, string field, string code)` returns application-owned text.
 
-- [ ] **1. Write failing policy tests.** Use an in-file counting fake interpreter recording prompt/locale/token; never infer language by substring in that fake. Pin these assertions in named tests:
+- [x] **1. Write failing policy tests.** Use an in-file counting fake interpreter recording prompt/locale/token; never infer language by substring in that fake. Pin these assertions in named tests:
 
 ```csharp
 // CompleteLoop_ReturnsValidatedIntentAndExplicitDefault
@@ -106,10 +106,10 @@ issue deduplication, field/code ordering, locale-specific messages, and caller
 cancellation before/after a fake provider response. Run representative numeric
 cases under en-US, ru-RU, and he-IL, restoring culture after each test.
 
-- [ ] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Unit --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~InterpretationServiceTests` must fail for missing new types/behavior, not unrelated infrastructure.
-- [ ] **3. Implement the declared contracts, fake-independent service, and localized messages.** Preserve caller coordinates; use RouteIntentValidator for domain invariants. Build a validation copy with ambiguous/invalid preferences cleared while retaining the original draft. Clear an elevation assumption when an issue makes elevation unresolved. Collapse missing-target errors and suppress redundant required questions. Unsupported model issues block intent; capability limitations may retain a validated intent. No domain/API dependency or ORS call in this service.
-- [ ] **4. Run green and full shared verification.** Assert that every known field/code combination used by the service has a nonempty EN/HE/RU template and localized coordinate component labels. Do not translate machine tokens.
-- [ ] **5. Commit only this task's files.** Message: `feat: add prompt interpretation contracts and clarification policy`.
+- [x] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Unit --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~InterpretationServiceTests` must fail for missing new types/behavior, not unrelated infrastructure.
+- [x] **3. Implement the declared contracts, fake-independent service, and localized messages.** Preserve caller coordinates; use RouteIntentValidator for domain invariants. Build a validation copy with ambiguous/invalid preferences cleared while retaining the original draft. Clear an elevation assumption when an issue makes elevation unresolved. Collapse missing-target errors and suppress redundant required questions. Unsupported model issues block intent; capability limitations may retain a validated intent. No domain/API dependency or ORS call in this service.
+- [x] **4. Run green and full shared verification.** Assert that every known field/code combination used by the service has a nonempty EN/HE/RU template and localized coordinate component labels. Do not translate machine tokens.
+- [x] **5. Commit only this task's files.** Message: `feat: add prompt interpretation contracts and clarification policy`.
 
 ### Task 2: Strict Gemini HTTP Adapter
 
@@ -127,7 +127,7 @@ cases under en-US, ru-RU, and he-IL, restoring culture after each test.
 - Internal `GeminiExtractionContract`: Version constant, system instructions, and JSON schema, colocated so tests can inspect the actual outgoing schema. Version changes whenever prompt/schema semantics change.
 - Internal `GeminiResponseParser.Parse(string body)` returns RouteIntentExtraction or throws a safe InterpretationException.
 
-- [ ] **1. Write failing adapter tests.** Use a local stub HttpMessageHandler, not the ORS fixture. Test the actual serialized request and response parser through the public interpreter method. Assert exactly one POST to Google's fixed v1beta generateContent endpoint, a header key and no query key, no tools, candidateCount=1, responseMimeType=application/json, responseJsonSchema, maxOutputTokens=4096, separate system/user messages, and no start/destination fields.
+- [x] **1. Write failing adapter tests.** Use a local stub HttpMessageHandler, not the ORS fixture. Test the actual serialized request and response parser through the public interpreter method. Assert exactly one POST to Google's fixed v1beta generateContent endpoint, a header key and no query key, no tools, candidateCount=1, responseMimeType=application/json, responseJsonSchema, maxOutputTokens=4096, separate system/user messages, and no start/destination fields.
 
 Pin these cases: empty key/model, illegal model ID, CR/LF in a key (NotConfigured,
 no network); 401/403/429/5xx/transport errors; other non-success; successful STOP
@@ -154,10 +154,10 @@ simultaneous cancellation/deadline and cancellation after body receipt. A local
 manual TimeProvider test helper can follow the existing candidate-service tests;
 do not sleep for 30 seconds or add a time-testing package.
 
-- [ ] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Integration --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~GeminiRouteIntentInterpreterTests` must fail on the new behavior.
-- [ ] **3. Implement adapter and extraction contract.** Use ResponseHeadersRead and an explicitly bounded read (at most limit plus one sentinel byte); enforce both declared Content-Length and actual bytes. Use a linked 30-second CancellationTokenSource with TimeProvider through send and reads. Validate config before constructing the request. Strictly parse extraction objects using structured JSON APIs and detect duplicate property names before deserialization. Reject extra actions/non-text candidate content; map documented safety finish/block reasons only. Treat other incomplete finish reasons as InvalidResponse. Do not store raw error bodies in exceptions or logs.
-- [ ] **4. Run green and full shared verification.** Verify exceptions contain neither test key nor injected private detail. Verify disposed responses/streams and no retry on failure.
-- [ ] **5. Commit task files.** Message: `feat: add bounded Gemini structured extraction adapter`.
+- [x] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Integration --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~GeminiRouteIntentInterpreterTests` must fail on the new behavior.
+- [x] **3. Implement adapter and extraction contract.** Use ResponseHeadersRead and an explicitly bounded read (at most limit plus one sentinel byte); enforce both declared Content-Length and actual bytes. Use a linked 30-second CancellationTokenSource with TimeProvider through send and reads. Validate config before constructing the request. Strictly parse extraction objects using structured JSON APIs and detect duplicate property names before deserialization. Reject extra actions/non-text candidate content; map documented safety finish/block reasons only. Treat other incomplete finish reasons as InvalidResponse. Do not store raw error bodies in exceptions or logs.
+- [x] **4. Run green and full shared verification.** Verify exceptions contain neither test key nor injected private detail. Verify disposed responses/streams and no retry on failure.
+- [x] **5. Commit task files.** Message: `feat: add bounded Gemini structured extraction adapter`.
 
 ### Task 3: API Integration and Request Limits
 
@@ -174,7 +174,7 @@ do not sleep for 30 seconds or add a time-testing package.
 - Internal `InterpretRequestReadResult(InterpretRouteIntentRequest? Request, int? ErrorStatus)`; exactly one side is populated. Error statuses are 400, 413, 415.
 - `InterpretationProblemMapper.ToProblem(InterpretationFailure failure)` returns ProblemHttpResult with the spec's HTTP status and stable code extension.
 
-- [ ] **1. Write failing endpoint tests.** Use WebApplicationFactory in both Development and Production, replacing the interpreter or its HTTP handler. Cover ready, needsClarification, unsupported, every failure mapping, missing config, startup health, strict unknown fields/numeric strings, wrong content type, invalid envelope before provider, and caller cancellation. Assert no ORS calls and no geometry/gpx fields. Complete responses must serialize coordinates, enums, units, clarifications, limitations, and assumptions as specified.
+- [x] **1. Write failing endpoint tests.** Use WebApplicationFactory in both Development and Production, replacing the interpreter or its HTTP handler. Cover ready, needsClarification, unsupported, every failure mapping, missing config, startup health, strict unknown fields/numeric strings, wrong content type, invalid envelope before provider, and caller cancellation. Assert no ORS calls and no geometry/gpx fields. Complete responses must serialize coordinates, enums, units, clarifications, limitations, and assumptions as specified.
 
 ```csharp
 // ChunkedBodyOverLimit_Returns413BeforeInterpreter
@@ -193,10 +193,10 @@ Assert byte and character limits are independent. Test an otherwise valid unknow
 property/numeric-string request so a missing required field cannot mask a regression.
 Pin OpenAPI request-body/response metadata for the manually read endpoint.
 
-- [ ] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Integration --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~InterpretRouteIntentEndpointTests` must fail, initially with endpoint absent.
-- [ ] **3. Implement reader, endpoint, DI, and safe problems.** Manually read the bounded body before JSON deserialization instead of an endpoint filter that runs after model binding. Accept JSON media types including +json, require UTF-8 (or no charset), reject unsupported charset with 415, and parse with configured strict HTTP JSON options. RequestAborted is never translated into an AI timeout. Use explicit Accepts/Produces metadata. Register options from Ai:Gemini:ApiKey/Model, typed client with redirects disabled, TimeProvider.System already registered, and transient interpretation service. Adapter owns its deadline; use an infinite HttpClient timeout to avoid competing timers. Never validate missing configuration at startup.
+- [x] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Integration --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~InterpretRouteIntentEndpointTests` must fail, initially with endpoint absent.
+- [x] **3. Implement reader, endpoint, DI, and safe problems.** Manually read the bounded body before JSON deserialization instead of an endpoint filter that runs after model binding. Accept JSON media types including +json, require UTF-8 (or no charset), reject unsupported charset with 415, and parse with configured strict HTTP JSON options. RequestAborted is never translated into an AI timeout. Use explicit Accepts/Produces metadata. Register options from Ai:Gemini:ApiKey/Model, typed client with redirects disabled, TimeProvider.System already registered, and transient interpretation service. Adapter owns its deadline; use an infinite HttpClient timeout to avoid competing timers. Never validate missing configuration at startup.
 - [ ] **4. Run green, full shared verification, and container smoke.** Build the existing Dockerfile. Run an isolated loopback-bound container without keys; check health 200, valid interpretation request 503 ai_not_configured, malformed request 400. Remove only this smoke container afterward; do not leave a configured API exposed. Add synthetic EN/HE/RU examples to the existing .http file without keys.
-- [ ] **5. Commit task files.** Message: `feat: expose prompt interpretation API with strict request limits`.
+- [x] **5. Commit task files.** Message: `feat: expose prompt interpretation API with strict request limits`.
 
 ### Task 4: Evaluation Corpus, Runbook, and Delivery Review
 
@@ -214,16 +214,28 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
 - Script parameters: `-BaseUrl`, `-ModelId`, `-RunLive`, `-OutputPath`, optional `-CorpusPath` defaulting to the checked-in corpus; without RunLive it validates the corpus and makes zero HTTP calls. Live mode calls the API endpoint, not Google directly. ModelId is operator-declared API configuration and is labeled as such in reports, not falsely presented as provider-verified metadata.
 - Reports contain corpus and prompt/schema version, declared model ID, case comparisons, latency, and sanitized errors; nonzero exit on any mismatch, incomplete run, or missing report. Write reports under ignored artifacts by default. Never read or display User Secrets.
 
-- [ ] **1. Write failing corpus tests.** Require unique IDs, exactly six core cases per locale (18 total), all three locales, valid envelopes, explicit expectations, and no unknown expectation paths. Cover core complete loop, duration-only, missing preferences, ambiguity, unsupported stop, and injection for each locale. Add A-B/gravel/named location/mixed units/zero/negative/conflicting target cases beyond the core set. Expectations must satisfy domain invariants when declaring ready. These tests validate fixtures, not model understanding.
-- [ ] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Integration --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~PromptEvaluationCorpusTests` must fail while corpus/content are absent.
-- [ ] **3. Author corpus, runner, and runbook.** Use real EN/HE/RU text (Unicode is required here). Make live execution sequential, one request per case, no retries; stop on quota or credentials failure and mark remaining cases unrun. Require a loopback BaseUrl in this MVP runner to avoid sending synthetic data or calls to arbitrary servers by mistake. Do not count unrun/error cases as passes. Runbook explains selecting a currently free structured-output model, configuring secrets without committing them, privacy, no billing automation, static fake-test limitations, and the resubmit-full-prompt clarification workflow.
-- [ ] **4. Run green and offline runner checks.** `pwsh -NoProfile -File tools/evaluate-prompts.ps1` must report a valid corpus without requiring any server/key. `pwsh -NoProfile -File tools/tests/evaluate-prompts.tests.ps1` must exit 0 after checking invalid corpus/expectations, ready/mismatch reports, auth/quota early stop, and exit codes through its loopback HTTP stub. The harness cleans up its own listener and temporary reports in finally. Run full shared verification. Reconcile README/roadmap with actual delivered behavior, keeping stage 6b and manual road/device checks open.
+- [x] **1. Write failing corpus tests.** Require unique IDs, exactly six core cases per locale (18 total), all three locales, valid envelopes, explicit expectations, and no unknown expectation paths. Cover core complete loop, duration-only, missing preferences, ambiguity, unsupported stop, and injection for each locale. Add A-B/gravel/named location/mixed units/zero/negative/conflicting target cases beyond the core set. Expectations must satisfy domain invariants when declaring ready. These tests validate fixtures, not model understanding.
+- [x] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Integration --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~PromptEvaluationCorpusTests` must fail while corpus/content are absent.
+- [x] **3. Author corpus, runner, and runbook.** Use real EN/HE/RU text (Unicode is required here). Make live execution sequential, one request per case, no retries; stop on quota or credentials failure and mark remaining cases unrun. Require a loopback BaseUrl in this MVP runner to avoid sending synthetic data or calls to arbitrary servers by mistake. Do not count unrun/error cases as passes. Runbook explains selecting a currently free structured-output model, configuring secrets without committing them, privacy, no billing automation, static fake-test limitations, and the resubmit-full-prompt clarification workflow.
+- [x] **4. Run green and offline runner checks.** `pwsh -NoProfile -File tools/evaluate-prompts.ps1` must report a valid corpus without requiring any server/key. `pwsh -NoProfile -File tools/tests/evaluate-prompts.tests.ps1` must exit 0 after checking invalid corpus/expectations, ready/mismatch reports, auth/quota early stop, and exit codes through its loopback HTTP stub. The harness cleans up its own listener and temporary reports in finally. Run full shared verification. Reconcile README/roadmap with actual delivered behavior, keeping stage 6b and manual road/device checks open.
 - [ ] **5. Perform live qualification only when configured intentionally.** Verify current official model/pricing documentation, then run the explicit opt-in corpus using synthetic prompts only. If credentials/model are unavailable, leave this checkbox incomplete and report live qualification as blocked on configuration, not passed. Do not install a model, create an account, or enable billing to satisfy this step.
 - [ ] **6. Request an independent whole-branch review.** Read the requesting-code-review skill; reviewer checks the complete diff against spec and this plan, including privacy, status semantics, request/response bounds, cancellation, fixture honesty, and existing route regressions. Implement confirmed fixes with focused regression tests and rerun the full suite. If reviewer tooling is unavailable, state that limitation and perform an explicit self-review without claiming independence.
 - [ ] **7. Commit task files and any separate review fixes.** Message: `test: add multilingual interpretation evaluation and runbook`. Report exact commit hashes, fresh test counts, container evidence, remaining live qualification, and clean git status. No push/PR/merge.
 
 ## Execution Evidence
 
-Planning only. No new product tests, container checks, or live model evaluations
-have run for this feature. Record red/green commands and results here as work
-proceeds; leave checks open when verification is unavailable.
+- Baseline: 275 tests passed before implementation.
+- Task 1: RED missing new types; GREEN 315 tests; commit e9a511a.
+- Task 2: RED missing adapter; GREEN 361 tests; commit c13fb27.
+- Task 3: RED 28 endpoint tests (endpoint absent); GREEN 389 tests; commit 851b5d2.
+- Task 3 container: compilation passed with zero warnings/errors, Docker daemon
+  disconnected during publish (EOF). The engine pipe remains unavailable on
+  retry. Container runtime smoke is not verified; step 4 remains open for that reason.
+- Task 4: RED missing corpus and missing runner; GREEN 390 .NET tests plus
+  PowerShell runner tests with a loopback stub. Stub results are not Gemini results.
+- Real local Kestrel smoke passed without keys: health 200, interpretation 503,
+  malformed JSON 400, oversized JSON 413. The temporary process was stopped.
+  This verifies host behavior but does not replace the missing Docker smoke.
+- No live model evaluation: credentials/model have not been intentionally configured
+  for this task. No accounts, billing changes, public deployment, push or PR.
+- Independent review requested; findings and final verification will be recorded below.

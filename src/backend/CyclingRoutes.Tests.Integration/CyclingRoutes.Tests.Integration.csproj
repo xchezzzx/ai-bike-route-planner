@@ -31,4 +31,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\..\docs\evaluation\prompt-interpretation-v1.json" Link="prompt-interpretation-v1.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
