@@ -4,3 +4,30 @@ GET {{CyclingRoutes.Api_HostAddress}}/health
 Accept: text/plain
 
 ###
+
+POST {{CyclingRoutes.Api_HostAddress}}/api/route-intents/validate
+Content-Type: application/json
+Accept: application/json
+
+{
+  "start": { "latitude": 32.0853, "longitude": 34.7818 },
+  "shape": "loop",
+  "profile": "road",
+  "targetDistanceMeters": 40000,
+  "targetDurationSeconds": 7200
+}
+
+###
+
+POST {{CyclingRoutes.Api_HostAddress}}/api/route-intents/validate
+Content-Type: application/json
+Accept: application/problem+json
+
+{
+  "start": { "latitude": 32.0853, "longitude": 34.7818 },
+  "shape": "pointToPoint",
+  "profile": "gravel",
+  "targetDistanceMeters": 0
+}
+
+###
