@@ -4,8 +4,10 @@ An Israel-first cycling route planner, intended to turn English, Hebrew, and
 Russian preferences into rideable routes and downloadable GPX tracks.
 
 Current implementation: .NET 10 API, route-intent validation, provider-backed
-point-to-point road routing, and GPX export. Loop generation, preference ranking,
-gravel-specific routing, AI, persistence, and the React UI are not yet implemented.
+point-to-point road routing, ranked road-loop candidates, GPX export, and a
+Gemini-backed prompt interpretation API with clarifications. Interpretation is
+offline-tested; live model qualification is pending. Gravel-specific routing,
+agentic route refinement, persistence, and the React UI are not yet implemented.
 
 ## Local development
 
@@ -39,7 +41,21 @@ The response includes geometry, estimated metrics, attribution, and a GPX XML
 string to save as UTF-8. Targets are not optimized yet, and unsupported intents
 return 422 rather than silently changing the request. See the
 [generation contract and limitations](docs/api/route-generation.md).
+
+POST /api/routes/candidates searches up to three road-loop candidates and ranks
+them against distance/time targets and elevation preferences. Search length must
+be between 1 and 100 km. The response includes per-candidate metrics, GPX,
+target deviations, and warnings when targets are missed or search is incomplete.
+This bounded search does not guarantee an optimal route or verified road safety.
+See the [candidate contract and limitations](docs/api/route-candidates.md).
+
 Do not expose a configured API publicly before adding authentication/rate limits.
+
+POST /api/route-intents/interpret accepts a prompt, locale (en/he/ru), and optional
+map coordinates. It returns inspectable preferences or clarifications, never a
+generated route. Configure Ai:Gemini:ApiKey and Ai:Gemini:Model separately from
+ORS. Without them this endpoint returns 503; the rest of the API still works.
+See the [interpretation contract, privacy notes and evaluation runbook](docs/api/prompt-interpretation.md).
 
 Tests use xUnit v3 4.0.0 with the explicit `xunit.v3.mtp-off` package, the
 Visual Studio adapter, and VSTest. This preserves the existing GitHub Actions
@@ -65,9 +81,9 @@ chosen hosting service before deployment.
 ## Structure and progress
 
 - Domain: immutable values and RouteIntent invariants, no external dependencies.
-- Application: validation, route generation orchestration, provider interface, GPX.
+- Application: validation, route generation, candidate ranking, provider interface, GPX.
 - Contracts: API request/response DTOs with explicit units.
-- Infrastructure: openrouteservice HTTP adapter; AI/persistence remain future work.
+- Infrastructure: openrouteservice and Gemini HTTP adapters; persistence remains future work.
 - Api: host and HTTP endpoints.
 - Tests.Unit / Tests.Integration: domain rules and in-memory HTTP verification.
 

@@ -22,7 +22,7 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    explicitly unsupported in this first adapter. See [generation contract](api/route-generation.md).
 5. Candidate generation and ranking: loops, distance/time/elevation preferences,
    explainable trade-offs, provider limitations and infeasible-request handling.
-   Implemented locally with bounded three-seed ORS search, pure ranking, exact
+   Implemented and merged through PR #8 with bounded three-seed ORS search, pure ranking, exact
    deduplication and partial results. One live Tel Aviv search returned three
    closed loops within distance tolerance; all GPX files passed schema validation.
    See [candidate contract](api/route-candidates.md). Local verification passes
@@ -31,6 +31,17 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    Manual road/device checks remain separate from automated verification.
 6. Prompt interpretation: RU/EN/HE structured extraction, clarification for
    missing parameters, strict validation, test prompts and provider abstraction.
+   Stage 6a is implemented on the feature branch: Gemini adapter, bounded HTTP
+   endpoint, deterministic clarification policy and a 27-case evaluation corpus.
+   Offline tests pass. After an initial quota-limited evaluation, a paced live
+   run attempted all 25 cases: 15 passed, nine received upstream HTTP 503, and
+   one injection case was falsely rejected as unsupported. No 429 in that run.
+   Full live qualification remains open; see the execution evidence.
+   Prompt contract v2 clarified injection handling: EN/RU/HE injection scenarios
+   received correct successful responses; the latest original 25-case run had
+   11 passes and 14 upstream 503 failures. No mismatches among those 11 responses.
+   See [interpretation contract and runbook](api/prompt-interpretation.md).
+   Stage 6b remains future work:
    AI guides candidate construction/refinement through routing tools; graph-based
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
 7. React interface: start-point map selection, prompt, visible interpreted

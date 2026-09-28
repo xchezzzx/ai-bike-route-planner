@@ -16,6 +16,7 @@ jobs:
   build-test:
     name: Build and test backend
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - name: Checkout
@@ -34,3 +35,31 @@ jobs:
       
     - name: Test
       run: dotnet test src/backend/CyclingRoutes.slnx --configuration Release --no-build --verbosity normal
+
+    - name: Verify evaluation runner without provider calls
+      shell: pwsh
+      run: ./tools/tests/evaluate-prompts.tests.ps1
+
+    - name: Build and smoke-test API container without keys
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker build -f src/backend/CyclingRoutes.Api/Dockerfile -t cycling-routes-ci src/backend
+        container=$(docker run --rm -d -p 127.0.0.1::8080 cycling-routes-ci)
+        trap 'docker stop "$container" >/dev/null' EXIT
+        address=$(docker port "$container" 8080/tcp)
+        base="http://$address"
+        for attempt in {1..30}; do
+          if curl --max-time 2 --fail --silent "$base/health" > /tmp/health; then break; fi
+          sleep 1
+        done
+        test "$(cat /tmp/health)" = Healthy
+        status=$(curl --max-time 10 --silent --show-error -o /tmp/interpret.json -w '%{http_code}' \
+          -H 'Content-Type: application/json' \
+          -d '{"prompt":"A road loop of 20 km","locale":"en"}' \
+          "$base/api/route-intents/interpret")
+        test "$status" = 503
+        jq -e '.code == "ai_not_configured"' /tmp/interpret.json
+        status=$(curl --max-time 10 --silent --show-error -o /dev/null -w '%{http_code}' \
+          -H 'Content-Type: application/json' -d '{' "$base/api/route-intents/interpret")
+        test "$status" = 400
