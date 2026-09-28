@@ -120,7 +120,14 @@ The runner rejects non-loopback addresses and redirects; it never receives a key
 
 There are 25 synthetic cases, including 18 core EN/HE/RU cases. The runner makes
 at most one sequential request per case, stops on configuration/auth/quota failure,
-and records unrun cases explicitly. Reports go under ignored `artifacts/` by
+and records unrun cases explicitly. It waits 5000 ms between completed requests
+by default, keeping this runner below the project's observed 15 RPM limit.
+Override with `-RequestDelayMs` (0..60000); use zero only for local stub tests or
+when intentionally testing a suitable quota. This does not coordinate other
+clients or guarantee TPM/RPD availability. The configured delay is recorded in
+the report and excluded from per-request latency. There is no initial delay,
+delay after the last case, or wait for cases skipped after a quota failure.
+Reports go under ignored `artifacts/` by
 default. Exit 0 requires every case to pass; mismatches, incomplete runs, bad
 responses and report-write failures exit nonzero. The reported model ID is the
 operator-declared configuration, not a value verified against Google's response.

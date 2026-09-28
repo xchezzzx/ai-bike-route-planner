@@ -24,7 +24,12 @@ try {
         Assert-True ($LASTEXITCODE -ne 0) "Invalid corpus accepted: $mutation"
     }
 
-    foreach ($scenario in @('pass', 'mismatch', 'quota', 'auth', 'array-status')) {
+    foreach ($delay in @(-1, 60001)) {
+        & pwsh -NoProfile -File $runner -RequestDelayMs $delay 2>$null
+        Assert-True ($LASTEXITCODE -ne 0) 'Invalid request delay accepted.'
+    }
+
+    foreach ($scenario in @('paced', 'pass', 'mismatch', 'quota', 'auth', 'array-status')) {
         $responses = @($corpus.cases | ForEach-Object {
             $case = $_
             $body = @{ status = $case.expectedStatus; draft = @{}; intent = @{};
@@ -53,8 +58,11 @@ try {
         $expectedCalls = if ($scenario -in @('quota', 'auth')) { 1 } else { $responses.Count }
         $job = Start-ThreadJob -ArgumentList $listener, $responses, $expectedCalls -ScriptBlock {
             param($listener, $responses, $expectedCalls)
+            $gaps = [Collections.Generic.List[double]]::new()
+            $sinceResponse = [Diagnostics.Stopwatch]::new()
             for ($index = 0; $index -lt $expectedCalls; $index++) {
                 $connection = $listener.AcceptTcpClient()
+                if ($index -gt 0) { $gaps.Add($sinceResponse.Elapsed.TotalMilliseconds) }
                 try {
                     $stream = $connection.GetStream()
                     $stream.ReadTimeout = 10000
@@ -73,20 +81,27 @@ try {
                     $stream.Write($head)
                     $stream.Write($payload)
                     $stream.Flush()
+                    $sinceResponse.Restart()
                 } finally { $connection.Dispose() }
             }
-            $expectedCalls
+            @{ calls = $expectedCalls; gaps = $gaps.ToArray() }
         }
         try {
             $reportPath = Join-Path $temp ($scenario + '.json')
-            & pwsh -NoProfile -File $runner -RunLive -BaseUrl "http://127.0.0.1:$port" -ModelId test-model -OutputPath $reportPath
+            $delay = if ($scenario -eq 'paced') { 100 } else { 0 }
+            & pwsh -NoProfile -File $runner -RunLive -BaseUrl "http://127.0.0.1:$port" -ModelId test-model -OutputPath $reportPath -RequestDelayMs $delay
             $exit = $LASTEXITCODE
-            Assert-True ($(if ($scenario -eq 'pass') { $exit -eq 0 } else { $exit -ne 0 })) "Wrong exit for $scenario"
+            Assert-True ($(if ($scenario -in @('pass', 'paced')) { $exit -eq 0 } else { $exit -ne 0 })) "Wrong exit for $scenario"
             $finished = Wait-Job $job -Timeout 15
             Assert-True ($null -ne $finished -and $job.State -eq 'Completed') "Stub did not finish: $scenario"
-            $calls = Receive-Job $job -ErrorAction Stop
-            Assert-True ($calls -eq $expectedCalls) "Wrong call count: $scenario"
+            $observed = Receive-Job $job -ErrorAction Stop
+            Assert-True ($observed.calls -eq $expectedCalls) "Wrong call count: $scenario"
+            if ($scenario -eq 'paced') {
+                Assert-True ($observed.gaps.Count -eq 24) 'Missing request gaps.'
+                Assert-True (@($observed.gaps | Where-Object { $_ -lt 90 }).Count -eq 0) 'Requests were sent without the configured pause.'
+            }
             $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json -AsHashtable
+            Assert-True ($report.requestDelayMs -eq $delay) 'Report omitted configured request delay.'
             Assert-True ($report.results.Count -eq $corpus.cases.Count) 'Report omitted cases.'
             $unrun = @($report.results | Where-Object status -eq 'unrun').Count
             Assert-True ($unrun -eq $corpus.cases.Count - $expectedCalls) 'Unrun cases were counted incorrectly.'
@@ -96,7 +111,7 @@ try {
             Remove-Job $job -Force
         }
     }
-    Write-Output 'Evaluation runner tests passed (offline validation, malformed corpus, pass, mismatch, quota, auth, array-status).'
+    Write-Output 'Evaluation runner tests passed (offline validation, malformed corpus, paced requests, delay bounds, pass, mismatch, quota, auth, array-status).'
 } finally {
     Get-ChildItem -LiteralPath $temp -File | Remove-Item -Force
     Remove-Item -LiteralPath $temp

@@ -4,6 +4,8 @@ param(
     [string]$ModelId,
     [switch]$RunLive,
     [string]$OutputPath,
+    [ValidateRange(0, 60000)]
+    [int]$RequestDelayMs = 5000,
     [string]$CorpusPath = (Join-Path $PSScriptRoot '../docs/evaluation/prompt-interpretation-v1.json')
 )
 $ErrorActionPreference = 'Stop'
@@ -81,6 +83,9 @@ try {
     try {
         foreach ($case in $corpus.cases) {
             if ($stop) { $results.Add(@{ id = $case.id; status = 'unrun' }); continue }
+            if ($results.Count -gt 0 -and $RequestDelayMs -gt 0) {
+                Start-Sleep -Milliseconds $RequestDelayMs
+            }
             $timer = [Diagnostics.Stopwatch]::StartNew()
             $entry = @{ id = $case.id; status = 'error'; expectedStatus = $case.expectedStatus; comparisons = @() }
             $content = [Net.Http.StringContent]::new(($case.request | ConvertTo-Json -Depth 10 -Compress), [Text.Encoding]::UTF8, 'application/json')
@@ -127,7 +132,8 @@ try {
         }
     } finally { $client.Dispose() }
     $report = @{ corpusVersion = $corpus.version; contractVersion = $corpus.contractVersion; declaredModelId = $ModelId;
-        modelIdSource = 'operator-provided API configuration, not provider-verified'; createdAtUtc = [DateTime]::UtcNow.ToString('O'); results = $results.ToArray() }
+        modelIdSource = 'operator-provided API configuration, not provider-verified'; requestDelayMs = $RequestDelayMs;
+        createdAtUtc = [DateTime]::UtcNow.ToString('O'); results = $results.ToArray() }
     $report | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $OutputPath -Encoding utf8
     $passed = @($results | Where-Object status -eq 'passed').Count
     Write-Output "Passed $passed/$($results.Count); report: $OutputPath"
