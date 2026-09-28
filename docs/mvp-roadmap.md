@@ -46,10 +46,12 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
-   Implemented locally with manual input as a Gemini-independent testing path.
-   Verification: 60 unit/component tests, 12 desktop/mobile browser tests and a
+   Implemented and merged through PR #10, with manual input as a
+   Gemini-independent testing path. Verification: 68 unit/component tests,
+   12 desktop/mobile browser tests and a
    live three-candidate ORS search with exact selected-route GPX download.
-   Independent review and PR/main CI gates remain pending. See the
+   Independent review and both PR/main CI workflows passed. The local UI/API
+   launch from the primary checkout passed fresh real-map/RTL checks. See the
    [frontend delivery plan](plans/2026-09-28-minimal-test-ui.md).
 8. Persistence when a concrete use case needs it: PostgreSQL/PostGIS for saved
    requests/routes and caching. Keep authentication and Strava beyond the MVP.
