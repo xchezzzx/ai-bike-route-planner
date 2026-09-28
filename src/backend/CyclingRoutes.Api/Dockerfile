@@ -13,15 +13,19 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["CyclingRoutes.Api/CyclingRoutes.Api.csproj", "CyclingRoutes.Api/"]
+COPY ["CyclingRoutes.Application/CyclingRoutes.Application.csproj", "CyclingRoutes.Application/"]
+COPY ["CyclingRoutes.Contracts/CyclingRoutes.Contracts.csproj", "CyclingRoutes.Contracts/"]
+COPY ["CyclingRoutes.Domain/CyclingRoutes.Domain.csproj", "CyclingRoutes.Domain/"]
+COPY ["CyclingRoutes.Infrastructure/CyclingRoutes.Infrastructure.csproj", "CyclingRoutes.Infrastructure/"]
 RUN dotnet restore "./CyclingRoutes.Api/CyclingRoutes.Api.csproj"
 COPY . .
 WORKDIR "/src/CyclingRoutes.Api"
-RUN dotnet build "./CyclingRoutes.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./CyclingRoutes.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build --no-restore
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./CyclingRoutes.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./CyclingRoutes.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false --no-restore
 
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
