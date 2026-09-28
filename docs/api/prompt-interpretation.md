@@ -125,6 +125,16 @@ default. Exit 0 requires every case to pass; mismatches, incomplete runs, bad
 responses and report-write failures exit nonzero. The reported model ID is the
 operator-declared configuration, not a value verified against Google's response.
 
-Live qualification remains pending until the report exists. Do not call fixture
-or fake-provider test results a multilingual model pass rate. Stage 6b, agentic
+The first live run on 2026-09-28 used operator-declared model
+`gemini-3.1-flash-lite`: one passed case (`ru-stop`), 15 `ai_unavailable` errors,
+one `ai_rate_limited` error, and eight unrun cases after the quota stop. The
+ignored report is `artifacts/prompt-evaluation-20260928T210155-6ed4134d.json`.
+Authentication and one end-to-end interpretation succeeded, but multilingual
+quality is not qualified. Availability errors combine provider 5xx and transport
+failures; this report does not distinguish them. Before rerunning, inspect the
+project's active [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits)
+and usage in AI Studio. Do not enable billing or repeatedly retry to clear this gate.
+
+Live qualification remains pending until the corpus completes successfully.
+Do not call fixture or fake-provider test results a multilingual model pass rate. Stage 6b, agentic
 route refinement, the React UI, and manual road/device checks are separate work.

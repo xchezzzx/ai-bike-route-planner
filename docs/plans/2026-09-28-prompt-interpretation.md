@@ -239,8 +239,17 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
 - Real local Kestrel smoke passed without keys: health 200, interpretation 503,
   malformed JSON 400, oversized JSON 413. The temporary process was stopped.
   Docker runtime behavior was subsequently verified separately as recorded above.
-- No live model evaluation: credentials/model have not been intentionally configured
-  for this task. No accounts, billing changes, public deployment, push or PR.
+- Initial offline delivery made no live model calls. After the user confirmed
+  User Secrets configuration, live evaluation ran on 2026-09-28 with operator-declared
+  model gemini-3.1-flash-lite. One case passed (ru-stop), 15 returned ai_unavailable,
+  and one returned ai_rate_limited; the runner stopped, leaving eight unrun.
+  Report: artifacts/prompt-evaluation-20260928T210155-6ed4134d.json (ignored).
+  Exit code 1; full live qualification is not passed. Availability failures map
+  both provider 5xx and transport errors, so their root cause is not yet isolated.
+  No additional calls or retries were made after the quota stop. The temporary
+  Development API was stopped. User Secrets were loaded by the app, not inspected.
+  Next prerequisite: inspect project/model RPM, TPM, RPD and usage in AI Studio.
+  No accounts, billing changes, public deployment, push or PR.
 - Task 4 corpus/runbook committed as c8029b3.
 - Independent whole-branch review completed with three P2 findings: unresolved
   elevation received an undisclosed default; unrelated questions hid a known
