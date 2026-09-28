@@ -27,7 +27,13 @@ export function buildManual(form: ManualInput, start?: Coordinate, destination?:
     const value = Number(text) * scale;
     if (!Number.isFinite(value)) return invalid(field, 'out_of_range');
     if (value <= 0) return invalid(field, 'must_be_positive');
-    if (field === 'targetDurationSeconds' && (!Number.isSafeInteger(value) || value > 922337203685)) return invalid(field, 'out_of_range');
+    if (field === 'targetDurationSeconds') {
+      // Decimal minutes can produce a value one floating-point step from an integer.
+      const seconds = Math.round(value);
+      const roundoff = Number.EPSILON * Math.abs(value);
+      if (!Number.isSafeInteger(seconds) || seconds <= 0 || seconds > 922337203685 || Math.abs(value - seconds) > roundoff) return invalid(field, 'out_of_range');
+      return seconds;
+    }
     return value;
   };
   const distance = target(form.distance, 1000, 'targetDistanceMeters');

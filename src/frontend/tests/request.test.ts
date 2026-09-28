@@ -15,8 +15,11 @@ describe('request boundary', () => {
   it.each(['0', '-1', 'Infinity', 'NaN', '1e999', 'hello'])('rejects invalid distance %s', distance => {
     expect(() => buildManual({ ...form, distance }, start)).toThrow();
   });
-  it.each(['0', '-1', 'Infinity', '0.001', '1e15'])('rejects invalid duration %s', duration => {
+  it.each(['0', '-1', 'Infinity', '0.001', '0.01', '0.025', '65.60001', '1e15'])('rejects invalid duration %s', duration => {
     expect(() => buildManual({ ...form, duration }, start)).toThrow();
+  });
+  it.each([['4.1', 246], ['8.2', 492], ['16.4', 984], ['32.8', 1968], ['65.6', 3936]])('converts %s minutes despite binary roundoff', (duration, seconds) => {
+    expect(buildManual({ ...form, duration: String(duration) }, start).targetDurationSeconds).toBe(seconds);
   });
   it('requires a target and start; A-B needs a different destination; loop must not hide one', () => {
     expect(() => buildManual({ ...form, distance: '', duration: '' }, start)).toThrow();
