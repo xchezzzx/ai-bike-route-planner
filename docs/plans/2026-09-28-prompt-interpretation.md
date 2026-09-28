@@ -300,3 +300,9 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
   for experimental local use. Suggested mixed/standalone injection coverage was
   added. No secrets, raw upstream error bodies, billing, public deployment, or
   branch-protection bypass were used.
+- Delivery completed through PR #9, squash merged as 69c9557 after PR CI run
+  36469358014 passed. Main CI run 36469573056 also passed. This supersedes the
+  earlier local-only delivery notes; it does not close Task 4 live qualification.
+  The React testing UI adds a manual route path so Gemini availability does not
+  block routing/GPX acceptance. A separate free-tier model smoke timed out; no
+  persistent model, billing or account settings were changed.

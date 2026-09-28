@@ -26,10 +26,10 @@ oleg/ prefix; logical commits, PR, all checks green, squash merge without bypass
 
 ### Task 1: Finish backend delivery
 
-- [ ] Independent final review of prompt interpretation and evaluation scripts.
-- [ ] Add offline runner and no-key Docker smoke to Backend CI; run local suites.
-- [ ] Create/attach PR, verify all CI checks, squash merge, verify main CI.
-- [ ] Keep live model qualification marked incomplete with actual results.
+- [x] Independent final review of prompt interpretation and evaluation scripts.
+- [x] Add offline runner and no-key Docker smoke to Backend CI; run local suites.
+- [x] Create/attach PR, verify all CI checks, squash merge, verify main CI.
+- [x] Keep live model qualification marked incomplete with actual results.
 
 ### Task 2: Build local frontend
 
@@ -41,23 +41,23 @@ existing C# contracts; frontend request builder converts km/min to m/sec and
 omits blank optional fields. RouteMap consumes selected coordinates, selected
 GeneratedRouteResponse geometry, selection mode and onSelect callback.
 
-- [ ] Write failing unit/component tests for request conversion, validation,
+- [x] Write failing unit/component tests for request conversion, validation,
   errors, cancellation/stale responses, unsupported status and RTL; record RED.
-- [ ] Implement typed client, locale dictionary and one-screen workflow from spec.
-- [ ] Implement real map markers/routes, camera fit, map failure status and GPX download.
-- [ ] Add Playwright API-stub workflows: prompt-confirm-loop-download, manual
+- [x] Implement typed client, locale dictionary and one-screen workflow from spec.
+- [x] Implement real map markers/routes, camera fit, map failure status and GPX download.
+- [x] Add Playwright API-stub workflows: prompt-confirm-loop-download, manual
   A-B, provider error, input change while pending and mobile Hebrew.
-- [ ] Run npm test, npm run build, npm run test:e2e; inspect desktop/mobile
+- [x] Run npm test, npm run build, npm run test:e2e; inspect desktop/mobile
   screenshots and real map tiles, fixing clipping/overflow/blank map.
-- [ ] Commit frontend as a coherent tested deliverable.
+- [x] Commit frontend as a coherent tested deliverable.
 
 ### Task 3: CI, local launcher and delivery
 
 **Files:** .github/workflows/frontend-ci.yml, .gitignore, tools/start-local.ps1,
 README.md, docs/frontend/minimal-test-ui-design.md, this plan.
 
-- [ ] Add node_modules/dist/test output ignores and always-triggered Frontend CI.
-- [ ] Add local loopback launcher/run instructions, preserving User Secrets and
+- [x] Add node_modules/dist/test output ignores and always-triggered Frontend CI.
+- [x] Add local loopback launcher/run instructions, preserving User Secrets and
   binding no configured provider to public interfaces. Avoid duplicate servers.
 - [ ] Independent whole-branch review; fix and retest material findings.
 - [ ] Create/attach PR, await every applicable check, squash merge without bypass.
@@ -66,4 +66,22 @@ README.md, docs/frontend/minimal-test-ui-design.md, this plan.
 ## Progress
 
 Planning recorded under user's autonomous authorization. No separate spec
-approval is implied. No frontend implementation or CI completion claimed yet.
+approval is implied. Backend PR #9 merged as 69c9557 after successful PR CI
+(run 36469358014). Fresh local backend suite: 400 tests, no skips; evaluator
+harness: 27 fixtures with pacing/error regression checks. Main CI run
+36469573056 passed, including evaluator and Docker smoke.
+Live Gemini qualification is still open, with provider 503/timeouts recorded;
+it is not silently treated as complete by the frontend plan.
+Frontend implementation passed 60 unit/component tests and 12 Chromium browser
+tests against the production build after rebasing onto current main. Browser
+fixtures cover desktop/mobile, prompt confirmation, manual A-B, stale responses,
+provider failures, Hebrew RTL, real canvas interaction and selected GPX download.
+Real OpenFreeMap tiles were inspected on desktop/mobile, including Hebrew RTL;
+the desktop canvas had 2,429 distinct sampled pixel colors, not a blank canvas.
+A live manual Tel Aviv search returned three ORS loops. Selecting the second
+downloaded its exact GPX: 19,876.5 m and 456 geometry points. Desktop/mobile
+screenshots had no horizontal overflow or page errors. This verifies integration,
+not physical road safety, device compatibility or complete model qualification.
+The local launcher passed start/reuse/stop, occupied-port fallback, cancellation
+cleanup and concurrent-lock checks. Independent whole-branch review and PR/main
+CI delivery gates are still pending.

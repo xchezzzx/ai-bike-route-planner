@@ -31,7 +31,7 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    Manual road/device checks remain separate from automated verification.
 6. Prompt interpretation: RU/EN/HE structured extraction, clarification for
    missing parameters, strict validation, test prompts and provider abstraction.
-   Stage 6a is implemented on the feature branch: Gemini adapter, bounded HTTP
+   Stage 6a is implemented and merged through PR #9: Gemini adapter, bounded HTTP
    endpoint, deterministic clarification policy and a 27-case evaluation corpus.
    Offline tests pass. After an initial quota-limited evaluation, a paced live
    run attempted all 25 cases: 15 passed, nine received upstream HTTP 503, and
@@ -46,10 +46,19 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
+   Implemented locally with manual input as a Gemini-independent testing path.
+   Verification: 60 unit/component tests, 12 desktop/mobile browser tests and a
+   live three-candidate ORS search with exact selected-route GPX download.
+   Independent review and PR/main CI gates remain pending. See the
+   [frontend delivery plan](plans/2026-09-28-minimal-test-ui.md).
 8. Persistence when a concrete use case needs it: PostgreSQL/PostGIS for saved
    requests/routes and caching. Keep authentication and Strava beyond the MVP.
 9. Deployment and CI/CD: container smoke tests, environment configuration,
    hosting secrets, staging deploy, production deploy and basic monitoring.
+   Backend CI includes the evaluator harness and no-key Docker smoke; frontend
+   CI exercises a production build with deterministic API/map browser fixtures.
+   Local loopback launch is available. Public staging/production hosting is not
+   configured; free-tier verification and abuse protection remain prerequisites.
 
 ## Previously proposed service shortlist
 
