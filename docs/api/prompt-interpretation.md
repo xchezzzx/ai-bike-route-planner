@@ -142,6 +142,20 @@ failures; this report does not distinguish them. Before rerunning, inspect the
 project's active [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits)
 and usage in AI Studio. Do not enable billing or repeatedly retry to clear this gate.
 
+After the user supplied project limits (15 RPM, 250K TPM, 500 RPD), a second run
+used a 5000 ms inter-request pause. Report:
+`artifacts/prompt-evaluation-20260928T213547-309fa02d.json` (ignored).
+All 25 cases were attempted: 15 passed, nine returned `ai_unavailable`, and
+`en-injection` mismatched (`unsupported` instead of `ready`). Sanitized HttpClient
+diagnostics confirmed 16 upstream HTTP 200 and nine upstream HTTP 503 responses
+from the requested `gemini-3.1-flash-lite` endpoint. There were no 429 responses
+in this run. This narrows the availability failures to provider HTTP responses,
+but does not establish the cause of the earlier rate-limit error. The injection
+case failed closed with `unsupported_preference`; it did not generate a route.
+No model/schema change or weakened corpus expectation was made to hide that result.
+Next: investigate provider availability and the injection false rejection
+separately, then repeat qualification. No automatic retries or paid fallback.
+
 Live qualification remains pending until the corpus completes successfully.
 Do not call fixture or fake-provider test results a multilingual model pass rate. Stage 6b, agentic
 route refinement, the React UI, and manual road/device checks are separate work.

@@ -33,9 +33,10 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    missing parameters, strict validation, test prompts and provider abstraction.
    Stage 6a is implemented on the feature branch: Gemini adapter, bounded HTTP
    endpoint, deterministic clarification policy and a 25-case evaluation corpus.
-   Offline tests pass. The first configured Gemini evaluation passed one case,
-   encountered 15 availability errors and one quota error, and left eight cases
-   unrun. Full live qualification remains open; see the execution evidence.
+   Offline tests pass. After an initial quota-limited evaluation, a paced live
+   run attempted all 25 cases: 15 passed, nine received upstream HTTP 503, and
+   one injection case was falsely rejected as unsupported. No 429 in that run.
+   Full live qualification remains open; see the execution evidence.
    See [interpretation contract and runbook](api/prompt-interpretation.md).
    Stage 6b remains future work:
    AI guides candidate construction/refinement through routing tools; graph-based

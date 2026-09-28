@@ -248,7 +248,7 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
   both provider 5xx and transport errors, so their root cause is not yet isolated.
   No additional calls or retries were made after the quota stop. The temporary
   Development API was stopped. User Secrets were loaded by the app, not inspected.
-  Next prerequisite: inspect project/model RPM, TPM, RPD and usage in AI Studio.
+  The user subsequently supplied project limits: 15 RPM, 250K TPM, 500 RPD.
   No accounts, billing changes, public deployment, push or PR.
 - Task 4 corpus/runbook committed as c8029b3.
 - Independent whole-branch review completed with three P2 findings: unresolved
@@ -261,3 +261,18 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
   harness passed, including the malformed-status regression. No skipped tests.
 - Final branch is retained locally; no push or PR. The live qualification step
   remains deliberately open, not silently counted as completed.
+- Follow-up: added configurable inter-request pacing (5000 ms default,
+  RequestDelayMs range 0..60000) and report metadata. RED: the new paced-run
+  test failed before the parameter existed. GREEN: loopback tests verified
+  observed request gaps, bounds, reporting, and unchanged quota/auth stop behavior;
+  all 399 .NET tests passed (217 unit, 182 integration). Commit 44be811.
+- Second live run: artifacts/prompt-evaluation-20260928T213547-309fa02d.json,
+  all 25 attempted with 5000 ms pacing, 15 passed, nine availability errors,
+  one mismatch (en-injection: unsupported instead of ready). Safe HttpClient
+  status diagnostics confirmed 16 upstream HTTP 200 and nine upstream HTTP 503
+  responses from gemini-3.1-flash-lite; no HTTP 429 in this run. The old 429's
+  precise cause remains unknown. No credentials or raw provider bodies were
+  inspected or output. Temporary API stopped; evaluation exit code 1.
+- Qualification remains incomplete: provider availability and the injection
+  false rejection need separate investigation. No prompt/schema changes,
+  weakened expectations, automatic retries, or paid fallback were introduced.
