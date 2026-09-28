@@ -116,3 +116,4 @@ try {
     Get-ChildItem -LiteralPath $temp -File | Remove-Item -Force
     Remove-Item -LiteralPath $temp
 }
+exit 0
