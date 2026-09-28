@@ -11,12 +11,15 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    and tested; merged through PR #5.
 3. Application/API boundary: explicit request DTOs with units, mapping into the
    domain, validation errors as ProblemDetails, request cancellation and tests.
-   Implemented and tested on oleg/route-intent-api, submitted separately for
-   review. See [API contract](api/route-intent-validation.md). Incomplete AI
+   Implemented, tested and merged through PR #6.
+   See [API contract](api/route-intent-validation.md). Incomplete AI
    extraction remains future work and must stay distinct from a valid RouteIntent.
 4. First real route: provider interface and one adapter; route geometry,
    metrics and GPX export. Verify actual road/gravel quality on known Israeli
    routes. Start with a reproducible request before adding natural-language input.
+   Point-to-point road adapter and GPX are implemented and submitted for review, with a successful
+   live Tel Aviv request. Manual route-quality/device checks remain; gravel is
+   explicitly unsupported in this first adapter. See [generation contract](api/route-generation.md).
 5. Candidate generation and ranking: loops, distance/time/elevation preferences,
    explainable trade-offs, provider limitations and infeasible-request handling.
 6. Prompt interpretation: RU/EN/HE structured extraction, clarification for

@@ -1,5 +1,20 @@
 @CyclingRoutes.Api_HostAddress = https://localhost:7221
 
+### Real point-to-point road route; requires the server-side ORS key
+POST {{CyclingRoutes.Api_HostAddress}}/api/routes/generate
+Content-Type: application/json
+Accept: application/json
+
+{
+  "start": { "latitude": 32.0853, "longitude": 34.7818 },
+  "destination": { "latitude": 32.1, "longitude": 34.82 },
+  "shape": "pointToPoint",
+  "profile": "road",
+  "targetDistanceMeters": 5000
+}
+
+###
+
 GET {{CyclingRoutes.Api_HostAddress}}/health
 Accept: text/plain
 

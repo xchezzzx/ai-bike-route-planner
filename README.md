@@ -3,10 +3,9 @@
 An Israel-first cycling route planner, intended to turn English, Hebrew, and
 Russian preferences into rideable routes and downloadable GPX tracks.
 
-Current implementation: .NET 10 API health check, a validated route-planning
-domain model, and an HTTP route-intent validation endpoint. Route generation,
-AI, persistence, and the React UI are not yet
-implemented.
+Current implementation: .NET 10 API, route-intent validation, provider-backed
+point-to-point road routing, and GPX export. Loop generation, preference ranking,
+gravel-specific routing, AI, persistence, and the React UI are not yet implemented.
 
 ## Local development
 
@@ -29,6 +28,18 @@ preferences with explicit meters and whole seconds. It returns validated
 parameters (200) or field-level validation codes in ProblemDetails (400).
 This endpoint does not generate or save a route. See the
 [API contract and example](docs/api/route-intent-validation.md).
+
+POST /api/routes/generate builds one point-to-point road route via openrouteservice
+on the current HeiGIT API. Set Routing:OpenRouteService:ApiKey through Visual
+Studio's Manage User Secrets for CyclingRoutes.Api (Development), or through
+Routing__OpenRouteService__ApiKey in the process environment. Do not commit keys.
+Without a key, generation returns 503; health and validation still work.
+
+The response includes geometry, estimated metrics, attribution, and a GPX XML
+string to save as UTF-8. Targets are not optimized yet, and unsupported intents
+return 422 rather than silently changing the request. See the
+[generation contract and limitations](docs/api/route-generation.md).
+Do not expose a configured API publicly before adding authentication/rate limits.
 
 Tests use xUnit v3 4.0.0 with the explicit `xunit.v3.mtp-off` package, the
 Visual Studio adapter, and VSTest. This preserves the existing GitHub Actions
@@ -54,9 +65,9 @@ chosen hosting service before deployment.
 ## Structure and progress
 
 - Domain: immutable values and RouteIntent invariants, no external dependencies.
-- Application: request validation and mapping into the domain.
+- Application: validation, route generation orchestration, provider interface, GPX.
 - Contracts: API request/response DTOs with explicit units.
-- Infrastructure: reserved for routing, AI, and persistence adapters.
+- Infrastructure: openrouteservice HTTP adapter; AI/persistence remain future work.
 - Api: host and HTTP endpoints.
 - Tests.Unit / Tests.Integration: domain rules and in-memory HTTP verification.
 
