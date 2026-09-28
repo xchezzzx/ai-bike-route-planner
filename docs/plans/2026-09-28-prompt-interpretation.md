@@ -14,6 +14,12 @@
 
 **Execution:** Native implementation in this thread, logical local commits, then an independent whole-branch review. Do not push, create a PR, or merge. Update checkboxes only when the corresponding evidence exists.
 
+**Delivery authorization update (2026-09-28):** The user subsequently requested
+autonomous PR creation and merge to main after successful CI. This supersedes
+the original no-push/no-PR instruction above. It does not waive test failures or
+claim complete live model qualification. User also requested finishing this
+plan while implementing the separate minimal testing UI plan.
+
 ## Global Constraints
 
 - Existing validation, A-B generation, loop candidates, and GPX contracts stay unchanged.
@@ -276,3 +282,21 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
 - Qualification remains incomplete: provider availability and the injection
   false rejection need separate investigation. No prompt/schema changes,
   weakened expectations, automatic retries, or paid fallback were introduced.
+- Follow-up v2 (c3478d7): narrowed unsupported preferences to ride requirements,
+  explicitly ignored output/behavior injections while preserving cafe stops.
+  Contract-version consistency tests were RED before metadata/prompt update.
+  Original expectations unchanged. Separate en-injection probe passed; ru/he
+  injection cases passed in the full run. Original 25-case v2 run: 11 passed,
+  14 upstream 503, no semantic mismatches among successful responses. Report:
+  artifacts/prompt-evaluation-20260928T215154-65bd1d6c.json. Qualification remains open.
+- Added two non-core permanent injection guards (mixed cafe stop, standalone
+  injection). Corpus coverage test RED then GREEN. 400 .NET tests passed
+  (217 unit, 183 integration), and the updated 27-case stub harness passed.
+- CI now runs the harness and no-key Docker smoke. GitHub Actions exposed
+  inherited LASTEXITCODE=1 after intentionally failing child tests; explicit
+  harness exit 0 fixed it (c876412), verified with the Actions-style wrapper.
+  CI run 36468276743 passed all steps. Subsequent commits require their own checks.
+- Independent pre-merge and scoped follow-up reviews found no material blockers
+  for experimental local use. Suggested mixed/standalone injection coverage was
+  added. No secrets, raw upstream error bodies, billing, public deployment, or
+  branch-protection bypass were used.

@@ -7,6 +7,19 @@ namespace CyclingRoutes.Tests.Integration;
 public class PromptEvaluationCorpusTests
 {
 	[Fact]
+	public void Corpus_CoversMixedAndStandaloneInjection()
+	{
+		using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));
+		var cases = json.RootElement.GetProperty("cases").EnumerateArray().ToArray();
+		var mixed = Assert.Single(cases, x => x.GetProperty("id").GetString() == "en-injection-with-stop");
+		Assert.Equal("unsupported", mixed.GetProperty("expectedStatus").GetString());
+		Assert.Contains(mixed.GetProperty("expectedLimitations").EnumerateArray(), x => x.GetString() == "unsupported_preference");
+		var standalone = Assert.Single(cases, x => x.GetProperty("id").GetString() == "en-injection-only");
+		Assert.Equal("needsClarification", standalone.GetProperty("expectedStatus").GetString());
+		Assert.Equal(JsonValueKind.Null, standalone.GetProperty("expectedFields").GetProperty("intent").ValueKind);
+	}
+
+	[Fact]
 	public void Corpus_HasExplicitMultilingualExpectationsAndValidReadyIntents()
 	{
 		using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));

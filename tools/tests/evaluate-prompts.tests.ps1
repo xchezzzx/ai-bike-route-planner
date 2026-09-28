@@ -97,7 +97,7 @@ try {
             $observed = Receive-Job $job -ErrorAction Stop
             Assert-True ($observed.calls -eq $expectedCalls) "Wrong call count: $scenario"
             if ($scenario -eq 'paced') {
-                Assert-True ($observed.gaps.Count -eq 24) 'Missing request gaps.'
+                Assert-True ($observed.gaps.Count -eq $corpus.cases.Count - 1) 'Missing request gaps.'
                 Assert-True (@($observed.gaps | Where-Object { $_ -lt 90 }).Count -eq 0) 'Requests were sent without the configured pause.'
             }
             $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json -AsHashtable

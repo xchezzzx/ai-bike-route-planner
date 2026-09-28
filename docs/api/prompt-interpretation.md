@@ -118,7 +118,7 @@ HTTP-only development launch, choose an unused port and explicitly set
 `ASPNETCORE_URLS` to `http://127.0.0.1:<port>` with `--no-launch-profile` instead.
 The runner rejects non-loopback addresses and redirects; it never receives a key.
 
-There are 25 synthetic cases, including 18 core EN/HE/RU cases. The runner makes
+There are 27 synthetic cases, including 18 core EN/HE/RU cases. The runner makes
 at most one sequential request per case, stops on configuration/auth/quota failure,
 and records unrun cases explicitly. It waits 5000 ms between completed requests
 by default, keeping this runner below the project's observed 15 RPM limit.
@@ -155,6 +155,20 @@ case failed closed with `unsupported_preference`; it did not generate a route.
 No model/schema change or weakened corpus expectation was made to hide that result.
 Next: investigate provider availability and the injection false rejection
 separately, then repeat qualification. No automatic retries or paid fallback.
+
+Contract `prompt-interpretation-v2` clarifies that behavioral/output instructions
+are not ride preferences, while actual ride requirements (including cafe stops)
+must still be reported. Dataset filename/version remain v1; contractVersion tracks
+the changed system prompt. Two additional non-core cases cover mixed injection
+with a cafe stop and standalone injection without ride preferences.
+
+A v2 run of the original 25 cases on 2026-09-28 returned 11 passes and 14
+upstream HTTP 503 failures, with no semantic mismatches among returned results:
+`artifacts/prompt-evaluation-20260928T215154-65bd1d6c.json` (ignored). Separate
+probes confirmed en-injection ready; ru/he injection passed in the full run.
+The separate probe set also encountered one timeout and two 503 failures.
+This is evidence of improvement, not full qualification or guaranteed injection
+resistance. All original expectations remain unchanged.
 
 Live qualification remains pending until the corpus completes successfully.
 Do not call fixture or fake-provider test results a multilingual model pass rate. Stage 6b, agentic
