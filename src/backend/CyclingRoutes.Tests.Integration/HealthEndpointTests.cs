@@ -21,8 +21,8 @@ public class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 		});
 
 		// Act
-		using var response = await client.GetAsync("/health");
-		var content = await response.Content.ReadAsStringAsync();
+		using var response = await client.GetAsync("/health", TestContext.Current.CancellationToken);
+		var content = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
 		// Assert
 		Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
