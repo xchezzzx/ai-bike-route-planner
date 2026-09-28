@@ -22,7 +22,7 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    explicitly unsupported in this first adapter. See [generation contract](api/route-generation.md).
 5. Candidate generation and ranking: loops, distance/time/elevation preferences,
    explainable trade-offs, provider limitations and infeasible-request handling.
-   Implemented locally with bounded three-seed ORS search, pure ranking, exact
+   Implemented and merged through PR #8 with bounded three-seed ORS search, pure ranking, exact
    deduplication and partial results. One live Tel Aviv search returned three
    closed loops within distance tolerance; all GPX files passed schema validation.
    See [candidate contract](api/route-candidates.md). Local verification passes
