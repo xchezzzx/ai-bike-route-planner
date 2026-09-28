@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 function Assert-Corpus($corpus) {
-    if ($corpus.version -ne 1 -or $corpus.contractVersion -ne 'prompt-interpretation-v1') { throw 'Unsupported corpus version.' }
+    if ($corpus.version -ne 1 -or $corpus.contractVersion -ne 'prompt-interpretation-v2') { throw 'Unsupported corpus version.' }
     $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($case in $corpus.cases) {
         if ([string]::IsNullOrWhiteSpace($case.id) -or -not $ids.Add($case.id)) { throw 'Invalid or duplicate case ID.' }

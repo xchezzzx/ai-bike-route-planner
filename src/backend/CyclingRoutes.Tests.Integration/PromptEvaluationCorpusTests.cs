@@ -11,7 +11,7 @@ public class PromptEvaluationCorpusTests
 	{
 		using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));
 		var root = json.RootElement;
-		Assert.Equal("prompt-interpretation-v1", root.GetProperty("contractVersion").GetString());
+		Assert.Equal("prompt-interpretation-v2", root.GetProperty("contractVersion").GetString());
 		var cases = root.GetProperty("cases").EnumerateArray().ToArray();
 		Assert.True(cases.Length >= 25);
 		Assert.Equal(cases.Length, cases.Select(x => x.GetProperty("id").GetString()).Distinct().Count());

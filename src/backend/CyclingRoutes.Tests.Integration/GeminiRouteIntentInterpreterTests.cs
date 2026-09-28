@@ -39,7 +39,9 @@ public class GeminiRouteIntentInterpreterTests
 			using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
 			var root = json.RootElement;
 			Assert.False(root.TryGetProperty("tools", out _));
-			Assert.Contains("prompt-interpretation-v1", root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
+			using var corpus = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));
+			Assert.Equal("prompt-interpretation-v2", corpus.RootElement.GetProperty("contractVersion").GetString());
+			Assert.Contains(corpus.RootElement.GetProperty("contractVersion").GetString()!, root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
 			Assert.Equal("user", root.GetProperty("contents")[0].GetProperty("role").GetString());
 			Assert.Contains("ride", root.GetProperty("contents")[0].GetProperty("parts")[0].GetProperty("text").GetString());
 			var config = root.GetProperty("generationConfig");

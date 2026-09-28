@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "contractVersion": "prompt-interpretation-v1",
+  "contractVersion": "prompt-interpretation-v2",
   "cases": [
     {
       "id": "en-complete",
