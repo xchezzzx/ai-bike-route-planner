@@ -26,10 +26,10 @@ oleg/ prefix; logical commits, PR, all checks green, squash merge without bypass
 
 ### Task 1: Finish backend delivery
 
-- [ ] Independent final review of prompt interpretation and evaluation scripts.
-- [ ] Add offline runner and no-key Docker smoke to Backend CI; run local suites.
-- [ ] Create/attach PR, verify all CI checks, squash merge, verify main CI.
-- [ ] Keep live model qualification marked incomplete with actual results.
+- [x] Independent final review of prompt interpretation and evaluation scripts.
+- [x] Add offline runner and no-key Docker smoke to Backend CI; run local suites.
+- [x] Create/attach PR, verify all CI checks, squash merge, verify main CI.
+- [x] Keep live model qualification marked incomplete with actual results.
 
 ### Task 2: Build local frontend
 
@@ -66,4 +66,10 @@ README.md, docs/frontend/minimal-test-ui-design.md, this plan.
 ## Progress
 
 Planning recorded under user's autonomous authorization. No separate spec
-approval is implied. No frontend implementation or CI completion claimed yet.
+approval is implied. Backend PR #9 merged as 69c9557 after successful PR CI
+(run 36469358014). Fresh local backend suite: 400 tests, no skips; evaluator
+harness: 27 fixtures with pacing/error regression checks. Main CI run
+36469573056 passed, including evaluator and Docker smoke.
+Live Gemini qualification is still open, with provider 503/timeouts recorded;
+it is not silently treated as complete by the frontend plan.
+Frontend implementation and verification are in progress in an isolated worktree.

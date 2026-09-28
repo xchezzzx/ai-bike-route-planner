@@ -5,9 +5,66 @@ Russian preferences into rideable routes and downloadable GPX tracks.
 
 Current implementation: .NET 10 API, route-intent validation, provider-backed
 point-to-point road routing, ranked road-loop candidates, GPX export, and a
-Gemini-backed prompt interpretation API with clarifications. Interpretation is
-offline-tested; live model qualification is pending. Gravel-specific routing,
-agentic route refinement, persistence, and the React UI are not yet implemented.
+Gemini-backed prompt interpretation API with clarifications, and a local React
+testing interface with map selection, manual preferences, candidates and GPX.
+Interpretation is offline-tested; full live model qualification remains pending
+because of provider availability. Gravel-specific routing, agentic route
+refinement, persistence and public deployment are not yet implemented.
+
+## Browser testing
+
+Install .NET 10 SDK, Node.js 24 and PowerShell 7.4+. Keep the ORS and Gemini
+keys in the API project's User Secrets, never in frontend variables. Start both
+loopback-only servers from the repository root:
+
+```powershell
+pwsh -NoProfile -File tools/start-local.ps1
+```
+
+The launcher builds the backend, installs frontend packages if absent and prints
+the actual browser URL (normally http://127.0.0.1:5173). It chooses another port
+if a preferred port is occupied. Logs and a PID/start-time manifest are under
+ignored `artifacts/`. Run it again to display the existing owned session, or stop:
+
+```powershell
+pwsh -NoProfile -File tools/start-local.ps1 -Stop
+```
+
+Select start/destination on the map or enter coordinates. Prompt mode interprets
+the text first; review its preferences and explicitly generate a route. Manual
+mode validates parameters and does not call Gemini. Both modes use real ORS
+geometry, show provider warnings and download the selected GPX without another
+provider call. No prompts or route history are stored by the UI.
+
+The language selector supports English, Russian and Hebrew (RTL). MapLibre uses
+OpenFreeMap tiles; loading a map sends viewport/tile requests to that external
+service. Map and route-provider attribution remain visible. A tile/WebGL failure
+does not disable numeric input or GPX download. Check road access and conditions
+yourself; generated routes are not safety-certified.
+
+Frontend-only development (run the backend separately on 127.0.0.1:5080):
+
+```powershell
+npm --prefix src/frontend ci
+npm --prefix src/frontend run dev
+```
+
+`BACKEND_URL` configures only the local Vite proxy, not a provider key. The proxy
+accepts loopback HTTP URLs only. The production build expects same-origin `/api`;
+cloud hosting/authentication/rate limits are a later deployment step.
+
+```powershell
+npm --prefix src/frontend test
+npm --prefix src/frontend run build
+npm --prefix src/frontend exec -- playwright install chromium
+npm --prefix src/frontend run test:e2e
+```
+
+Browser CI uses deterministic API/map fixtures and consumes no provider quota.
+Backend CI also tests the evaluation runner and a no-key Docker container.
+Both workflows run for main PRs/pushes; neither is a cloud deployment pipeline.
+See the [frontend design](docs/frontend/minimal-test-ui-design.md) and
+[implementation plan](docs/plans/2026-09-28-minimal-test-ui.md).
 
 ## Local development
 
@@ -71,7 +128,7 @@ With Docker Desktop's Linux engine running, use src/backend as build context:
 
 ```powershell
 docker build -f src/backend/CyclingRoutes.Api/Dockerfile -t cycling-routes-api src/backend
-docker run --rm -p 8080:8080 cycling-routes-api
+docker run --rm -p 127.0.0.1:8080:8080 cycling-routes-api
 ```
 
 The standalone container serves HTTP on port 8080; no TLS certificate is

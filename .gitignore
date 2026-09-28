@@ -65,3 +65,10 @@ nunit-*.xml
 *.suo
 *.user
 *slnx.sqlite
+
+# Frontend and machine-local environment overrides
+node_modules/
+dist/
+playwright-report/
+.env.*
+!.env.example
