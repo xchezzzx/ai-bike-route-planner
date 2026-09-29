@@ -98,8 +98,9 @@ lanes or legal access, and it does not change the ORS routing profile.
 3. Road-loop quality now takes priority following the negative 40 km experiment:
    assess surface evidence and exact retracing, select zero to three near-target
    candidates, and expose uncertainty/exclusions in both search modes. Scope
-   approved in conversation; the [written design](superpowers/specs/2026-09-29-road-loop-quality-design.md)
-   awaits review and is not implemented. Controlled road-network waypoint
+   and [written design](superpowers/specs/2026-09-29-road-loop-quality-design.md)
+   approved; the [implementation plan](superpowers/plans/2026-09-29-road-loop-quality.md)
+   awaits review. Product changes are not implemented. Controlled road-network waypoint
    construction follows as a separate prototype, not a promised engine migration.
 4. Stage 6b: bounded AI-guided candidate construction/refinement using routing
    tools, with application-owned budgets and unchanged user constraints.

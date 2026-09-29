@@ -1,6 +1,7 @@
 # Road-loop quality assessment and candidate selection
 
-Status: proposed written design; implementation awaits review.
+Status: written design approved by the user on 2026-09-29. Implementation plan
+review is next; no product implementation has started.
 Date: 2026-09-29.
 
 ## Intent and scope
