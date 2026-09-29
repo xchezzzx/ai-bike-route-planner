@@ -70,7 +70,8 @@ unrelated processes. Debug verification and isolated CI remain available.
 The refinement harness passed all 18 loopback-fixture scenarios, v1 rejection,
 and unchanged-corpus checks, with no live provider calls.
 
-The new contract has **zero live calls**. A separately authorized v2 corpus and
+At the end of the local correction, the new contract had **zero live calls**.
+The subsequent authorized run is recorded below. A complete v2 corpus and
 corrected equal-budget four-city comparison are still required before merge.
 Restart/rebuild the tested backend to the v2 revision before any later comparison;
 an already-running v1 backend is not v2 qualification. Positive route-quality
@@ -78,3 +79,33 @@ claims/default-on remain separate from provider-contract acceptance.
 
 References: [Gemini JSON schema support](https://ai.google.dev/api/generate-content#v1beta.GenerationConfig),
 [thinking and output token limits](https://ai.google.dev/gemini-api/docs/generate-content/thinking).
+
+## First authorized v2 live run: 2026-09-29 15:37 UTC
+
+The user subsequently authorized up to 10 Gemini and 24 ORS calls, sequentially
+with no automatic retries, with the advisor corpus preceding route comparison.
+The freshly built v2 adapter at `8f3831eadf8abbf90f8ab1ad60a47e16daec1f67` ran
+through the integration harness, not the already-running development API.
+
+Local report:
+`artifacts/advisor-qualification-20260929T153722-0ced7bd1bfd346489411e834e080bc16.json`.
+
+| Case | Result | Evidence |
+| --- | --- | --- |
+| matching-targets | passed | Stop with null seed and length; 2964 ms |
+| too-long | error | `unavailable`, `httpError`, HTTP 503; 2125 ms |
+| too-short | unrun | Stopped at the preceding failure |
+| duration-only | unrun | Stopped at the preceding failure |
+| unknown-ascent | unrun | Stopped at the preceding failure |
+| conflicting-extreme-observations | unrun | Stopped at the preceding failure |
+
+Outcome: **not qualified**. The former contradictory-stop scenario passed once,
+but neither the search branch nor the full corpus is live-qualified. HTTP 503
+was returned by the provider; this run does not identify its underlying cause.
+It is not evidence of malformed v2 output and is not counted as success.
+
+Actual use of this new budget: **2 Gemini, 0 ORS**. Remaining allowance is at most
+8 Gemini and 24 ORS; unused allowance is not an instruction to retry automatically.
+No comparison, application-code change, service restart, billing change, or merge
+was performed. PR #15 remains Draft. Both workflows on code revision `8f3831e`
+were green; green CI does not replace the failed/incomplete live gate.

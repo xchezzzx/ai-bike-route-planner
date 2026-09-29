@@ -120,3 +120,8 @@ remain historical evidence. The user authorized only six additional Gemini
 calls and no ORS calls; all six were used on v1 diagnosis. No live calls are
 authorized for v2 in this change. The v2 corpus and corrected four-city comparison
 remain required before merge; offline success cannot replace them.
+
+Subsequent approval allowed up to 10 Gemini and 24 ORS calls. The first v2 run
+used two Gemini calls: stop passed, then search received HTTP 503 and execution
+stopped. No ORS comparison or automatic retry followed. See the diagnostic
+record for the remaining allowance; qualification and merge remain pending.

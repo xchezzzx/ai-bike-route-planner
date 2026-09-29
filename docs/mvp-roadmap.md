@@ -60,6 +60,9 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    and truncated responses. The user approved the local `route-search-v2`
    correction; live v2 qualification and the corrected comparison remain pending.
    See [diagnosis and correction](evaluation/route-refinement-diagnostics-2026-09-29.md).
+   First authorized v2 live run at `8f3831e`: one stop case passed, one search
+   case received provider HTTP 503, four were unrun after fail-fast. Used two
+   Gemini calls and zero ORS; no retries or comparison. Merge remains blocked.
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
    Implemented and merged through PR #10, with manual input as a

@@ -66,7 +66,8 @@ or geographic reasoning. Offline tests and review fixes pass, but the first
 [live qualification](../evaluation/route-refinement-2026-09-29.md) failed. Keep
 the PR unmerged and the feature experimental; do not claim quality improvement.
 The [v2 correction](../evaluation/route-refinement-diagnostics-2026-09-29.md)
-is locally tested only; it has not received any live provider calls.
+passed its first live stop case, then the provider returned HTTP 503 on the search
+case. Four cases remain unrun; the full live gate and route comparison are pending.
 
 ## Road quality integration (road-v1)
 
