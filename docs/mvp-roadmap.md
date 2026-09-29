@@ -99,8 +99,12 @@ lanes or legal access, and it does not change the ORS routing profile.
    assess surface evidence and exact retracing, select zero to three near-target
    candidates, and expose uncertainty/exclusions in both search modes. Scope
    and [written design](superpowers/specs/2026-09-29-road-loop-quality-design.md)
-   approved; the [implementation plan](superpowers/plans/2026-09-29-road-loop-quality.md)
-   awaits review. Product changes are not implemented. Controlled road-network waypoint
+   and [implementation plan](superpowers/plans/2026-09-29-road-loop-quality.md)
+   approved and implemented on the feature branch, not merged. Evidence parsing,
+   shared selection, API/UI exclusions and empty-result handling pass local gates.
+   Offline replay retained 1/10 saved alternatives; this is filtering, not proof
+   of improved construction or all-paved roads. See the
+   [verification report](evaluation/road-quality-2026-09-29.md). Controlled road-network waypoint
    construction follows as a separate prototype, not a promised engine migration.
 4. Stage 6b: bounded AI-guided candidate construction/refinement using routing
    tools, with application-owned budgets and unchanged user constraints.

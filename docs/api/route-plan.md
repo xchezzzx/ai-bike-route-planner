@@ -26,7 +26,7 @@ actual ORS calls. Each attempt has `seed`, `requestedLengthMeters`, `outcome`,
 - Reason: `distance`, `duration`, `elevation`, `explore`, `stop`; actual initial/fallback calls use `explore`.
 - Attempt failure: null or the existing application-owned routing problem code.
 
-Seeds 1 and 2 precede advice. Matching targets with balanced elevation skip AI.
+Seeds 1 and 2 precede advice. A retained road-v1 candidate with balanced elevation skips AI.
 No usable initial candidates skip AI and try seed 3. Otherwise one advisor can
 stop or propose a fresh seed 3..16 and length within both 1000..100000 metres
 and 0.5..1.5 of initial. Invalid proposals are rejected, never clamped. Failure
@@ -54,7 +54,8 @@ Not a safety/access/traffic guarantee; not support for gravel, stops, exclusions
 or geographic reasoning. Offline tests and review fixes pass, but the first
 [live qualification](../evaluation/route-refinement-2026-09-29.md) failed. Keep
 the PR unmerged and the feature experimental; do not claim quality improvement.
-# Road quality integration (road-v1)
+
+## Road quality integration (road-v1)
 
 The nested search now uses the same quality/selection contract as
 [/candidates](route-candidates.md). An in-tolerance but surface-excluded route no

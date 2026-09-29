@@ -1,8 +1,8 @@
 # Road loop candidates
 
 POST /api/routes/candidates generates up to three provider-backed road loops and
-ranks unique results. This is a bounded search, not a guarantee of an optimal,
-distinct-road, safe or target-matching route. The existing A-B endpoint remains
+ranks eligible unique results. This is a bounded search, not a guarantee of finding
+an optimal, distinct-road, safe or target-matching route. The existing A-B endpoint remains
 available; see [point-to-point generation](route-generation.md).
 
 ## Request
@@ -42,7 +42,9 @@ policy; the upper bound follows the hosted ORS round-trip limit.
 
 ## Response
 
-200 always contains a nonempty candidates array in ranked order.
+200 contains zero to three eligible `candidates` in ranked order. A valid search
+with no eligible result includes `excludedCandidates` and
+`no_candidate_meets_requirements`; it is not a provider error.
 
 | Field | Meaning |
 | --- | --- |
@@ -54,8 +56,10 @@ policy; the upper bound follows the hosted ORS round-trip limit.
 | candidates[].assessment.distanceDeltaMeters | Actual minus target; null if distance not requested |
 | candidates[].assessment.durationDeltaSeconds | Actual minus target; null if time not requested |
 | candidates[].assessment.targetsMatched | Every supplied target within inclusive 10% tolerance |
-| candidates[].assessment.score | 0..1, lower is better; not a probability/confidence |
+| candidates[].assessment.score | Base score plus remaining-repeat penalty; lower is better, not a probability/confidence |
+| candidates[].assessment.quality | Road-v1 geometry-based evidence and retracing metrics, described below |
 | candidates[].route | Same object shape as GeneratedRouteResponse: geometry, metrics, attribution, warnings, gpx |
+| excludedCandidates[] | Seed, provider distance/duration, assessment/quality and fixed reasons; no geometry/GPX |
 
 Each candidate carries its own GPX 1.1 string. Save that string as UTF-8 without
 another provider request. GPX preserves the returned point order and optional
@@ -86,8 +90,9 @@ When all known ascents are zero, their elevation penalty is zero. Missing ascent
 gets penalty 1 and elevation_data_unavailable for minimize/seekClimbs; it is
 never treated as zero ascent. Normalization happens after deduplication.
 
-Matching candidates precede all nonmatching candidates, regardless of score.
-Within each group, sort by score then seed. Elevation preference selects among
+The road-v1 selector removes target failures and road-policy exclusions, then
+adds `0.2 * remainingRepeatedMeters / geometryLengthMeters` to the base score.
+Retained candidates sort by that score then seed. Elevation preference selects among
 the sampled candidates; it does not change road access rules or guarantee a
 specific ascent. Conflicting time/distance requests are not silently rewritten.
 
@@ -96,19 +101,21 @@ specific ascent. Conflicting time/distance requests are not silently rewritten.
 | Warning | Location and meaning |
 | --- | --- |
 | candidate_search_limited | Always at search level; only a small sample was explored |
-| candidate_generation_incomplete | Search stopped because of a provider failure/deadline, but usable results exist |
+| candidate_generation_incomplete | Search stopped because of a provider failure/deadline, but valid geometry was acquired |
 | routing_* code | Search-level safe failure reason accompanying incomplete results |
-| no_candidate_within_tolerance | None of the returned candidates meets every target |
-| targets_not_met | Individual route misses at least one target |
+| no_candidate_within_tolerance | None of the acquired candidates meets every target |
+| candidates_excluded | One or more acquired candidates failed selection requirements |
+| no_candidate_meets_requirements | No selectable candidates remain |
+| targets_not_met | Exclusion reason: individual route misses at least one target |
 | elevation_data_unavailable | Individual route lacks ascent for minimize/seekClimbs ranking |
 
 NoRoute consumes an attempt and continues. Other provider failures stop new
-calls. With previous usable results, return 200, rank those results and include
+calls. With previous valid acquired geometry, return 200, select from those results and include
 candidate_generation_incomplete plus the public failure code. Three processed
 seeds with duplicates or NoRoute are not an interrupted search. Do not retry
 automatically to fill the list.
 
-Without any usable candidate, return ProblemDetails with code:
+Without any valid acquired geometry, return ProblemDetails with code:
 
 | HTTP | Codes |
 | --- | --- |
@@ -141,7 +148,8 @@ tel-aviv-candidates-20260928-181717. Automated tests use no live API key.
 Manual road/access/safety checks and Garmin/Wahoo import remain outstanding.
 Israel is the initial test region, not an enforced geofence. See the
 [approved design and provider sources](route-candidates-design.md).
-# Quality selection (road-v1)
+
+## Quality selection (road-v1)
 
 The current response returns only candidates within all requested target tolerances
 (inclusive +/-10%) and the road-quality limits. `excludedCandidates` contains
@@ -161,4 +169,3 @@ remaining-repeat penalty used in ordering. See the
 Partial provider failures remain warnings even if no candidate survives. The
 combined retained/excluded set contains at most three unique acquired candidates.
 Deploy backend/frontend together: older clients reject the newly valid empty array.
-Earlier examples below illustrate the pre-quality contract and omit these additions.
