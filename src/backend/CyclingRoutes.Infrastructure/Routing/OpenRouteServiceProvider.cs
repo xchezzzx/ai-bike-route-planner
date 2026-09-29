@@ -15,11 +15,12 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 		SendAsync(new
 		{
 			coordinates = new[] { new[] { start.Longitude, start.Latitude }, new[] { destination.Longitude, destination.Latitude } },
+			extra_info = new[] { "surface", "waytype" },
 			elevation = true,
 			instructions = false,
 			units = "m",
 			options = new { avoid_features = new[] { "ferries", "fords", "steps" } }
-		}, cancellationToken);
+		}, cancellationToken, includeEvidence: true);
 
 	public Task<RoutedPath> GetRoadLoopAsync(GeoCoordinate start, double requestedLengthMeters, int seed, CancellationToken cancellationToken) =>
 		SendAsync(new
