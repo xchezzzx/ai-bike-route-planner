@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTheme } from 'next-themes';
 import { Bike, Check, Download, LoaderCircle, MapPin, RefreshCw, Route, Search, Square, X } from 'lucide-react';
 import { request } from './api';
 import { codeText, fieldText, quantity, t, type MessageKey } from './i18n';
 import { readCoordinate } from './request';
 import RouteMap from './RouteMap';
+import ThemeControl from './ThemeControl';
 import type { CoordinateInput, Draft, Locale } from './types';
 import { usePlanner } from './usePlanner';
 import { ExcludedRoutes, RouteQuality } from './RoadQualityPanel';
 
 export default function App() {
+  const { resolvedTheme } = useTheme();
   const planner = usePlanner();
   const { inputs, update, interpretation, intent, pending, error, results, selected } = planner;
   const locale = inputs.locale;
@@ -61,6 +64,7 @@ export default function App() {
     <header className="app-header">
       <h1><Bike size={24} aria-hidden="true" />{text('app')}</h1>
       <div className="header-actions">
+        <ThemeControl locale={locale} />
         <div className={`health ${health}`} role="status"><span className="health-dot" /><span>{text(health)}</span><button type="button" className="icon-button" title={text('checkHealth')} aria-label={text('checkHealth')} onClick={() => void checkHealth()}><RefreshCw size={15} /></button></div>
         <label className="language"><span className="sr-only">{text('language')}</span><select aria-label={text('language')} dir="ltr" value={locale} onChange={event => update({ locale: event.target.value as Locale })}><option value="en">EN</option><option value="ru">RU</option><option value="he">HE</option></select></label>
       </div>
@@ -97,7 +101,7 @@ export default function App() {
         </div>
       </aside>
       <div className="map-and-results">
-        <RouteMap locale={locale} start={point('start')} destination={isLoop ? undefined : point('destination')} pick={activePick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => update({ [activePick]: { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) } })} />
+        <RouteMap locale={locale} theme={resolvedTheme === 'dark' ? 'dark' : 'light'} start={point('start')} destination={isLoop ? undefined : point('destination')} pick={activePick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => update({ [activePick]: { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) } })} />
         {results ? <section className="results" aria-label={text('routes')}>
           <div className="results-heading"><h2>{text('routes')} <span className="count">{results.candidates.length}</span></h2>{chosen && <button type="button" className="icon-button download" title={text('download')} aria-label={text('download')} onClick={download}><Download size={20} /><span dir="ltr">GPX</span></button>}</div>
           {chosen ? <>
