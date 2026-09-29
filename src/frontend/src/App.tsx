@@ -6,6 +6,7 @@ import { readCoordinate } from './request';
 import RouteMap from './RouteMap';
 import type { CoordinateInput, Draft, Locale } from './types';
 import { usePlanner } from './usePlanner';
+import { ExcludedRoutes, RouteQuality } from './RoadQualityPanel';
 
 export default function App() {
   const planner = usePlanner();
@@ -16,6 +17,8 @@ export default function App() {
   const [health, setHealth] = useState<MessageKey>('apiChecking');
   const healthRequest = useRef<AbortController | null>(null);
   const chosen = results?.candidates[selected];
+  const isLoop = inputs.manual.shape === 'loop';
+  const activePick = isLoop ? 'start' : pick;
 
   async function checkHealth() {
     healthRequest.current?.abort();
@@ -66,13 +69,14 @@ export default function App() {
       <aside className="controls" aria-label={text('request')}>
         <section className="control-section">
           <h2><MapPin size={17} />{text('coordinates')}</h2>
-          <fieldset className="segmented"><legend className="sr-only">{text('pickPoint')}</legend>{(['start', 'destination'] as const).map(field => <label key={field}><input type="radio" name="pick" checked={pick === field} onChange={() => setPick(field)} /><span>{text(field)}</span></label>)}</fieldset>
-          {coordinates('start')}{coordinates('destination')}
+          <fieldset className="segmented"><legend className="sr-only">{text('shape')}</legend>{(['loop', 'pointToPoint'] as const).map(shape => <label key={shape}><input type="radio" name="shape" checked={inputs.manual.shape === shape} onChange={() => { setPick('start'); update({ manual: { ...inputs.manual, shape } }); }} /><span>{codeText(locale, shape)}</span></label>)}</fieldset>
+          {!isLoop && <fieldset className="segmented"><legend className="sr-only">{text('pickPoint')}</legend>{(['start', 'destination'] as const).map(field => <label key={field}><input type="radio" name="pick" checked={activePick === field} onChange={() => setPick(field)} /><span>{text(field)}</span></label>)}</fieldset>}
+          {coordinates('start')}{!isLoop && coordinates('destination')}
         </section>
         <section className="control-section">
           <fieldset className="segmented"><legend className="sr-only">{text('inputMode')}</legend>{(['prompt', 'manual'] as const).map(mode => <label key={mode}><input type="radio" name="mode" checked={inputs.mode === mode} onChange={() => update({ mode })} /><span>{text(mode === 'prompt' ? 'promptMode' : 'manualMode')}</span></label>)}</fieldset>
           {inputs.mode === 'prompt' ? <label className="prompt-label">{text('prompt')}<textarea rows={4} maxLength={4000} value={inputs.prompt} onChange={event => update({ prompt: event.target.value })} /></label> : <div className="manual-fields">
-            {(['shape', 'profile', 'elevation'] as const).map(key => <label key={key}>{text(key)}<select aria-label={text(key)} value={inputs.manual[key]} onChange={event => update({ manual: { ...inputs.manual, [key]: event.target.value } })}>{(key === 'shape' ? ['loop', 'pointToPoint'] : key === 'profile' ? ['road', 'gravel'] : ['balanced', 'minimize', 'seekClimbs']).map(value => <option key={value} value={value} disabled={value === 'gravel' || key === 'elevation' && inputs.manual.shape === 'pointToPoint' && value !== 'balanced'}>{codeText(locale, value)}</option>)}</select></label>)}
+            {(['profile', 'elevation'] as const).map(key => <label key={key}>{text(key)}<select aria-label={text(key)} value={inputs.manual[key]} onChange={event => update({ manual: { ...inputs.manual, [key]: event.target.value } })}>{(key === 'profile' ? ['road', 'gravel'] : ['balanced', 'minimize', 'seekClimbs']).map(value => <option key={value} value={value} disabled={value === 'gravel' || key === 'elevation' && !isLoop && value !== 'balanced'}>{codeText(locale, value)}</option>)}</select></label>)}
             <div className="target-fields">{(['distance', 'duration'] as const).map(key => <label key={key}>{text(key === 'distance' ? 'distanceInput' : 'durationInput')}<input dir="ltr" inputMode="decimal" value={inputs.manual[key]} onChange={event => update({ manual: { ...inputs.manual, [key]: event.target.value } })} /></label>)}</div>
           </div>}
           <button className="secondary wide" type="button" disabled={!!pending} onClick={() => void planner.prepare()}><Search size={17} />{text(inputs.mode === 'prompt' ? 'interpret' : 'validate')}</button>
@@ -85,6 +89,7 @@ export default function App() {
           <Notices codes={interpretation.assumptions} locale={locale} title="assumptions" />
         </section>}
         <div className="generate-section">
+          {intent?.shape === 'loop' && intent.profile === 'road' && <label className="refinement-toggle"><input type="checkbox" checked={planner.refine} onChange={event => planner.setRefine(event.target.checked)} />{text('refinement')}</label>}
           {!intent && !pending && <p id="generation-state" className="generation-state" role="status">{text(interpretation?.status ?? 'notValidated')}</p>}
           <button className="primary wide" type="button" aria-describedby={!intent && !pending ? 'generation-state' : undefined} disabled={!intent || !!pending} onClick={() => void planner.generate()}><Route size={18} />{text('generate')}</button>
           {pending && <div className="pending" role="status"><LoaderCircle className="spinner" size={17} /><span>{text(pending)}</span><button type="button" className="icon-button" title={text('cancel')} aria-label={text('cancel')} onClick={planner.cancel}><Square size={16} /></button></div>}
@@ -92,9 +97,10 @@ export default function App() {
         </div>
       </aside>
       <div className="map-and-results">
-        <RouteMap locale={locale} start={point('start')} destination={point('destination')} pick={pick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => update({ [pick]: { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) } })} />
-        {results && chosen ? <section className="results" aria-label={text('routes')}>
-          <div className="results-heading"><h2>{text('routes')} <span className="count">{results.candidates.length}</span></h2><button type="button" className="icon-button download" title={text('download')} aria-label={text('download')} onClick={download}><Download size={20} /><span dir="ltr">GPX</span></button></div>
+        <RouteMap locale={locale} start={point('start')} destination={isLoop ? undefined : point('destination')} pick={activePick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => update({ [activePick]: { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) } })} />
+        {results ? <section className="results" aria-label={text('routes')}>
+          <div className="results-heading"><h2>{text('routes')} <span className="count">{results.candidates.length}</span></h2>{chosen && <button type="button" className="icon-button download" title={text('download')} aria-label={text('download')} onClick={download}><Download size={20} /><span dir="ltr">GPX</span></button>}</div>
+          {chosen ? <>
           <div role="radiogroup" aria-label={text('routes')} className="route-options">{results.candidates.map((candidate, index) => <label className={`route-option ${selected === index ? 'selected' : ''}`} key={candidate.seed}>
             <input type="radio" name="route" checked={selected === index} onChange={() => planner.select(index)} />
             <span className={`route-swatch color-${index % 3}`} /><span>{text('route')} {index + 1}</span><b dir="ltr">{quantity(locale, candidate.route.distanceMeters, 'km', 1000)}</b>
@@ -102,9 +108,26 @@ export default function App() {
           <dl className="route-metrics"><div><dt>{text('duration')}</dt><dd dir="ltr">{quantity(locale, chosen.route.estimatedDurationSeconds, 'min', 60)}</dd></div><div><dt>{text('ascent')}</dt><dd dir="ltr">{quantity(locale, chosen.route.ascentMeters, 'm')}</dd></div><div><dt>{text('descent')}</dt><dd dir="ltr">{quantity(locale, chosen.route.descentMeters, 'm')}</dd></div><div><dt>{text('attempts')}</dt><dd dir="ltr">{results.attemptedCount}</dd></div></dl>
           <p className="target-match">{chosen.assessment?.targetsMatched && <Check size={16} />}{text(chosen.assessment ? chosen.assessment.targetsMatched ? 'matched' : 'notMatched' : 'notAssessed')}</p>
           {chosen.assessment && <dl className="comparison"><div><dt>{text('searchDistance')}</dt><dd dir="ltr">{quantity(locale, results.requestedLengthMeters, 'km', 1000)}</dd></div>{chosen.assessment.distanceDeltaMeters != null && <div><dt>{text('distanceDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.distanceDeltaMeters, 'km', 1000)}</dd></div>}{chosen.assessment.durationDeltaSeconds != null && <div><dt>{text('durationDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.durationDeltaSeconds, 'min', 60)}</dd></div>}</dl>}
-          <Notices codes={[...results.warnings, ...chosen.route.warnings]} locale={locale} title="warnings" />
+          {chosen.assessment?.quality && <RouteQuality quality={chosen.assessment.quality} locale={locale} />}
+          </> : <div role="status"><p>{text('noMatches')}</p><p>{text('attempts')}: {results.attemptedCount}</p></div>}
+          <Notices codes={[...results.warnings.filter(code => code !== 'no_candidate_meets_requirements'), ...(chosen?.route.warnings ?? [])]} locale={locale} title="warnings" />
+          <ExcludedRoutes candidates={results.excludedCandidates} locale={locale} />
           <Notices codes={results.assumptions} locale={locale} title="assumptions" />
-          <p className="safety">{text('safety')}</p><p className="route-attribution" dir="auto">{chosen.route.attribution}</p>
+          {planner.planning && <div className="planning-summary">
+            <p role="status">{codeText(locale, `advisor_${planner.planning.advisorStatus}`)}</p>
+            {planner.planning.advisorFailure && <p>{codeText(locale, `advisor_error_${planner.planning.advisorFailure}`)}</p>}
+            <details><summary>{text('searchDetails')}</summary>
+              <p>{text('advisorCalls')}: {planner.planning.advisorCallCount}</p>
+              <ol className="attempt-list">{planner.planning.attempts.map(attempt => <li key={attempt.seed}>
+                <span>{text('seed')} <b dir="ltr">{attempt.seed}</b></span>
+                <span dir="ltr">{quantity(locale, attempt.requestedLengthMeters, 'km', 1000)}</span>
+                <span>{codeText(locale, `search_reason_${attempt.reason}`)}</span>
+                <span>{codeText(locale, `search_outcome_${attempt.outcome}`)}</span>
+                {attempt.failure && <span>{codeText(locale, attempt.failure)}</span>}
+              </li>)}</ol>
+            </details>
+          </div>}
+          <p className="safety">{text('safety')}</p>{chosen && <p className="route-attribution" dir="auto">{chosen.route.attribution}</p>}
         </section> : <div className="empty-state">{text('empty')}</div>}
       </div>
     </main>

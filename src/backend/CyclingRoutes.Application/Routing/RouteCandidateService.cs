@@ -2,7 +2,7 @@ using CyclingRoutes.Domain.RoutePlanning;
 
 namespace CyclingRoutes.Application.Routing;
 
-public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandidateRanker ranker, TimeProvider timeProvider)
+public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandidateSelector selector, TimeProvider timeProvider)
 {
 	public async Task<RouteCandidateSearchResult> GenerateAsync(RouteIntent intent, CancellationToken cancellationToken)
 	{
@@ -19,6 +19,7 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandid
 		var candidates = new List<RouteCandidate>();
 		var attemptedCount = 0;
 		RoutingFailure? incompleteFailure = null;
+		var nextLength = length;
 
 		for (var seed = 1; seed <= 3; seed++)
 		{
@@ -27,10 +28,11 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandid
 			{
 				search.Token.ThrowIfCancellationRequested();
 				attemptedCount++;
-				var path = await provider.GetRoadLoopAsync(intent.Start, length, seed, search.Token);
+				var path = await provider.GetRoadLoopAsync(intent.Start, nextLength, seed, search.Token);
 				search.Token.ThrowIfCancellationRequested();
-				ValidateLoop(path);
-				if (!candidates.Any(x => SameGeometry(x.Path, path))) candidates.Add(new(seed, path));
+				RoadLoopGeometry.Validate(path);
+				nextLength = LoopSearchLength.Correct(intent, length, nextLength, path);
+				if (!candidates.Any(x => RoadLoopGeometry.SameGeometry(x.Path, path))) candidates.Add(new(seed, path));
 			}
 			catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
 			{
@@ -51,9 +53,9 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandid
 		if (deadline.IsCancellationRequested) incompleteFailure = RoutingFailure.Timeout;
 		if (candidates.Count == 0) throw new RoutingException(incompleteFailure ?? RoutingFailure.NoRoute);
 
-		var ranked = ranker.Rank(intent, candidates);
+		var selection = selector.Select(intent, candidates, cancellationToken);
 		var generated = new List<GeneratedRouteCandidate>();
-		foreach (var item in ranked)
+		foreach (var item in selection.Retained)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 			generated.Add(new(item.Candidate.Seed, item.Assessment,
@@ -63,28 +65,9 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandid
 		if (deadline.IsCancellationRequested) incompleteFailure = RoutingFailure.Timeout;
 		var warnings = new List<string> { "candidate_search_limited" };
 		if (incompleteFailure is not null) warnings.Add("candidate_generation_incomplete");
-		if (!ranked.Any(x => x.Assessment.TargetsMatched)) warnings.Add("no_candidate_within_tolerance");
+		RoadCandidateSelector.AddWarnings(selection, warnings);
 		return new(length, intent.TargetDistance is null ? ["initial_speed_20_kmh"] : [], attemptedCount,
-			warnings.ToArray(), generated.ToArray(), incompleteFailure);
+			warnings.ToArray(), generated.ToArray(), incompleteFailure, selection.Excluded);
 	}
 
-	private static void ValidateLoop(RoutedPath path)
-	{
-		if (path.Points.Count < 4 || path.Points[0].Position != path.Points[^1].Position
-			|| path.Points.Select(x => x.Position).Distinct().Take(3).Count() < 3)
-			throw new RoutingException(RoutingFailure.InvalidResponse);
-	}
-
-	private static bool SameGeometry(RoutedPath left, RoutedPath right)
-	{
-		if (left.Points.Count != right.Points.Count) return false;
-		var forward = true;
-		var reverse = true;
-		for (var i = 0; i < left.Points.Count && (forward || reverse); i++)
-		{
-			forward &= left.Points[i].Position == right.Points[i].Position;
-			reverse &= left.Points[i].Position == right.Points[^(i + 1)].Position;
-		}
-		return forward || reverse;
-	}
 }

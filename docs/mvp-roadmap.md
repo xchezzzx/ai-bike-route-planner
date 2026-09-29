@@ -47,12 +47,22 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    2026-09-29 passed all 34 cases, closing the current corpus qualification gate.
    Prior failures remain evidence of variability, not erased by a successful run;
    manual route input remains independent of Gemini.
-   Stage 6b remains future work:
+   Stage 6b is implemented on the feature branch, not yet delivered to main:
    AI guides candidate construction/refinement through routing tools; graph-based
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
    The [bounded refinement design](api/agentic-refinement-design.md) was approved
    on 2026-09-29. Its [implementation plan](plans/2026-09-29-agentic-refinement.md)
-   awaits review; product implementation has not started.
+   is approved and Tasks 1-5 are implemented. Independent review findings were
+   corrected with regression tests. Live qualification failed (1/6 advisor cases;
+   mixed four-city comparison), so Task 6 delivery/merge remains incomplete.
+   See [evidence and next checks](evaluation/route-refinement-2026-09-29.md).
+   A later six-call Gemini-only diagnosis identified contradictory stop fields
+   and truncated responses. The user approved the local `route-search-v2`
+   correction; live v2 qualification and the corrected comparison remain pending.
+   See [diagnosis and correction](evaluation/route-refinement-diagnostics-2026-09-29.md).
+   First authorized v2 live run at `8f3831e`: one stop case passed, one search
+   case received provider HTTP 503, four were unrun after fail-fast. Used two
+   Gemini calls and zero ORS; no retries or comparison. Merge remains blocked.
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
    Implemented and merged through PR #10, with manual input as a
@@ -92,14 +102,30 @@ lanes or legal access, and it does not change the ORS routing profile.
 2. Current full live interpretation corpus passed 34/34, separately from offline
    fixtures. Requalify whenever the prompt/schema/model changes; earlier failures
    still inform availability and production-readiness decisions.
-3. Stage 6b: bounded AI-guided candidate construction/refinement using routing
+3. Road-loop quality now takes priority following the negative 40 km experiment:
+   assess surface evidence and exact retracing, select zero to three near-target
+   candidates, and expose uncertainty/exclusions in both search modes. Scope
+   and [written design](superpowers/specs/2026-09-29-road-loop-quality-design.md)
+   and [implementation plan](superpowers/plans/2026-09-29-road-loop-quality.md)
+   approved and implemented on the feature branch, not merged. Evidence parsing,
+   shared selection, API/UI exclusions and empty-result handling pass local gates.
+   Offline replay retained 1/10 saved alternatives; this is filtering, not proof
+   of improved construction or all-paved roads. See the
+   [verification report](evaluation/road-quality-2026-09-29.md). Controlled road-network waypoint
+   construction follows as a separate prototype, not a promised engine migration.
+4. Stage 6b: bounded AI-guided candidate construction/refinement using routing
    tools, with application-owned budgets and unchanged user constraints.
-4. Add automatic track names and verify actual Israeli route/GPX quality.
-5. Prepare public deployment: abuse protection, current free-tier checks,
+   Implementation is ready for PR review; first diagnose rejected live advisor
+   responses and complete a separately bounded requalification before merge.
+5. Simplify start selection with a Loop / A-B control and opt-in browser
+   geolocation, then add automatic track names and verify actual Israeli
+   route/GPX quality.
+6. Prepare public deployment: abuse protection, current free-tier checks,
    hosting configuration, secrets and staging/production verification.
 
-Persistence is not a prerequisite for these deliveries. Stage 6b, geographic
-naming, field/device acceptance and public hosting are not implemented yet.
+Persistence is not a prerequisite for these deliveries. Stage 6b is implemented
+but not live-qualified or merged. Geographic naming, field/device acceptance
+and public hosting remain outstanding.
 
 ## Planned addition: automatic track names
 
@@ -128,6 +154,70 @@ before persistence, without requiring an LLM to invent place names.
 - Acceptance: endpoint lookup, loops, same-settlement A-B routes, distance
   rounding, unavailable place names, filename sanitization and consistency
   across UI/GPX/downloads are covered by tests.
+
+## Planned addition: current location as start
+
+Requested on 2026-09-29; not implemented. Small frontend usability task using
+the existing coordinate-selection/invalidation flow; no new backend endpoint,
+paid service, API key, native app or location history required.
+
+- Add an accessible location icon button with EN/RU/HE labels and RTL support.
+  The current map control with a location-like icon only resets the map view;
+  keep reset and actual geolocation actions distinguishable.
+- Call `navigator.geolocation.getCurrentPosition` only after an explicit user
+  action. Do not request permission on page load or continuously track location.
+- On success, use coordinates as start (never destination), center the map and
+  show reported accuracy. Accuracy is not guaranteed, even with high-accuracy
+  mode. For coarse fixes, propose the position for confirmation instead of
+  silently replacing an existing start; choose a concrete threshold in design.
+- Reuse normal start edits to invalidate prepared intent/results and cancel or
+  fence stale interpretation/generation responses. A late geolocation callback
+  must not overwrite a newer manual/map selection or a newer location request.
+- Handle denied permission, timeout, unavailable position, unsupported API and
+  embedded-browser restrictions without losing the existing start or results.
+  Always retain manual/map selection. Release testing includes a regular browser.
+- Production requires HTTPS and an allowing Permissions-Policy. No automatic
+  route generation, reverse geocoding, analytics logging or persistent storage
+  of the obtained position. Coordinates enter the normal API flow only on a
+  subsequent explicit planning action; map centering can request map tiles.
+- Test success, inaccurate fixes/confirmation, every failure, stale callbacks,
+  start-only behavior, result invalidation, localization and desktop/mobile UI
+  using mocked browser geolocation. Real-device accuracy is a separate check.
+
+Reference: [Browser Geolocation API](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition).
+
+## Implemented addition: Loop / A-B segmented control
+
+Requested and implemented on 2026-09-29 on the feature branch, not merged.
+One accessible route-shape selector above the coordinate fields serves prompt
+and manual modes. The manual shape dropdown is removed.
+
+- Loop: show only start coordinates, hide the destination marker and destination
+  pick action, and make map clicks select start. Omit destination from requests;
+  a hidden stale value must not cause validation failures or reach interpretation.
+- A-B: show both coordinate fields and enable choosing either map point.
+  A prepared A-B intent requires both points; retain existing optional targets.
+- Preserve the previous destination only in transient form state for returning
+  to A-B; it is inactive in Loop. Switching shape invalidates prepared intent,
+  route results and downloads, cancels active work and fences late responses.
+- The visible selection is a constraint, including the initial Loop default;
+  there is no hidden automatic/unset mode. A conflicting interpreted shape
+  produces a local clarification and no ready intent. Change the toggle or
+  prompt and prepare again. Canonical API intents are never rewritten.
+  Gemini prompts, schemas and API contracts are unchanged; this is a UI
+  consistency check, not a fresh live interpretation qualification.
+- Coordinate selection uses the existing input invalidation flow; the planned
+  current-location action will reuse it. Labels, keyboard operation and RTL
+  work in EN/RU/HE.
+- Tests cover both directions of switching, hidden destination omission/marker
+  removal, retained draft destination, map pick reset, conflicting prompt,
+  cancelled/stale responses and desktop/mobile layout.
+
+Verification: six new component cases first failed before implementation;
+116 frontend tests, production build and all 34 EN/RU/HE desktop/mobile browser
+cases passed, including six new selector cases. Screenshots inspected in desktop and
+mobile LTR/RTL; independent scoped review found no actionable defects. No live
+ORS/Gemini calls, backend changes or geolocation implementation in this step.
 
 ## Previously proposed service shortlist
 

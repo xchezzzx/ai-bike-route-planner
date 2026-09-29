@@ -9,8 +9,9 @@ Gemini-backed prompt interpretation API with clarifications, and a local React
 testing interface with map selection, manual preferences, candidates and GPX.
 Interpretation passes offline tests and the current 34-case live corpus (2026-09-29).
 Earlier runs had provider errors and semantic mismatches; this is not a production
-reliability guarantee. Gravel-specific routing, agentic route
-refinement, persistence and public deployment are not yet implemented.
+reliability guarantee. This branch adds opt-in bounded AI road-loop refinement,
+but its live qualification is incomplete; see [qualification results](docs/evaluation/route-refinement-2026-09-29.md).
+Gravel-specific routing, persistence and public deployment are not implemented.
 
 ## Browser testing
 
@@ -33,7 +34,9 @@ pwsh -NoProfile -File tools/start-local.ps1 -Stop
 
 Select start/destination on the map or enter coordinates. Prompt mode interprets
 the text first; review its preferences and explicitly generate a route. Manual
-mode validates parameters and does not call Gemini. Both modes use real ORS
+mode validates parameters without Gemini. Optional AI refinement of a prepared
+road loop calls Gemini only when Generate routes is pressed and advice is needed.
+It is off by default; ordinary generation remains independent of Gemini. Both modes use real ORS
 geometry, show provider warnings and download the selected GPX without another
 provider call. No prompts or route history are stored by the UI.
 

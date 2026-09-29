@@ -25,10 +25,10 @@ public static class RouteCandidatesEndpoints
 			var result = await service.GenerateAsync(intent, cancellationToken);
 			var warnings = result.Warnings.ToList();
 			if (result.IncompleteFailure is { } failure) warnings.Add(RoutingProblemMapper.Describe(failure).Code);
-			var candidates = result.Candidates.Select(ToResponse).ToArray();
+			var candidates = result.Candidates.Select(RouteCandidateResponseMapper.ToResponse).ToArray();
 			cancellationToken.ThrowIfCancellationRequested();
 			return TypedResults.Ok(new RouteCandidatesResponse(result.RequestedLengthMeters, result.Assumptions,
-				result.AttemptedCount, warnings.ToArray(), candidates));
+				result.AttemptedCount, warnings.ToArray(), candidates, result.ExcludedCandidates.Select(RouteCandidateResponseMapper.ToResponse).ToArray()));
 		}
 		catch (RoutingException error)
 		{
@@ -37,14 +37,4 @@ public static class RouteCandidatesEndpoints
 		}
 	}
 
-	private static RouteCandidateResponse ToResponse(GeneratedRouteCandidate candidate)
-	{
-		var path = candidate.Route.Path;
-		var assessment = candidate.Assessment;
-		return new(candidate.Seed,
-			new(assessment.DistanceDeltaMeters, assessment.DurationDeltaSeconds, assessment.TargetsMatched, assessment.Score),
-			new(path.Points.Select(point => new RoutePointResponse(point.Position.Latitude, point.Position.Longitude, point.ElevationMeters)).ToArray(),
-				path.DistanceMeters, path.EstimatedDurationSeconds, path.AscentMeters, path.DescentMeters,
-				path.Attribution, candidate.Route.Warnings, candidate.Route.Gpx));
-	}
 }

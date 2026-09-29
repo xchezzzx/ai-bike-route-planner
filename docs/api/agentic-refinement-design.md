@@ -1,7 +1,8 @@
 # Stage 6b: Bounded AI Route Refinement
 
-Status: design approved by the user on 2026-09-29; not implemented.
-The [implementation plan](../plans/2026-09-29-agentic-refinement.md) awaits review.
+Status: design and execution approved by the user on 2026-09-29.
+The [implementation plan](../plans/2026-09-29-agentic-refinement.md) tracks delivery;
+implementation is on the feature branch, with live qualification and merge pending.
 The user wants AI involvement in route generation, not only prompt parsing,
 within the existing .NET modular monolith, React UI and free-service constraints.
 
@@ -102,5 +103,25 @@ owned, not model prose or claims about legal access, fitness, safety or surfaces
 - Field/access checks and Garmin/Wahoo import remain human acceptance. Public
   deployment and account changes are outside this spec.
 
-Next: review the task-by-task implementation plan before coding the new
-orchestration module. Preserve the agreed autonomous execution and CI gates.
+Next: finish bounded live qualification, independent review and CI gates.
+
+## Approved provider-contract correction
+
+On 2026-09-29 the user approved a local-only correction after a bounded diagnostic
+run identified `stop` with a non-null requested length. The internal Gemini
+contract is now `route-search-v2`: one required `nextSearch` field, either null
+(stop) or a closed object containing required seed, requestedLengthMeters and
+reason (search). This removes contradictory action/search fields. Mapping to
+application advice and the public HTTP contract remain unchanged, as do all
+proposal bounds, deadlines, no-retry rules and fallback behavior.
+
+Qualification uses `route-refinement-v2.json`; the v1 corpus and negative reports
+remain historical evidence. The user authorized only six additional Gemini
+calls and no ORS calls; all six were used on v1 diagnosis. No live calls are
+authorized for v2 in this change. The v2 corpus and corrected four-city comparison
+remain required before merge; offline success cannot replace them.
+
+Subsequent approval allowed up to 10 Gemini and 24 ORS calls. The first v2 run
+used two Gemini calls: stop passed, then search received HTTP 503 and execution
+stopped. No ORS comparison or automatic retry followed. See the diagnostic
+record for the remaining allowance; qualification and merge remain pending.

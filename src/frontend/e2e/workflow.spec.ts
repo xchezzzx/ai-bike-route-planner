@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
 import { basemap, cyclingBasemap } from './basemap';
-import { candidates, intent, interpretation, route } from '../tests/fixtures';
+import { candidates, intent, interpretation, route, refinement } from '../tests/fixtures';
 
 async function mockNetwork(page: Page, mapFails = false, style = basemap) {
   const posts: { path: string; body: unknown }[] = [];
@@ -35,6 +35,124 @@ async function generate(page: Page) {
   await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Routes', exact: true })).toBeVisible();
 }
+
+for (const locale of ['en', 'ru', 'he'] as const) test(`shape selector hides inactive destination and resets map picking (${locale})`, async ({ page }, testInfo) => {
+  const posts = await mockNetwork(page);
+  await page.goto('/');
+  await page.getByLabel('Start latitude', { exact: true }).fill('32.08');
+  await page.getByLabel('Start longitude', { exact: true }).fill('34.78');
+  await page.getByLabel('Ride request', { exact: true }).fill('A 25 km road loop');
+  await page.getByLabel('Language', { exact: true }).selectOption(locale);
+  const labels = {
+    en: { loop: 'Loop', ab: 'A to B', destination: 'Destination', latitude: 'Destination latitude', longitude: 'Destination longitude', start: 'Start', startLatitude: 'Start latitude', prepare: 'Interpret request' },
+    ru: { loop: 'Кольцевой', ab: 'Из А в Б', destination: 'Финиш', latitude: 'Широта финиша', longitude: 'Долгота финиша', start: 'Старт', startLatitude: 'Широта старта', prepare: 'Разобрать запрос' },
+    he: { loop: 'מעגלי', ab: 'מנקודה לנקודה', destination: 'יעד', latitude: 'קו רוחב של יעד', longitude: 'קו אורך של יעד', start: 'התחלה', startLatitude: 'קו רוחב של התחלה', prepare: 'פירוש הבקשה' },
+  }[locale];
+  await expect(page.getByLabel(labels.latitude, { exact: true })).toHaveCount(0);
+  await page.getByRole('radio', { name: labels.ab, exact: true }).focus();
+  await page.keyboard.press('Space');
+  await page.getByLabel(labels.latitude, { exact: true }).fill('32.1');
+  await page.getByLabel(labels.longitude, { exact: true }).fill('34.8');
+  await expect(page.locator('.map-point.destination')).toHaveCount(1);
+  await page.getByRole('radio', { name: labels.destination, exact: true }).check();
+  await page.screenshot({ path: testInfo.outputPath(`shape-ab-${locale}.png`), fullPage: true });
+  await page.getByRole('radio', { name: labels.loop, exact: true }).check();
+  await expect(page.locator('.map-point.destination')).toHaveCount(0);
+  await expect(page.getByLabel(labels.latitude, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: labels.destination, exact: true })).toHaveCount(0);
+  await page.locator('canvas').click({ position: { x: 160, y: 100 } });
+  await expect(page.getByLabel(labels.startLatitude, { exact: true })).not.toHaveValue('32.08');
+  await page.getByRole('button', { name: labels.prepare, exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0].body).not.toHaveProperty('destination');
+  await page.screenshot({ path: testInfo.outputPath(`shape-loop-${locale}.png`), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('radio', { name: labels.ab, exact: true }).check();
+  await expect(page.getByLabel(labels.latitude, { exact: true })).toHaveValue('32.1');
+  await expect(page.getByLabel(labels.longitude, { exact: true })).toHaveValue('34.8');
+  await expect(page.getByRole('radio', { name: labels.start, exact: true })).toBeChecked();
+  await expect(page.locator('.map-point.destination')).toHaveCount(1);
+});
+
+for (const locale of ['en', 'ru', 'he'] as const) test(`quality selection and cleared no-match map (${locale})`, async ({ page }, testInfo) => {
+  await mockNetwork(page);
+  let empty = false;
+  const excluded = [2, 3].map(seed => ({ seed, distanceMeters: 40000 + seed, estimatedDurationSeconds: 4500,
+    assessment: { ...candidates.candidates[0].assessment!, targetsMatched: false }, reasons: ['targets_not_met'] }));
+  await page.route('**/api/routes/candidates', r => r.fulfill({ json: { ...candidates,
+    candidates: empty ? [] : [candidates.candidates[0]], excludedCandidates: excluded,
+    warnings: empty ? ['no_candidate_meets_requirements', 'candidates_excluded'] : ['candidates_excluded'],
+  } }));
+  const labels = {
+    en: { prepare: 'Interpret request', generate: 'Generate routes', excluded: 'Excluded routes', noMatch: 'No routes meet these requirements.', download: 'Download GPX' },
+    ru: { prepare: 'Разобрать запрос', generate: 'Построить маршруты', excluded: 'Исключённые маршруты', noMatch: 'Подходящих маршрутов не найдено.', download: 'Скачать GPX' },
+    he: { prepare: 'פירוש הבקשה', generate: 'יצירת מסלולים', excluded: 'מסלולים שנפסלו', noMatch: 'לא נמצאו מסלולים שעומדים בדרישות.', download: 'הורדת GPX' },
+  }[locale];
+  await page.goto('/');
+  await prompt(page);
+  if (locale !== 'en') {
+    await page.getByLabel('Language', { exact: true }).selectOption(locale);
+    await page.getByRole('button', { name: labels.prepare, exact: true }).click();
+  }
+  await page.getByRole('button', { name: labels.generate, exact: true }).click();
+  await expect(page.locator('.route-option')).toHaveCount(1);
+  await expect(page.locator('.quality-metrics').first()).toBeVisible();
+  await page.getByText(labels.excluded, { exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath(`quality-${locale}.png`), fullPage: true });
+  const canvas = page.locator('.maplibregl-canvas');
+  const greenPixels = async () => {
+    const png = PNG.sync.read(await canvas.screenshot()); let green = 0;
+    for (let i = 0; i < png.data.length; i += 4) if (png.data[i] < 45 && png.data[i + 1] > 80 && png.data[i + 1] < 150 && png.data[i + 2] < 110) green++;
+    return green;
+  };
+  await expect.poll(greenPixels).toBeGreaterThan(100);
+  const before = await greenPixels();
+  empty = true;
+  await page.getByRole('button', { name: labels.generate, exact: true }).click();
+  await expect(page.getByText(labels.noMatch, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: labels.download, exact: true })).toHaveCount(0);
+  await expect(page.locator('.route-option')).toHaveCount(0);
+  await expect.poll(greenPixels).toBeLessThan(before / 2);
+  await expect(page.locator('html')).toHaveAttribute('dir', locale === 'he' ? 'rtl' : 'ltr');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const png = PNG.sync.read(await canvas.screenshot()); const colors = new Set<number>();
+  for (let i = 0; i < png.data.length; i += 4) colors.add((png.data[i] << 16) | (png.data[i + 1] << 8) | png.data[i + 2]);
+  expect(colors.size).toBeGreaterThan(10);
+  await page.screenshot({ path: testInfo.outputPath(`no-match-${locale}.png`), fullPage: true });
+});
+
+for (const fallback of [false, true]) test(`AI refinement trace and selected GPX (fallback=${fallback})`, async ({ page }, testInfo) => {
+  await mockNetwork(page);
+  const calls: unknown[] = [];
+  await page.route('**/api/routes/plan', async intercepted => {
+    calls.push(intercepted.request().postDataJSON());
+    await intercepted.fulfill({ json: fallback ? { ...refinement, advisorStatus: 'failed', advisorFailure: 'quota', search: { ...candidates, warnings: ['advisor_fallback'] } } : refinement });
+  });
+  await page.goto('/');
+  await prompt(page);
+  await expect(page.getByRole('checkbox', { name: 'AI refinement', exact: true })).not.toBeChecked();
+  await page.getByRole('checkbox', { name: 'AI refinement', exact: true }).check();
+  expect(calls).toHaveLength(0);
+  await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
+  await expect(page.getByText(fallback ? 'AI unavailable; ordinary search retained' : 'AI-guided search completed', { exact: true })).toBeVisible();
+  await page.getByText('Search details', { exact: true }).click();
+  await expect(page.getByText('Duplicate route', { exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: /Route 2/ }).check();
+  const downloaded = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download GPX', exact: true }).click();
+  expect(await readFile((await (await downloaded).path())!, 'utf8')).toBe(candidates.candidates[1].route.gpx);
+  expect(calls).toEqual([intent]);
+  await page.screenshot({ path: testInfo.outputPath('refinement-en.png'), fullPage: true });
+  await page.getByLabel('Language', { exact: true }).selectOption('he');
+  await page.getByRole('button', { name: 'פירוש הבקשה', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'עידון באמצעות AI', exact: true })).toBeChecked();
+  await page.getByRole('button', { name: 'יצירת מסלולים', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'מסלולים', exact: true })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await page.getByText('פרטי החיפוש', { exact: true }).click();
+  await expect(page.getByText('מסלול כפול', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('refinement-he.png'), fullPage: true });
+});
 
 for (const subclass of ['cycleway', 'footway'] as const) test(`map distinguishes ${subclass} even when bicycle=yes`, async ({ page }, testInfo) => {
   await mockNetwork(page, false, cyclingBasemap(subclass));
@@ -104,7 +222,7 @@ for (const hasTarget of [false, true]) test(`manual A-B (target=${hasTarget}) va
   await page.goto('/');
   await expect(page.getByText('Map unavailable. Coordinates and GPX remain available.')).toBeVisible();
   await page.getByRole('radio', { name: 'Manual', exact: true }).check();
-  await page.getByLabel('Route shape', { exact: true }).selectOption('pointToPoint');
+  await page.getByRole('radio', { name: 'A to B', exact: true }).check();
   await expect(page.getByRole('option', { name: 'Gravel', exact: true })).toHaveJSProperty('disabled', true);
   await expect(page.getByRole('option', { name: 'Minimize climbs', exact: true })).toHaveJSProperty('disabled', true);
   await page.getByLabel('Cycling profile', { exact: true }).press('End');

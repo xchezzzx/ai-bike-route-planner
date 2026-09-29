@@ -44,7 +44,8 @@ public class RouteCandidatesEndpointTests : IClassFixture<WebApplicationFactory<
 		{
 			Assert.Null(candidate.Assessment.DurationDeltaSeconds);
 			Assert.True(candidate.Assessment.TargetsMatched);
-			Assert.Empty(candidate.Route.Warnings);
+			Assert.Contains("road_surface_unknown", candidate.Route.Warnings);
+			Assert.Equal("unavailable", candidate.Assessment.Quality!.SurfaceEvidenceState);
 			Assert.Contains("OpenStreetMap", candidate.Route.Attribution);
 			AssertGpx(candidate.Route);
 		}
@@ -94,10 +95,10 @@ public class RouteCandidatesEndpointTests : IClassFixture<WebApplicationFactory<
 		using var response = await client.PostAsJsonAsync("/api/routes/candidates", request, TestContext.Current.CancellationToken);
 		Assert.Equal(200, (int)response.StatusCode);
 		var result = (await response.Content.ReadFromJsonAsync<RouteCandidatesResponse>(TestContext.Current.CancellationToken))!;
-		var candidate = Assert.Single(result.Candidates);
 		Assert.Equal(3, result.AttemptedCount);
 		if (scenario == "duration-only")
 		{
+			var candidate = Assert.Single(result.Candidates);
 			Assert.Contains("initial_speed_20_kmh", result.Assumptions);
 			Assert.Null(candidate.Assessment.DistanceDeltaMeters);
 			Assert.Equal(0, candidate.Assessment.DurationDeltaSeconds);
@@ -106,8 +107,10 @@ public class RouteCandidatesEndpointTests : IClassFixture<WebApplicationFactory<
 		else
 		{
 			Assert.Contains("no_candidate_within_tolerance", result.Warnings);
-			Assert.Contains("targets_not_met", candidate.Route.Warnings);
-			Assert.False(candidate.Assessment.TargetsMatched);
+			Assert.Empty(result.Candidates);
+			var excluded = Assert.Single(result.ExcludedCandidates);
+			Assert.Contains("targets_not_met", excluded.Reasons);
+			Assert.False(excluded.Assessment.TargetsMatched);
 		}
 	}
 

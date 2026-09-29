@@ -1,4 +1,11 @@
-import type { Candidates, GeneratedRoute, Intent, Interpretation } from '../src/types';
+import type { Candidates, GeneratedRoute, Intent, Interpretation, RoadQuality } from '../src/types';
+
+export const quality: RoadQuality = {
+  policyVersion: 'road-v1', geometryLengthMeters: 10000, surfaceEvidenceState: 'partial', waytypeSupplied: false,
+  surface: { pavedMeters: 5000, nonRoadMeters: 0, otherKnownMeters: 0, unknownMeters: 5000 },
+  ways: { unknownMeters: 10000, stateRoadMeters: 0, roadMeters: 0, streetMeters: 0, pathMeters: 0, trackMeters: 0, cyclewayMeters: 0, footwayMeters: 0, stepsMeters: 0, ferryMeters: 0, constructionMeters: 0 },
+  repeatedMeters: 200, sharedStemMeters: 100, remainingRepeatedMeters: 100,
+};
 
 export const intent: Intent = {
   start: { latitude: 32.08, longitude: 34.78 }, destination: null,
@@ -22,7 +29,17 @@ export const route: GeneratedRoute = {
 export const candidates: Candidates = {
   requestedLengthMeters: 25000, assumptions: ['initial_speed_20_kmh'], attemptedCount: 3, warnings: ['candidate_search_limited'],
   candidates: [
-    { seed: 1, assessment: { distanceDeltaMeters: -500, durationDeltaSeconds: null, targetsMatched: true, score: 0.02 }, route },
-    { seed: 2, assessment: { distanceDeltaMeters: 2500, durationDeltaSeconds: null, targetsMatched: false, score: 0.1 }, route: { ...route, distanceMeters: 27500, ascentMeters: 120, descentMeters: 110, geometry: [route.geometry[0], { latitude: 32.06, longitude: 34.82, elevationMeters: 20 }, { latitude: 32.04, longitude: 34.79, elevationMeters: 30 }, route.geometry[0]], warnings: ['targets_not_met'], gpx: '<?xml version="1.0" encoding="UTF-8"?><gpx><trk><name>Test route 2 שלום</name></trk></gpx>' } },
+    { seed: 1, assessment: { distanceDeltaMeters: -500, durationDeltaSeconds: null, targetsMatched: true, score: 0.022, quality }, route },
+    { seed: 2, assessment: { distanceDeltaMeters: 2500, durationDeltaSeconds: null, targetsMatched: true, score: 0.102, quality }, route: { ...route, distanceMeters: 27500, ascentMeters: 120, descentMeters: 110, geometry: [route.geometry[0], { latitude: 32.06, longitude: 34.82, elevationMeters: 20 }, { latitude: 32.04, longitude: 34.79, elevationMeters: 30 }, route.geometry[0]], warnings: ['road_surface_unknown'], gpx: '<?xml version="1.0" encoding="UTF-8"?><gpx><trk><name>Test route 2 שלום</name></trk></gpx>' } },
+  ],
+  excludedCandidates: [],
+};
+
+export const refinement = {
+  search: candidates, advisorCallCount: 1, advisorStatus: 'searched', advisorFailure: null,
+  attempts: [
+    { seed: 1, requestedLengthMeters: 25000, outcome: 'accepted', reason: 'explore', failure: null },
+    { seed: 2, requestedLengthMeters: 25000, outcome: 'accepted', reason: 'explore', failure: null },
+    { seed: 7, requestedLengthMeters: 22000, outcome: 'duplicate', reason: 'distance', failure: null },
   ],
 };

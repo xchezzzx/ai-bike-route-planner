@@ -36,7 +36,14 @@ builder.Services.AddHttpClient<IRouteIntentInterpreter, GeminiRouteIntentInterpr
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddTransient<InterpretationService>();
 builder.Services.AddSingleton<RouteCandidateRanker>();
+builder.Services.AddSingleton<RoadQualityAssessor>();
+builder.Services.AddSingleton<RoadCandidateSelector>();
 builder.Services.AddTransient<RouteCandidateService>();
+builder.Services.AddHttpClient<IRouteSearchAdvisor, GeminiRouteSearchAdvisor>(client =>
+{
+	client.Timeout = Timeout.InfiniteTimeSpan;
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddTransient<RoutePlanningService>();
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
 // Keep malformed requests as 400 responses in Development as well as Production.
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
@@ -55,6 +62,7 @@ app.MapHealthChecks("/health");
 app.MapRouteIntentEndpoints();
 app.MapRouteGenerationEndpoints();
 app.MapRouteCandidatesEndpoints();
+app.MapRoutePlanEndpoints();
 app.MapInterpretRouteIntentEndpoints();
 
 app.UseHttpsRedirection();

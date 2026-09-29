@@ -25,6 +25,7 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 		SendAsync(new
 		{
 			coordinates = new[] { new[] { start.Longitude, start.Latitude } },
+			extra_info = new[] { "surface", "waytype" },
 			elevation = true,
 			instructions = false,
 			units = "m",
@@ -33,9 +34,9 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 				avoid_features = new[] { "ferries", "fords", "steps" },
 				round_trip = new { length = requestedLengthMeters, points = 3, seed }
 			}
-		}, cancellationToken);
+		}, cancellationToken, includeEvidence: true);
 
-	private async Task<RoutedPath> SendAsync<T>(T payload, CancellationToken cancellationToken)
+	private async Task<RoutedPath> SendAsync<T>(T payload, CancellationToken cancellationToken, bool includeEvidence = false)
 	{
 		cancellationToken.ThrowIfCancellationRequested();
 		if (string.IsNullOrWhiteSpace(options.ApiKey)) throw new RoutingException(RoutingFailure.NotConfigured);
@@ -58,7 +59,7 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 			{
 				throw new RoutingException(ParseFailure(body));
 			}
-			return ParseRoute(body);
+			return ParseRoute(body, includeEvidence, cancellationToken);
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
@@ -90,7 +91,7 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 		return RoutingFailure.InvalidResponse;
 	}
 
-	private static RoutedPath ParseRoute(string body)
+	private static RoutedPath ParseRoute(string body, bool includeEvidence, CancellationToken cancellationToken)
 	{
 		try
 		{
@@ -105,6 +106,7 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 			var points = new List<RoutePoint>();
 			foreach (var coordinate in geometry.GetProperty("coordinates").EnumerateArray())
 			{
+				cancellationToken.ThrowIfCancellationRequested();
 				if (coordinate.GetArrayLength() is not (2 or 3)) throw InvalidResponse();
 				var position = new GeoCoordinate(Number(coordinate[1]), Number(coordinate[0]));
 				double? elevation = coordinate.GetArrayLength() == 3 ? Number(coordinate[2]) : null;
@@ -117,7 +119,8 @@ public sealed class OpenRouteServiceProvider(HttpClient client, OpenRouteService
 			var duration = Number(summary.GetProperty("duration"));
 			if (distance <= 0 || duration <= 0) throw InvalidResponse();
 			return new(points.AsReadOnly(), distance, duration,
-				OptionalMetric(properties, "ascent"), OptionalMetric(properties, "descent"), Attribution);
+				OptionalMetric(properties, "ascent"), OptionalMetric(properties, "descent"), Attribution,
+				includeEvidence ? OpenRouteServiceEvidenceParser.Parse(properties, points, cancellationToken) : null);
 		}
 		catch (Exception error) when (error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or ArgumentException)
 		{

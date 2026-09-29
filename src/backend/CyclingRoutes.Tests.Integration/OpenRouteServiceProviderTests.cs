@@ -94,6 +94,7 @@ public class OpenRouteServiceProviderTests
 			using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
 			var root = json.RootElement;
 			Assert.Equal(1, root.GetProperty("coordinates").GetArrayLength());
+			Assert.Equal(new[] { "surface", "waytype" }, root.GetProperty("extra_info").EnumerateArray().Select(x => x.GetString()));
 			Assert.Equal(34.7818, root.GetProperty("coordinates")[0][0].GetDouble());
 			Assert.Equal(32.0853, root.GetProperty("coordinates")[0][1].GetDouble());
 			Assert.True(root.GetProperty("elevation").GetBoolean());
@@ -150,6 +151,7 @@ public class OpenRouteServiceProviderTests
 			Assert.Equal(34.7818, json.RootElement.GetProperty("coordinates")[0][0].GetDouble());
 			Assert.Equal(32.0853, json.RootElement.GetProperty("coordinates")[0][1].GetDouble());
 			Assert.Equal(34.82, json.RootElement.GetProperty("coordinates")[1][0].GetDouble());
+			Assert.False(json.RootElement.TryGetProperty("extra_info", out _));
 			Assert.True(json.RootElement.GetProperty("elevation").GetBoolean());
 			Assert.False(json.RootElement.GetProperty("instructions").GetBoolean());
 			return Response(200, ValidResponse);

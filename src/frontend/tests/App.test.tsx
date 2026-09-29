@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import App from '../src/App';
-import { candidates, intent, interpretation, route } from './fixtures';
+import { candidates, intent, interpretation, route, refinement } from './fixtures';
 
 // jsdom has no WebGL; the browser suite exercises the actual MapLibre canvas.
 vi.mock('../src/RouteMap', () => ({ default: () => <div /> }));
@@ -13,7 +13,7 @@ let delay: Promise<Response> | undefined;
 beforeEach(() => {
   posts = [];
   delay = undefined;
-  replies = { interpret: interpretation, validate: intent, candidates, generate: route };
+  replies = { interpret: interpretation, validate: intent, candidates, generate: route, plan: refinement };
   vi.stubGlobal('fetch', vi.fn((path: string, options: RequestInit) => {
     if (path === '/health') return Promise.resolve(new Response('Healthy'));
     posts.push({ path, body: JSON.parse(String(options.body)), signal: options.signal as AbortSignal });
@@ -29,6 +29,197 @@ async function setupPrompt() {
   await user.type(screen.getByLabelText('Ride request'), 'A 25 km road loop');
   return user;
 }
+
+async function prepareRefinement() {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await screen.findByText('Ready to generate');
+  const toggle = screen.getByRole('checkbox', { name: 'AI refinement' });
+  expect(toggle).not.toBeChecked();
+  await user.click(toggle);
+  expect(posts).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeEnabled();
+  return user;
+}
+
+it('uses one shape control and restores the inactive destination when returning to A-B', async () => {
+  const user = await setupPrompt();
+  expect(screen.getByRole('radio', { name: 'Loop' })).toBeChecked();
+  expect(screen.queryByLabelText('Destination latitude')).not.toBeInTheDocument();
+  expect(screen.queryByRole('radio', { name: 'Destination' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  await user.type(screen.getByLabelText('Destination latitude'), '32.1');
+  await user.type(screen.getByLabelText('Destination longitude'), '34.8');
+  await user.click(screen.getByRole('radio', { name: 'Destination' }));
+  await user.click(screen.getByRole('radio', { name: 'Loop' }));
+  expect(screen.queryByLabelText('Destination latitude')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('radio', { name: 'Manual' }));
+  expect(screen.queryByRole('combobox', { name: 'Route shape' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  expect(screen.getByLabelText('Destination latitude')).toHaveValue('32.1');
+  expect(screen.getByLabelText('Destination longitude')).toHaveValue('34.8');
+  expect(screen.getByRole('radio', { name: 'Start' })).toBeChecked();
+});
+
+it.each(['Prompt', 'Manual'])('omits even malformed hidden destination in %s mode', async mode => {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  await user.type(screen.getByLabelText('Destination latitude'), 'bad');
+  await user.click(screen.getByRole('radio', { name: 'Loop' }));
+  if (mode === 'Manual') {
+    await user.click(screen.getByRole('radio', { name: 'Manual' }));
+    await user.type(screen.getByLabelText('Distance (km)'), '25');
+  }
+  await user.click(screen.getByRole('button', { name: mode === 'Manual' ? 'Validate preferences' : 'Interpret request' }));
+  await screen.findByText('Ready to generate');
+  expect(posts).toHaveLength(1);
+  expect(posts[0].body).not.toHaveProperty('destination');
+});
+
+it.each([false, true])('requires clarification when prompt shape contradicts selection (A-B=%s)', async ab => {
+  const user = await setupPrompt();
+  if (ab) await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  const conflicting = ab ? intent : { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 } };
+  replies.interpret = { ...interpretation, draft: conflicting, intent: conflicting };
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  expect(await screen.findByText('The request describes a different route shape. Change the selected mode or edit the request.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+  expect(screen.queryByText('Ready to generate')).not.toBeInTheDocument();
+});
+
+it('switching shape clears results and fences late preparation', async () => {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('button', { name: 'Download GPX' });
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
+  let resolve!: (response: Response) => void;
+  delay = new Promise(done => { resolve = done; });
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  const pendingRequest = posts.at(-1)!;
+  await user.click(screen.getByRole('radio', { name: 'Loop' }));
+  expect(pendingRequest.signal.aborted).toBe(true);
+  await act(async () => { resolve(new Response(JSON.stringify(interpretation))); });
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+  expect(screen.queryByText('Ready to generate')).not.toBeInTheDocument();
+});
+
+it.each([false, true])('shows explained no-match results after a successful result (AI=%s)', async advised => {
+  const user = advised ? await prepareRefinement() : await setupPrompt();
+  if (!advised) await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('button', { name: 'Download GPX' });
+  const empty = { ...candidates, candidates: [], excludedCandidates: [{ seed: 1, distanceMeters: 40000, estimatedDurationSeconds: 4500,
+    assessment: { ...candidates.candidates[0].assessment!, targetsMatched: false }, reasons: ['targets_not_met'] }],
+    warnings: ['no_candidate_meets_requirements', 'candidate_generation_incomplete', 'routing_timeout'] };
+  if (advised) replies.plan = { ...refinement, search: empty };
+  else replies.candidates = empty;
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByText('No routes meet these requirements.');
+  expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  await user.click(screen.getByText('Excluded routes'));
+  expect(screen.getByText('This route does not meet the target tolerance.')).toBeInTheDocument();
+  if (advised) expect(screen.getByText('AI-guided search completed')).toBeInTheDocument();
+});
+
+it.each([false, true])('shows surface uncertainty and small known non-road coverage (unknown=%s)', async unknown => {
+  const response = structuredClone(candidates);
+  const q = response.candidates[0].assessment!.quality;
+  q.surfaceEvidenceState = unknown ? 'unavailable' : 'partial';
+  q.surface = unknown
+    ? { pavedMeters: 0, nonRoadMeters: 0, otherKnownMeters: 0, unknownMeters: q.geometryLengthMeters }
+    : { pavedMeters: 4900, nonRoadMeters: 100, otherKnownMeters: 0, unknownMeters: 5000 };
+  replies.candidates = response;
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  const quality = await screen.findByRole('region', { name: 'Road data' });
+  expect(within(quality).getByText(unknown ? 'Surface data is unavailable.' : 'Surface data is incomplete.')).toBeInTheDocument();
+  expect(within(quality).getByText(unknown ? 'Unknown surface' : 'Unpaved / loose surface').parentElement).toHaveTextContent(unknown ? '10 km' : '0.1 km');
+  expect(screen.getByRole('button', { name: 'Download GPX' })).toBeEnabled();
+});
+
+it('opts into refinement only on Generate and renders application-owned trace', async () => {
+  const user = await prepareRefinement();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('region', { name: 'Routes' });
+  expect(posts[1]).toMatchObject({ path: '/api/routes/plan', body: intent });
+  expect(screen.getByText('AI-guided search completed')).toBeInTheDocument();
+  await user.click(screen.getByText('Search details'));
+  expect(screen.getByText('Duplicate route')).toBeInTheDocument();
+  expect(posts).toHaveLength(2);
+});
+
+it.each([
+  ['failed', 'quota', 'AI unavailable; ordinary search retained'],
+  ['stopped', null, 'Advisor stopped further search'],
+])('renders %s status without model prose', async (advisorStatus, advisorFailure, label) => {
+  replies.plan = { ...refinement, advisorStatus, advisorFailure, ...(advisorStatus === 'stopped' ? { search: { ...candidates, attemptedCount: 2 }, attempts: refinement.attempts.slice(0, 2) } : {}) };
+  const user = await prepareRefinement();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  expect(await screen.findByText(label!)).toBeInTheDocument();
+});
+
+it.each([
+  { advisorStatus: 'model free text' }, { advisorFailure: 'private secret' }, { advisorCallCount: 2 },
+  { attempts: [{ ...refinement.attempts[0], outcome: 'unknown' }] },
+  { attempts: [{ ...refinement.attempts[0], requestedLengthMeters: -1 }, ...refinement.attempts.slice(1)] },
+  { attempts: [{ ...refinement.attempts[0], reason: 'safe road' }, ...refinement.attempts.slice(1)] },
+  { attempts: [{ ...refinement.attempts[0], failure: 'private secret' }, ...refinement.attempts.slice(1)] },
+])('rejects invalid refinement metadata %j', async patch => {
+  replies.plan = { ...refinement, ...patch };
+  const user = await prepareRefinement();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The API returned an unusable response.');
+  expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
+});
+
+it('changing refinement cancels and fences a late result while preserving prepared intent', async () => {
+  const user = await prepareRefinement();
+  let resolve!: (value: Response) => void;
+  delay = new Promise(done => { resolve = done; });
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await user.click(screen.getByRole('checkbox', { name: 'AI refinement' }));
+  expect(posts[1].signal.aborted).toBe(true);
+  await act(async () => { resolve(new Response(JSON.stringify(refinement))); });
+  expect(screen.queryByRole('region', { name: 'Routes' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeEnabled();
+});
+
+it.each([false, true])('refinement waits beyond 60 seconds and enforces 100-second deadline (timeout=%s)', async timesOut => {
+  await prepareRefinement();
+  let resolve!: (value: Response) => void;
+  delay = new Promise(done => { resolve = done; });
+  vi.useFakeTimers();
+  fireEvent.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(65000); });
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(posts[1].signal.aborted).toBe(false);
+  if (timesOut) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(35000); });
+    expect(screen.getByRole('alert')).toHaveTextContent('The request timed out. Retry manually.');
+    expect(posts[1].signal.aborted).toBe(true);
+  } else {
+    await act(async () => { resolve(new Response(JSON.stringify(refinement))); });
+    expect(screen.getByRole('region', { name: 'Routes' })).toBeInTheDocument();
+  }
+  vi.useRealTimers();
+});
+
+it('ignores previous refinement preference for an A-B intent', async () => {
+  const user = await prepareRefinement();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  replies.interpret = { ...interpretation, intent: { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 } } };
+  await user.type(screen.getByLabelText('Ride request'), ' to destination');
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await screen.findByText('Ready to generate');
+  expect(screen.queryByRole('checkbox', { name: 'AI refinement' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('region', { name: 'Routes' });
+  expect(posts.at(-1)?.path).toBe('/api/routes/generate');
+});
 
 it('interprets first, requires explicit generation, renders real metrics and downloads selected GPX', async () => {
   const user = await setupPrompt();
@@ -67,7 +258,7 @@ it('validates manual A-B and sends the backend canonical intent to generation', 
   replies.validate = { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 }, targetDistanceMeters: 25123 };
   const user = await setupPrompt();
   await user.click(screen.getByRole('radio', { name: 'Manual' }));
-  await user.selectOptions(screen.getByLabelText('Route shape'), 'pointToPoint');
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
   await user.type(screen.getByLabelText('Destination latitude'), '32.1');
   await user.type(screen.getByLabelText('Destination longitude'), '34.8');
   await user.type(screen.getByLabelText('Distance (km)'), '25');
@@ -83,7 +274,7 @@ it('validates and generates manual A-B without distance or duration', async () =
   replies.validate = { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 }, targetDistanceMeters: null, targetDurationSeconds: null };
   const user = await setupPrompt();
   await user.click(screen.getByRole('radio', { name: 'Manual' }));
-  await user.selectOptions(screen.getByLabelText('Route shape'), 'pointToPoint');
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
   await user.type(screen.getByLabelText('Destination latitude'), '32.1');
   await user.type(screen.getByLabelText('Destination longitude'), '34.8');
   await user.click(screen.getByRole('button', { name: 'Validate preferences' }));
@@ -112,7 +303,7 @@ it('disables unsupported manual options without discarding a previously selected
   await user.click(screen.getByRole('radio', { name: 'Manual' }));
   expect(screen.getByRole('option', { name: 'Gravel' })).toBeDisabled();
   await user.selectOptions(screen.getByLabelText('Elevation preference'), 'minimize');
-  await user.selectOptions(screen.getByLabelText('Route shape'), 'pointToPoint');
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
   expect(screen.getByRole('option', { name: 'Minimize climbs' })).toBeDisabled();
   expect(screen.getByRole('option', { name: 'Seek climbs' })).toBeDisabled();
   expect(screen.getByLabelText('Elevation preference')).toHaveValue('minimize');
