@@ -19,6 +19,7 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandida
 		var candidates = new List<RouteCandidate>();
 		var attemptedCount = 0;
 		RoutingFailure? incompleteFailure = null;
+		var nextLength = length;
 
 		for (var seed = 1; seed <= 3; seed++)
 		{
@@ -27,9 +28,10 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandida
 			{
 				search.Token.ThrowIfCancellationRequested();
 				attemptedCount++;
-				var path = await provider.GetRoadLoopAsync(intent.Start, length, seed, search.Token);
+				var path = await provider.GetRoadLoopAsync(intent.Start, nextLength, seed, search.Token);
 				search.Token.ThrowIfCancellationRequested();
 				RoadLoopGeometry.Validate(path);
+				nextLength = LoopSearchLength.Correct(intent, length, nextLength, path);
 				if (!candidates.Any(x => RoadLoopGeometry.SameGeometry(x.Path, path))) candidates.Add(new(seed, path));
 			}
 			catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)

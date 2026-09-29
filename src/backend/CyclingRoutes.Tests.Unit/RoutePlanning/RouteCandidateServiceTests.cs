@@ -61,7 +61,8 @@ public class RouteCandidateServiceTests
 	{
 		var provider = new ScriptedProvider((seed, _) => Task.FromResult(Loop(seed)));
 		var result = await Service(provider).GenerateAsync(Intent(distance, seconds), TestContext.Current.CancellationToken);
-		Assert.All(provider.Calls, x => Assert.Equal(expected, x.Length));
+		Assert.Equal(expected, provider.Calls[0].Length);
+		Assert.All(provider.Calls, x => Assert.InRange(x.Length, Math.Max(1000, expected * 0.5), Math.Min(100000, expected * 1.5)));
 		Assert.Equal(distance is null, result.Assumptions.Contains("initial_speed_20_kmh"));
 	}
 
