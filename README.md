@@ -8,7 +8,7 @@ point-to-point road routing, ranked road-loop candidates, GPX export, and a
 Gemini-backed prompt interpretation API with clarifications, and a local React
 testing interface with map selection, manual preferences, candidates and GPX.
 Interpretation is offline-tested; full live model qualification remains pending
-because of provider availability. Gravel-specific routing, agentic route
+because of provider availability and remaining semantic mismatches. Gravel-specific routing, agentic route
 refinement, persistence and public deployment are not yet implemented.
 
 ## Browser testing
@@ -41,6 +41,13 @@ OpenFreeMap tiles; loading a map sends viewport/tile requests to that external
 service. Map and route-provider attribution remain visible. A tile/WebGL failure
 does not disable numeric input or GPX download. Check road access and conditions
 yourself; generated routes are not safety-certified.
+
+The Liberty basemap highlights explicit `subclass=cycleway` paths in blue,
+including its bridge/tunnel path strokes. Other paths keep the original styling:
+`bicycle=yes` alone does not make a footpath a dedicated cycleway. Widths, dashes,
+road stacking and route overlays are unchanged. This is a display improvement,
+not a complete bicycle-lane inventory, access guarantee or routing preference.
+It uses the existing OpenFreeMap tiles, with no new service, key or subscription.
 
 Frontend-only development (run the backend separately on 127.0.0.1:5080):
 

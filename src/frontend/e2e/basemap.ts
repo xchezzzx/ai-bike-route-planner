@@ -1,5 +1,22 @@
 import type { StyleSpecification } from 'maplibre-gl';
 
+export function cyclingBasemap(subclass: 'cycleway' | 'footway'): StyleSpecification {
+  const ids = ['road_path_pedestrian', 'bridge_path_pedestrian', 'tunnel_path_pedestrian'];
+  return {
+    version: 8,
+    sources: Object.fromEntries(ids.map((id, index) => [id, { type: 'geojson', data: {
+      type: 'Feature', properties: { class: 'path', subclass, bicycle: 'yes' },
+      geometry: { type: 'LineString', coordinates: [[34.786, 32.083 + index * 0.002], [34.794, 32.083 + index * 0.002]] },
+    } }])),
+    layers: [
+      { id: 'land', type: 'background', paint: { 'background-color': '#e8edeb' } },
+      ...ids.map(id => ({ id, type: 'line' as const, source: id, minzoom: 14,
+        paint: { 'line-color': '#ffffff', 'line-width': 3, 'line-dasharray': [1, 0.7] },
+      })),
+    ],
+  };
+}
+
 // Deterministic test-only basemap. Never imported by the application or deployed.
 export const basemap: StyleSpecification = {
   version: 8,

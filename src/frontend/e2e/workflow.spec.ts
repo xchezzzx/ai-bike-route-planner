@@ -1,17 +1,17 @@
 import { expect, test, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
-import { basemap } from './basemap';
+import { basemap, cyclingBasemap } from './basemap';
 import { candidates, intent, interpretation, route } from '../tests/fixtures';
 
-async function mockNetwork(page: Page, mapFails = false) {
+async function mockNetwork(page: Page, mapFails = false, style = basemap) {
   const posts: { path: string; body: unknown }[] = [];
   await page.route('**/*', async intercepted => {
     const request = intercepted.request();
     const url = new URL(request.url());
     if (url.hostname === 'tiles.openfreemap.org') {
       if (mapFails) await intercepted.abort('failed');
-      else await intercepted.fulfill({ json: basemap });
+      else await intercepted.fulfill({ json: style });
     } else if (url.pathname === '/health') await intercepted.fulfill({ body: 'Healthy' });
     else if (url.pathname.startsWith('/api/')) {
       const body = request.postDataJSON();
@@ -35,6 +35,26 @@ async function generate(page: Page) {
   await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Routes', exact: true })).toBeVisible();
 }
+
+for (const subclass of ['cycleway', 'footway'] as const) test(`map distinguishes ${subclass} even when bicycle=yes`, async ({ page }, testInfo) => {
+  await mockNetwork(page, false, cyclingBasemap(subclass));
+  await page.goto('/');
+  await expect(page.getByRole('region', { name: 'Route map', exact: true })).toHaveAttribute('aria-busy', 'false');
+  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  const canvas = page.locator('.maplibregl-canvas');
+  const count = async () => {
+    const { data } = PNG.sync.read(await canvas.screenshot());
+    let blue = 0, white = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] < 80 && data[i + 1] > 60 && data[i + 1] < 140 && data[i + 2] > 200) blue++;
+      if (data[i] > 250 && data[i + 1] > 250 && data[i + 2] > 250) white++;
+    }
+    return { blue, white };
+  };
+  await expect.poll(async () => (await count())[subclass === 'cycleway' ? 'blue' : 'white']).toBeGreaterThan(100);
+  if (subclass === 'footway') expect((await count()).blue).toBe(0);
+  await page.screenshot({ path: testInfo.outputPath(`${subclass}.png`), fullPage: true });
+});
 
 test('prompt confirmation, real canvas, route selection, fit and selected GPX', async ({ page }, testInfo) => {
   const posts = await mockNetwork(page);
