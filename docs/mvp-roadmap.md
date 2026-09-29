@@ -219,6 +219,17 @@ cases passed, including six new selector cases. Screenshots inspected in desktop
 mobile LTR/RTL; independent scoped review found no actionable defects. No live
 ORS/Gemini calls, backend changes or geolocation implementation in this step.
 
+## Implemented addition: theme selection
+
+Approved and implemented on 2026-09-29 on `oleg/dark-theme`, dependent on the
+unmerged track-segment work. Light/dark/system selection uses `next-themes`,
+persists when browser storage permits, and follows the OS only in system mode.
+The interface and OpenFreeMap basemap change together without replacing user
+inputs, generated routes, the selected segment or the camera position.
+See the [verification record](evaluation/dark-theme.md) for actual checks and
+the unchanged predecessor merge gate. Distance/time ranges remain a separate
+API/ranking/interpretation task; no interval semantics are implemented here.
+
 ## Previously proposed service shortlist
 
 MapLibre/OpenFreeMap; openrouteservice or GraphHopper; local PostgreSQL/PostGIS;
