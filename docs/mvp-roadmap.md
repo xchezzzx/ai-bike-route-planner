@@ -42,12 +42,16 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    11 passes and 14 upstream 503 failures. No mismatches among those 11 responses.
    See [interpretation contract and runbook](api/prompt-interpretation.md).
    Contract v3 adds selected-map-point references and targetless A-B requests.
-   Latest 34-case live run on 2026-09-29: 32 passed, one ai_unavailable and one
-   Russian targetless A-B false location clarification. Qualification is still
-   open; manual route input remains independent of Gemini.
+   Earlier v3 run: 32 passed, one ai_unavailable and one Russian targetless A-B
+   false location clarification. A later unchanged-contract full run on
+   2026-09-29 passed all 34 cases, closing the current corpus qualification gate.
+   Prior failures remain evidence of variability, not erased by a successful run;
+   manual route input remains independent of Gemini.
    Stage 6b remains future work:
    AI guides candidate construction/refinement through routing tools; graph-based
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
+   A [bounded refinement design](api/agentic-refinement-design.md) is proposed
+   for review; it is not implemented or an approved execution plan.
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
    Implemented and merged through PR #10, with manual input as a
@@ -80,12 +84,13 @@ cycleway next to unchanged white pedestrian paths; screenshot in primary
 artifacts/reading-cycleway-20260929.png. This does not verify all on-road bike
 lanes or legal access, and it does not change the ORS routing profile.
 
-1. Complete the route-request usability delivery: optional distance/time for
+1. Completed route-request usability delivery through PR #12: optional distance/time for
    A-B, clear generation readiness, supported manual choices and multilingual
    selected-map-point interpretation. See the
    [execution record](plans/2026-09-29-route-request-usability.md).
-2. Finish full live interpretation qualification, recording semantic failures
-   separately from provider availability. Offline passing tests do not close it.
+2. Current full live interpretation corpus passed 34/34, separately from offline
+   fixtures. Requalify whenever the prompt/schema/model changes; earlier failures
+   still inform availability and production-readiness decisions.
 3. Stage 6b: bounded AI-guided candidate construction/refinement using routing
    tools, with application-owned budgets and unchanged user constraints.
 4. Add automatic track names and verify actual Israeli route/GPX quality.

@@ -27,7 +27,7 @@ agentic refinement, geographic naming and public deployment remain later stages.
   and desktop/mobile browser coverage.
 - [x] Full backend/frontend/evaluator verification and bounded synthetic live
   qualification. Record real provider failures separately from semantic failures.
-- [ ] Independent whole-branch review, fixes, logical commits, PR/all checks,
+- [x] Independent whole-branch review, fixes, logical commits, PR/all checks,
   merge and verify main. Preserve the requested automatic track-name backlog.
 
 ## Evidence
@@ -83,3 +83,13 @@ found no actionable code defects. Reviewer separately checked the offline
 corpus and diff whitespace, without provider calls or secret access. This
 does not override the recorded live semantic failure. PR delivery is for the
 experimental local MVP, not production interpretation qualification.
+
+Delivery subsequently completed through PR #12, merge b573f31. Backend and
+frontend checks passed on both PR and main; the primary checkout was updated
+and all 407 backend tests passed again. PR #12's final comment records CI URLs.
+
+Later full live run: 34/34 passed without changes to contract v3 or expectations,
+5000 ms pacing and no retries. Report:
+artifacts/prompt-evaluation-20260929T123528-32e009a1.json (ignored, also in primary).
+This closes the current corpus qualification gate as of 2026-09-29, while the
+earlier failures above remain evidence of model/provider variability.

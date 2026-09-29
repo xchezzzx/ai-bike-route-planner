@@ -10,7 +10,9 @@
 
 **Spec:** [Approved design](../api/prompt-interpretation-design.md).
 
-**Status:** Implementation, offline verification, and Docker smoke complete. Live model qualification remains open.
+**Status:** Implementation, offline verification, Docker smoke and the current
+34-case live corpus qualification complete (2026-09-29). Historical failures
+remain below; this is not a production reliability guarantee.
 
 **Execution:** Native implementation in this thread, logical local commits, then an independent whole-branch review. Do not push, create a PR, or merge. Update checkboxes only when the corresponding evidence exists.
 
@@ -224,7 +226,7 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
 - [x] **2. Run red.** `dotnet test src/backend/CyclingRoutes.Tests.Integration --configuration Release --no-restore --maxcpucount:1 --filter FullyQualifiedName~PromptEvaluationCorpusTests` must fail while corpus/content are absent.
 - [x] **3. Author corpus, runner, and runbook.** Use real EN/HE/RU text (Unicode is required here). Make live execution sequential, one request per case, no retries; stop on quota or credentials failure and mark remaining cases unrun. Require a loopback BaseUrl in this MVP runner to avoid sending synthetic data or calls to arbitrary servers by mistake. Do not count unrun/error cases as passes. Runbook explains selecting a currently free structured-output model, configuring secrets without committing them, privacy, no billing automation, static fake-test limitations, and the resubmit-full-prompt clarification workflow.
 - [x] **4. Run green and offline runner checks.** `pwsh -NoProfile -File tools/evaluate-prompts.ps1` must report a valid corpus without requiring any server/key. `pwsh -NoProfile -File tools/tests/evaluate-prompts.tests.ps1` must exit 0 after checking invalid corpus/expectations, ready/mismatch reports, auth/quota early stop, and exit codes through its loopback HTTP stub. The harness cleans up its own listener and temporary reports in finally. Run full shared verification. Reconcile README/roadmap with actual delivered behavior, keeping stage 6b and manual road/device checks open.
-- [ ] **5. Perform live qualification only when configured intentionally.** Verify current official model/pricing documentation, then run the explicit opt-in corpus using synthetic prompts only. If credentials/model are unavailable, leave this checkbox incomplete and report live qualification as blocked on configuration, not passed. Do not install a model, create an account, or enable billing to satisfy this step.
+- [x] **5. Perform live qualification only when configured intentionally.** Verify current official model/pricing documentation, then run the explicit opt-in corpus using synthetic prompts only. If credentials/model are unavailable, leave this checkbox incomplete and report live qualification as blocked on configuration, not passed. Do not install a model, create an account, or enable billing to satisfy this step.
 - [x] **6. Request an independent whole-branch review.** Read the requesting-code-review skill; reviewer checks the complete diff against spec and this plan, including privacy, status semantics, request/response bounds, cancellation, fixture honesty, and existing route regressions. Implement confirmed fixes with focused regression tests and rerun the full suite. If reviewer tooling is unavailable, state that limitation and perform an explicit self-review without claiming independence.
 - [x] **7. Commit task files and any separate review fixes.** Message: `test: add multilingual interpretation evaluation and runbook`. Report exact commit hashes, fresh test counts, container evidence, remaining live qualification, and clean git status. No push/PR/merge.
 
@@ -316,3 +318,10 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
   Full Task 4.5 qualification remains open. No expectations were weakened or
   application-level location issues suppressed. See the separate
   [usability delivery record](2026-09-29-route-request-usability.md).
+- Subsequent full run on 2026-09-29: 34/34 passed, zero failed comparisons,
+  errors or unrun cases; exit code 0. Report:
+  artifacts/prompt-evaluation-20260929T123528-32e009a1.json (ignored, also in the
+  primary checkout). Same contract v3, operator-declared gemini-3.1-flash-lite,
+  original expectations and 5000 ms pacing, no retries. This closes Task 4.5
+  for the current corpus. Previous failures remain recorded, and one successful
+  run does not establish production reliability or universal prompt accuracy.
