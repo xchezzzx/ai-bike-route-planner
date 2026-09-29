@@ -95,12 +95,18 @@ lanes or legal access, and it does not change the ORS routing profile.
 2. Current full live interpretation corpus passed 34/34, separately from offline
    fixtures. Requalify whenever the prompt/schema/model changes; earlier failures
    still inform availability and production-readiness decisions.
-3. Stage 6b: bounded AI-guided candidate construction/refinement using routing
+3. Road-loop quality now takes priority following the negative 40 km experiment:
+   assess surface evidence and exact retracing, select zero to three near-target
+   candidates, and expose uncertainty/exclusions in both search modes. Scope
+   approved in conversation; the [written design](superpowers/specs/2026-09-29-road-loop-quality-design.md)
+   awaits review and is not implemented. Controlled road-network waypoint
+   construction follows as a separate prototype, not a promised engine migration.
+4. Stage 6b: bounded AI-guided candidate construction/refinement using routing
    tools, with application-owned budgets and unchanged user constraints.
    Implementation is ready for PR review; first diagnose rejected live advisor
    responses and complete a separately bounded requalification before merge.
-4. Add automatic track names and verify actual Israeli route/GPX quality.
-5. Prepare public deployment: abuse protection, current free-tier checks,
+5. Add automatic track names and verify actual Israeli route/GPX quality.
+6. Prepare public deployment: abuse protection, current free-tier checks,
    hosting configuration, secrets and staging/production verification.
 
 Persistence is not a prerequisite for these deliveries. Stage 6b is implemented
