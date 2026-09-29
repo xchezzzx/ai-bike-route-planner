@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 function Assert-Corpus($corpus) {
-    if ($corpus.version -ne 1 -or $corpus.contractVersion -ne 'prompt-interpretation-v3') { throw 'Unsupported corpus version.' }
+    if ($corpus.version -ne 1 -or $corpus.contractVersion -ne 'prompt-interpretation-v4') { throw 'Unsupported corpus version.' }
     $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($case in $corpus.cases) {
         if ([string]::IsNullOrWhiteSpace($case.id) -or -not $ids.Add($case.id)) { throw 'Invalid or duplicate case ID.' }
@@ -22,14 +22,14 @@ function Assert-Corpus($corpus) {
         if ($case.expectedStatus -cnotin @('ready', 'needsClarification', 'unsupported')) { throw 'Invalid expected status.' }
         if ($case.expectedFields -isnot [Collections.IDictionary] -or $case.expectedFields.Count -eq 0) { throw 'Expected fields are required.' }
         foreach ($path in $case.expectedFields.Keys) {
-            if ($path -cnotmatch '^(intent|draft)(\.(shape|profile|elevation|targetDistanceMeters|targetDurationSeconds|start\.(latitude|longitude)|destination\.(latitude|longitude)))?$') { throw 'Invalid expected field path.' }
+            if ($path -cnotmatch '^(intent|draft)(\.(shape|profile|elevation|targetDistanceMeters|targetDurationSeconds|targetDistanceRangeMeters(\.(min|max))?|targetDurationRangeSeconds(\.(min|max))?|start\.(latitude|longitude)|destination\.(latitude|longitude)))?$') { throw 'Invalid expected field path.' }
         }
         foreach ($name in @('expectedClarifications', 'expectedLimitations', 'expectedAssumptions')) {
             if ($case[$name] -isnot [array]) { throw "Expected array missing: $name" }
         }
         foreach ($question in $case.expectedClarifications) {
-            if ($question.field -cnotin @('start', 'destination', 'shape', 'profile', 'elevation', 'targetDistanceMeters', 'targetDurationSeconds', 'prompt') -or
-                $question.code -cnotin @('required', 'target_required', 'must_be_positive', 'out_of_range', 'destination_not_allowed', 'must_differ_from_start', 'ambiguous', 'invalid_value', 'location_requires_map_selection')) { throw 'Invalid expected clarification.' }
+            if ($question.field -cnotmatch '^(start|destination|shape|profile|elevation|targetDistanceMeters|targetDurationSeconds|targetDistanceRangeMeters(\.(min|max))?|targetDurationRangeSeconds(\.(min|max))?|prompt)$' -or
+                $question.code -cnotin @('required', 'target_required', 'must_be_positive', 'out_of_range', 'range_reversed', 'target_conflict', 'destination_not_allowed', 'must_differ_from_start', 'ambiguous', 'invalid_value', 'location_requires_map_selection')) { throw 'Invalid expected clarification.' }
         }
         foreach ($code in $case.expectedLimitations) {
             if ($code -cnotin @('unsupported_preference', 'gravel_not_supported', 'point_to_point_elevation_not_supported', 'loop_search_distance_out_of_range')) { throw 'Invalid expected limitation.' }

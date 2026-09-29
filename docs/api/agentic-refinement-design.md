@@ -109,7 +109,7 @@ Next: finish bounded live qualification, independent review and CI gates.
 
 On 2026-09-29 the user approved a local-only correction after a bounded diagnostic
 run identified `stop` with a non-null requested length. The internal Gemini
-contract is now `route-search-v2`: one required `nextSearch` field, either null
+contract became `route-search-v2`: one required `nextSearch` field, either null
 (stop) or a closed object containing required seed, requestedLengthMeters and
 reason (search). This removes contradictory action/search fields. Mapping to
 application advice and the public HTTP contract remain unchanged, as do all
@@ -125,3 +125,13 @@ Subsequent approval allowed up to 10 Gemini and 24 ORS calls. The first v2 run
 used two Gemini calls: stop passed, then search received HTTP 503 and execution
 stopped. No ORS comparison or automatic retry followed. See the diagnostic
 record for the remaining allowance; qualification and merge remain pending.
+
+## Explicit range revision
+
+The distance/time range extension uses `route-search-v3` for the advisor input
+and prompt. The v2 `nextSearch` output shape, policy, budgets and safety exclusions
+are unchanged. Current corpus metadata and reports identify v3 while keeping
+the dataset filename/version `route-refinement-v2.json`/2. The previous v2
+qualification is historical evidence only. Both advisor v3 and interpretation
+`prompt-interpretation-v4` require new live qualification; none was run for this
+extension. See the [current API runbook](route-plan.md).

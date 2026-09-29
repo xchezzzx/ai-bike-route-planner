@@ -10,10 +10,11 @@ function Assert-True($condition, $message) { if (-not $condition) { throw $messa
 try {
     & pwsh -NoProfile -File $runner
     Assert-True ($LASTEXITCODE -eq 0) 'Offline corpus validation failed.'
-    foreach ($mutation in @('path', 'status', 'locale', 'duplicate')) {
+    foreach ($mutation in @('path', 'range-path', 'status', 'locale', 'duplicate')) {
         $invalid = Get-Content -LiteralPath $corpusPath -Raw | ConvertFrom-Json -AsHashtable
         switch ($mutation) {
             'path' { $invalid.cases[0].expectedFields['intent.execute'] = 'anything' }
+            'range-path' { $invalid.cases[0].expectedFields['intent.targetDistanceRangeMeters.middle'] = 20000 }
             'status' { $invalid.cases[0].expectedStatus = 'success' }
             'locale' { $invalid.cases[0].request.locale = 'xx' }
             'duplicate' { $invalid.cases[1].id = $invalid.cases[0].id }
@@ -29,7 +30,7 @@ try {
         Assert-True ($LASTEXITCODE -ne 0) 'Invalid request delay accepted.'
     }
 
-    foreach ($scenario in @('paced', 'pass', 'mismatch', 'quota', 'auth', 'array-status')) {
+    foreach ($scenario in @('paced', 'pass', 'mismatch', 'range-mismatch', 'quota', 'auth', 'array-status')) {
         $responses = @($corpus.cases | ForEach-Object {
             $case = $_
             $body = @{ status = $case.expectedStatus; draft = @{}; intent = @{};
@@ -44,6 +45,7 @@ try {
                 $node[$parts[-1]] = $case.expectedFields[$path]
             }
             if ($scenario -eq 'mismatch') { $body.status = 'wrong' }
+            if ($scenario -eq 'range-mismatch' -and $case.id -eq 'en-ranges') { $body.intent.targetDistanceRangeMeters.max = 22001 }
             if ($scenario -eq 'array-status') { $body.status = @($case.expectedStatus, 'invalid-extra-status') }
             $status = 200
             if ($scenario -in @('quota', 'auth')) {
@@ -103,6 +105,10 @@ try {
             $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json -AsHashtable
             Assert-True ($report.requestDelayMs -eq $delay) 'Report omitted configured request delay.'
             Assert-True ($report.results.Count -eq $corpus.cases.Count) 'Report omitted cases.'
+            if ($scenario -eq 'range-mismatch') {
+                $failed = @($report.results | Where-Object status -eq 'mismatch')
+                Assert-True ($failed.Count -eq 1 -and $failed[0].id -eq 'en-ranges') 'Range bound mismatch was not isolated.'
+            }
             $unrun = @($report.results | Where-Object status -eq 'unrun').Count
             Assert-True ($unrun -eq $corpus.cases.Count - $expectedCalls) 'Unrun cases were counted incorrectly.'
         } finally {

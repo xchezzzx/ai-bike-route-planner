@@ -8,7 +8,7 @@ namespace CyclingRoutes.Tests.Integration;
 
 public class GeminiRouteIntentInterpreterTests
 {
-	public const string Extraction = """{"shape":"loop","profile":"road","elevation":null,"targetDistanceMeters":20000,"targetDurationSeconds":null,"issues":[]}""";
+	public const string Extraction = """{"shape":"loop","profile":"road","elevation":null,"targetDistanceMeters":20000,"targetDurationSeconds":null,"targetDistanceRangeMeters":null,"targetDurationRangeSeconds":null,"issues":[]}""";
 	public static string Envelope(string extraction = Extraction, string finish = "STOP") => JsonSerializer.Serialize(new
 	{
 		candidates = new[] { new { finishReason = finish, content = new { parts = new[] { new { text = extraction } } } } },
@@ -40,7 +40,7 @@ public class GeminiRouteIntentInterpreterTests
 			var root = json.RootElement;
 			Assert.False(root.TryGetProperty("tools", out _));
 			using var corpus = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));
-			Assert.Equal("prompt-interpretation-v3", corpus.RootElement.GetProperty("contractVersion").GetString());
+			Assert.Equal("prompt-interpretation-v4", corpus.RootElement.GetProperty("contractVersion").GetString());
 			Assert.Contains(corpus.RootElement.GetProperty("contractVersion").GetString()!, root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
 			Assert.Contains("References to selected points", root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
 			Assert.Contains("Endpoint letters A/B", root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
@@ -53,7 +53,13 @@ public class GeminiRouteIntentInterpreterTests
 			Assert.Equal("application/json", config.GetProperty("responseMimeType").GetString());
 			var schema = config.GetProperty("responseJsonSchema");
 			Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
-			Assert.Equal(6, schema.GetProperty("required").GetArrayLength());
+			Assert.Equal(8, schema.GetProperty("required").GetArrayLength());
+			foreach (var name in new[] { "targetDistanceRangeMeters", "targetDurationRangeSeconds" })
+			{
+				var range = schema.GetProperty("properties").GetProperty(name);
+				Assert.False(range.GetProperty("additionalProperties").GetBoolean());
+				Assert.Equal(new[] { "min", "max" }, range.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+			}
 			Assert.False(schema.GetProperty("properties").TryGetProperty("start", out _));
 			return Response(Envelope());
 		}));

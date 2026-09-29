@@ -6,6 +6,26 @@ namespace CyclingRoutes.Tests.Unit.RoutePlanning;
 public class AdaptiveLoopSearchTests
 {
 	[Theory]
+	[InlineData(false, false)] [InlineData(true, false)]
+	[InlineData(false, true)] [InlineData(true, true)]
+	public async Task RangeMidpointSeedsSearchAndAdvisorReceivesOriginalBounds(bool advised, bool durationOnly)
+	{
+		var provider = new Provider((length, seed) => Path(seed, length * 1.4, length * 1.4 * 3600 / 20000));
+		var intent = new RouteIntent(new(32, 34), RouteShape.Loop, CyclingProfile.Road,
+			elevation: ElevationPreference.Minimize,
+			targetDistanceRange: durationOnly ? null : new(18000, 22000),
+			targetDurationRange: durationOnly ? new(3000, 4200) : null);
+		var result = await Search(advised, provider, intent);
+		Assert.Equal(20000, result.RequestedLengthMeters);
+		Assert.Equal(20000, provider.Lengths[0]);
+		Assert.Equal(20000 / 1.4, provider.Lengths[1], 6);
+		Assert.Equal(provider.Lengths[1], provider.Lengths[2], 6);
+		Assert.Equal(durationOnly, result.Assumptions.Contains("initial_speed_20_kmh"));
+		Assert.Equal(new[] { 2, 3 }, result.Candidates.Select(c => c.Seed));
+		Assert.All(result.Candidates, c => Assert.True(c.Assessment.TargetsMatched));
+	}
+
+	[Theory]
 	[InlineData(18000)]
 	[InlineData(20000)]
 	[InlineData(22000)]
@@ -111,6 +131,22 @@ public class AdaptiveLoopSearchTests
 		Assert.Equal(1, advisor.Calls);
 		Assert.Equal(provider.Lengths, result.Attempts.Select(a => a.RequestedLengthMeters));
 		Assert.Equal(provider.Lengths.Take(2), advisor.Context!.Observations.Select(o => o.RequestedLengthMeters));
+		if (intent.TargetDistanceRange is { } dr)
+		{
+			Assert.Equal(dr.Min, advisor.Context.Preferences.TargetDistanceRangeMeters!.Min);
+			Assert.Equal(dr.Max, advisor.Context.Preferences.TargetDistanceRangeMeters.Max);
+			Assert.Null(advisor.Context.Preferences.TargetDistanceMeters);
+			Assert.Equal(6000, advisor.Context.Observations[0].DistanceDeltaMeters);
+			Assert.Equal(0, advisor.Context.Observations[1].DistanceDeltaMeters);
+		}
+		if (intent.TargetDurationRange is { } tr)
+		{
+			Assert.Equal(tr.Min, advisor.Context.Preferences.TargetDurationRangeSeconds!.Min);
+			Assert.Equal(tr.Max, advisor.Context.Preferences.TargetDurationRangeSeconds.Max);
+			Assert.Null(advisor.Context.Preferences.TargetDurationSeconds);
+			Assert.Equal(840, advisor.Context.Observations[0].DurationDeltaSeconds);
+			Assert.Equal(0, advisor.Context.Observations[1].DurationDeltaSeconds);
+		}
 		return result.Search;
 	}
 

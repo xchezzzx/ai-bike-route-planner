@@ -73,6 +73,9 @@ svg { flex-shrink: 0; }
 .wide { width: 100%; }
 .manual-fields { display: grid; gap: 12px; }
 .target-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.target-input > .segmented { margin-bottom: 8px; }
+.target-input .segmented span { padding-inline: 2px; overflow-wrap: anywhere; }
+.range-bounds { display: grid; gap: 8px; }
 .generate-section { padding: 18px 20px 0; display: grid; gap: 12px; }
 .pending { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .pending .icon-button { margin-inline-start: auto; }

@@ -4,6 +4,11 @@ Status: approved by the user on 2026-09-28; implementation plan also approved.
 See [the implementation plan](../plans/2026-09-28-route-candidates.md) for execution evidence.
 The existing generation API remains available.
 
+This records the original scalar design. The current [API contract](route-candidates.md)
+also supports exact inclusive distance/time ranges, midpoint initialization and
+adaptive calibration; those additions supersede the original fixed-length and
+scalar-only search/ranking descriptions below. Scalar tolerance remains unchanged.
+
 ## Agreed intent
 
 Generate several provider-backed road loops from a start location, compare them

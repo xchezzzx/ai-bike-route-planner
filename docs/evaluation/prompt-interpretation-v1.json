@@ -1,7 +1,28 @@
 {
   "version": 1,
-  "contractVersion": "prompt-interpretation-v3",
+  "contractVersion": "prompt-interpretation-v4",
   "cases": [
+    {
+      "id": "en-ranges", "core": false,
+      "request": { "prompt": "A road loop between 18 and 22 km, lasting 50 to 70 minutes.", "locale": "en", "start": { "latitude": 32, "longitude": 34 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "loop", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": null, "intent.targetDistanceRangeMeters.min": 18000, "intent.targetDistanceRangeMeters.max": 22000, "intent.targetDurationRangeSeconds.min": 3000, "intent.targetDurationRangeSeconds.max": 4200, "draft.targetDistanceRangeMeters.min": 18000, "draft.targetDistanceRangeMeters.max": 22000, "draft.targetDurationRangeSeconds.min": 3000, "draft.targetDurationRangeSeconds.max": 4200 },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
+    {
+      "id": "ru-ranges", "core": false,
+      "request": { "prompt": "Шоссейное кольцо от 18 до 22 км, длительностью от 50 до 70 минут.", "locale": "ru", "start": { "latitude": 32, "longitude": 34 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "loop", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": null, "intent.targetDistanceRangeMeters.min": 18000, "intent.targetDistanceRangeMeters.max": 22000, "intent.targetDurationRangeSeconds.min": 3000, "intent.targetDurationRangeSeconds.max": 4200, "draft.targetDistanceRangeMeters.min": 18000, "draft.targetDistanceRangeMeters.max": 22000, "draft.targetDurationRangeSeconds.min": 3000, "draft.targetDurationRangeSeconds.max": 4200 },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
+    {
+      "id": "he-ranges", "core": false,
+      "request": { "prompt": "מסלול כביש מעגלי בין 18 ל-22 קילומטרים, במשך 50 עד 70 דקות.", "locale": "he", "start": { "latitude": 32, "longitude": 34 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "loop", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": null, "intent.targetDistanceRangeMeters.min": 18000, "intent.targetDistanceRangeMeters.max": 22000, "intent.targetDurationRangeSeconds.min": 3000, "intent.targetDurationRangeSeconds.max": 4200, "draft.targetDistanceRangeMeters.min": 18000, "draft.targetDistanceRangeMeters.max": 22000, "draft.targetDurationRangeSeconds.min": 3000, "draft.targetDurationRangeSeconds.max": 4200 },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
     {
       "id": "en-selected-points", "core": false,
       "request": { "prompt": "A-to-B road route between the selected points, target duration 6 hours.", "locale": "en", "start": { "latitude": 32, "longitude": 34 }, "destination": { "latitude": 32.8, "longitude": 35 } },

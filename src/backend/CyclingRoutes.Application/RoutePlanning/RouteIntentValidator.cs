@@ -52,7 +52,33 @@ public sealed class RouteIntentValidator
 			else duration = TimeSpan.FromTicks(seconds * TimeSpan.TicksPerSecond);
 		}
 
-		if (shape != RouteShape.PointToPoint && request.TargetDistanceMeters is null && request.TargetDurationSeconds is null)
+		DistanceRange? distanceRange = null;
+		if (request.TargetDistanceRangeMeters is { } dr)
+		{
+			var minValid = ValidateBound(dr.Min, "targetDistanceRangeMeters.min", errors);
+			var maxValid = ValidateBound(dr.Max, "targetDistanceRangeMeters.max", errors);
+			if (minValid && maxValid)
+			{
+				if (dr.Min > dr.Max) errors["targetDistanceRangeMeters"] = ["range_reversed"];
+				else distanceRange = new(dr.Min!.Value, dr.Max!.Value);
+			}
+			if (request.TargetDistanceMeters is not null) errors["targetDistanceRangeMeters"] = ["target_conflict"];
+		}
+		DurationRange? durationRange = null;
+		if (request.TargetDurationRangeSeconds is { } tr)
+		{
+			var minValid = ValidateBound(tr.Min, "targetDurationRangeSeconds.min", errors, TimeSpan.MaxValue.Ticks / TimeSpan.TicksPerSecond);
+			var maxValid = ValidateBound(tr.Max, "targetDurationRangeSeconds.max", errors, TimeSpan.MaxValue.Ticks / TimeSpan.TicksPerSecond);
+			if (minValid && maxValid)
+			{
+				if (tr.Min > tr.Max) errors["targetDurationRangeSeconds"] = ["range_reversed"];
+				else durationRange = new(tr.Min!.Value, tr.Max!.Value);
+			}
+			if (request.TargetDurationSeconds is not null) errors["targetDurationRangeSeconds"] = ["target_conflict"];
+		}
+
+		if (shape != RouteShape.PointToPoint && request.TargetDistanceMeters is null && request.TargetDurationSeconds is null
+			&& request.TargetDistanceRangeMeters is null && request.TargetDurationRangeSeconds is null)
 		{
 			errors["targetDistanceMeters"] = ["target_required"];
 			errors["targetDurationSeconds"] = ["target_required"];
@@ -74,7 +100,16 @@ public sealed class RouteIntentValidator
 
 		return new(new RouteIntent(start!, shape!.Value, profile!.Value,
 			targetDistance: distance, targetDuration: duration, destination: destination,
-			elevation: elevation!.Value), errors);
+			elevation: elevation!.Value, targetDistanceRange: distanceRange, targetDurationRange: durationRange), errors);
+	}
+
+	private static bool ValidateBound(double? value, string field, Dictionary<string, string[]> errors, double maximum = double.MaxValue)
+	{
+		if (value is null) errors[field] = ["required"];
+		else if (!double.IsFinite(value.Value) || value > maximum) errors[field] = ["out_of_range"];
+		else if (value <= 0) errors[field] = ["must_be_positive"];
+		else return true;
+		return false;
 	}
 
 	private static GeoCoordinate? ReadCoordinate(CoordinateRequest? value, string field, Dictionary<string, string[]> errors)

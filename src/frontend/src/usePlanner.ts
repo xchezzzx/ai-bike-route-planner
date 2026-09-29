@@ -117,12 +117,18 @@ export function usePlanner() {
 
 function validIntent(intent: Intent): boolean {
   const coordinate = (point: Intent['start'] | null | undefined) => !!point && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180;
+  const range = (value: Intent['targetDistanceRangeMeters'], seconds = false) => value == null || typeof value === 'object'
+    && Number.isFinite(value.min) && Number.isFinite(value.max) && value.min > 0 && value.min <= value.max
+    && (!seconds || Number.isSafeInteger(value.min) && Number.isSafeInteger(value.max) && value.max <= 922337203685);
   return coordinate(intent.start) && ['loop', 'pointToPoint'].includes(intent.shape)
     && ['road', 'gravel'].includes(intent.profile) && ['balanced', 'minimize', 'seekClimbs'].includes(intent.elevation)
     && (intent.shape === 'loop' ? intent.destination == null : coordinate(intent.destination))
     && (intent.targetDistanceMeters == null || Number.isFinite(intent.targetDistanceMeters) && intent.targetDistanceMeters > 0)
-    && (intent.targetDurationSeconds == null || Number.isSafeInteger(intent.targetDurationSeconds) && intent.targetDurationSeconds > 0)
-    && (intent.shape === 'pointToPoint' || intent.targetDistanceMeters != null || intent.targetDurationSeconds != null);
+    && (intent.targetDurationSeconds == null || Number.isSafeInteger(intent.targetDurationSeconds) && intent.targetDurationSeconds > 0 && intent.targetDurationSeconds <= 922337203685)
+    && range(intent.targetDistanceRangeMeters) && range(intent.targetDurationRangeSeconds, true)
+    && (intent.targetDistanceMeters == null || intent.targetDistanceRangeMeters == null)
+    && (intent.targetDurationSeconds == null || intent.targetDurationRangeSeconds == null)
+    && (intent.shape === 'pointToPoint' || intent.targetDistanceMeters != null || intent.targetDurationSeconds != null || intent.targetDistanceRangeMeters != null || intent.targetDurationRangeSeconds != null);
 }
 
 function validRoute(candidate: Candidate): boolean {

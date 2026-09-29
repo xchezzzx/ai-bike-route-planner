@@ -33,6 +33,8 @@ public static class RouteIntentEndpoints
 				_ => throw new InvalidOperationException("Unsupported elevation preference.")
 			},
 			intent.TargetDistance?.Meters,
-			intent.TargetDuration?.Ticks / TimeSpan.TicksPerSecond));
+			intent.TargetDuration?.Ticks / TimeSpan.TicksPerSecond,
+			intent.TargetDistanceRange is { } distanceRange ? new(distanceRange.Min, distanceRange.Max) : null,
+			intent.TargetDurationRange is { } durationRange ? new(durationRange.Min, durationRange.Max) : null));
 	}
 }

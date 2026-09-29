@@ -12,4 +12,6 @@ public sealed record RouteIntentRequest
 	public string? Elevation { get; init; }
 	public double? TargetDistanceMeters { get; init; }
 	public long? TargetDurationSeconds { get; init; }
+	public DistanceRangeRequest? TargetDistanceRangeMeters { get; init; }
+	public DurationRangeRequest? TargetDurationRangeSeconds { get; init; }
 }

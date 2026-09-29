@@ -4,6 +4,32 @@ import { buildManual, readCoordinate, limitations } from '../src/request';
 const form = { shape: 'loop', profile: 'road', elevation: 'balanced', distance: '25.5', duration: '90.5' };
 const start = { latitude: 32.08, longitude: 34.78 };
 
+describe('range targets', () => {
+  const rangeForm = { ...form, distanceMode: 'range' as const, distanceMin: '35', distanceMax: '45', durationMode: 'range' as const, durationMin: '60', durationMax: '90' };
+  it('serializes only the active range mode in canonical units', () => {
+    const result = buildManual(rangeForm, start);
+    expect(result).toMatchObject({ targetDistanceRangeMeters: { min: 35000, max: 45000 }, targetDurationRangeSeconds: { min: 3600, max: 5400 } });
+    expect(result).not.toHaveProperty('targetDistanceMeters');
+    expect(result).not.toHaveProperty('targetDurationSeconds');
+  });
+  it('accepts a closed singleton interval and ignores inactive range drafts', () => {
+    expect(buildManual({ ...rangeForm, distanceMin: '45', durationMode: 'exact' }, start)).toMatchObject({ targetDistanceRangeMeters: { min: 45000, max: 45000 }, targetDurationSeconds: 5430 });
+    expect(buildManual({ ...rangeForm, distanceMode: 'exact', durationMode: 'exact', distanceMin: 'bad' }, start)).not.toHaveProperty('targetDistanceRangeMeters');
+  });
+  it.each([{ distanceMin: '' }, { distanceMax: '' }, { distanceMin: '46' }, { distanceMin: '0' }, { distanceMax: 'Infinity' }, { durationMin: '0.001' }, { durationMax: '59' }])('rejects incomplete, reversed or invalid bounds %j', patch => {
+    expect(() => buildManual({ ...rangeForm, ...patch }, start)).toThrow();
+  });
+  it('allows empty optional ranges but not an empty loop', () => {
+    const empty = { ...rangeForm, distanceMin: '', distanceMax: '', durationMin: '', durationMax: '' };
+    expect(() => buildManual(empty, start)).toThrow();
+    expect(buildManual({ ...empty, shape: 'pointToPoint' }, start, { latitude: 32.1, longitude: 34.8 })).not.toHaveProperty('targetDistanceRangeMeters');
+  });
+  it('checks provider search bounds using the midpoint', () => {
+    expect(limitations({ shape: 'loop', targetDistanceRangeMeters: { min: 100000, max: 110000 } })).toEqual(['loop_search_distance_out_of_range']);
+    expect(limitations({ shape: 'loop', targetDistanceRangeMeters: { min: 90000, max: 110000 } })).toEqual([]);
+  });
+});
+
 describe('request boundary', () => {
   it('allows targetless A-B while keeping targets mandatory for loops', () => {
     const empty = { ...form, distance: '', duration: '' };

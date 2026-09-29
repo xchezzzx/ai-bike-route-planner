@@ -129,7 +129,7 @@ function Measure-Search($body, $intent, [bool]$advised) {
 
 try {
     $corpus = Get-Content -LiteralPath $CorpusPath -Raw | ConvertFrom-Json -AsHashtable
-    if($corpus.version -ne 2 -or $corpus.contractVersion -cne 'route-search-v2' -or $corpus.routeCases.Count -ne 4 -or $corpus.advisorCases.Count -ne 6){throw 'Invalid corpus'}
+    if($corpus.version -ne 2 -or $corpus.contractVersion -cne 'route-search-v3' -or $corpus.routeCases.Count -ne 4 -or $corpus.advisorCases.Count -ne 6){throw 'Invalid corpus'}
     $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach($case in $corpus.routeCases){
         $r=$case.request
@@ -147,7 +147,7 @@ try {
     $OutputPath=[IO.Path]::GetFullPath($OutputPath)
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($OutputPath)) | Out-Null
     $results=@(foreach($case in ($corpus.routeCases | Select-Object -First $CaseLimit)){foreach($arm in @('baseline','advised')){@{id=$case.id;arm=$arm;intent=$case.request;status='unrun';routingCalls=$null;advisorCalls=$null}}})
-    $report=@{contractVersion='route-search-v2';createdAtUtc=[DateTime]::UtcNow.ToString('O');requestDelayMs=5000;results=$results}
+    $report=@{contractVersion='route-search-v3';createdAtUtc=[DateTime]::UtcNow.ToString('O');requestDelayMs=5000;results=$results}
     $handler=[Net.Http.HttpClientHandler]::new(); $handler.AllowAutoRedirect=$false
     $client=[Net.Http.HttpClient]::new($handler); $client.Timeout=[TimeSpan]::FromSeconds(100); $client.MaxResponseContentBufferSize=16*1024*1024
     $stop=$false; $sent=0

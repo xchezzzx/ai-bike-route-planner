@@ -11,6 +11,35 @@ namespace CyclingRoutes.Tests.Integration;
 
 public class GeminiRouteSearchAdvisorTests
 {
+	[Fact]
+	public async Task SerializedRangePreferencesKeepBoundsWithoutComputedMidpoints()
+	{
+		var context = Context with { Preferences = Context.Preferences with
+		{
+			TargetDistanceMeters = null, TargetDurationSeconds = null,
+			TargetDistanceRangeMeters = new(18000, 22000), TargetDurationRangeSeconds = new(3000, 4200)
+		} };
+		using var client = new HttpClient(new Handler(async (request, ct) =>
+		{
+			using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+			using var input = JsonDocument.Parse(json.RootElement.GetProperty("contents")[0].GetProperty("parts")[0].GetProperty("text").GetString()!);
+			var preferences = input.RootElement.GetProperty("preferences");
+			Assert.Equal(JsonValueKind.Null, preferences.GetProperty("targetDistanceMeters").ValueKind);
+			Assert.Equal(JsonValueKind.Null, preferences.GetProperty("targetDurationSeconds").ValueKind);
+			var distance = preferences.GetProperty("targetDistanceRangeMeters");
+			var duration = preferences.GetProperty("targetDurationRangeSeconds");
+			Assert.Equal(new[] { "min", "max" }, distance.EnumerateObject().Select(x => x.Name));
+			Assert.Equal(new[] { "min", "max" }, duration.EnumerateObject().Select(x => x.Name));
+			Assert.Equal(18000, distance.GetProperty("min").GetDouble());
+			Assert.Equal(22000, distance.GetProperty("max").GetDouble());
+			Assert.Equal(3000, duration.GetProperty("min").GetInt64());
+			Assert.Equal(4200, duration.GetProperty("max").GetInt64());
+			return Response(Envelope(Stop));
+		}));
+		Assert.Equal(RouteSearchAction.Stop, (await new GeminiRouteSearchAdvisor(client, Options, TimeProvider.System)
+			.AdviseAsync(context, TestContext.Current.CancellationToken)).Action);
+	}
+
 	public const string Search = """{"nextSearch":{"seed":7,"requestedLengthMeters":16000,"reason":"distance"}}""";
 	public const string Stop = """{"nextSearch":null}""";
 	public static RouteSearchContext Context => new(new(RouteShape.Loop, CyclingProfile.Road, ElevationPreference.Balanced, 20000, null),
@@ -36,10 +65,12 @@ public class GeminiRouteSearchAdvisorTests
 			using var json = JsonDocument.Parse(body);
 			var root = json.RootElement;
 			Assert.Equal(new[] { "systemInstruction", "contents", "generationConfig" }, root.EnumerateObject().Select(x => x.Name));
-			Assert.Contains("route-search-v2", root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
+			using var corpus = JsonDocument.Parse(File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "route-refinement-v2.json")));
+			Assert.Equal("route-search-v3", corpus.RootElement.GetProperty("contractVersion").GetString());
+			Assert.Contains(corpus.RootElement.GetProperty("contractVersion").GetString()!, root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
 			using var input = JsonDocument.Parse(root.GetProperty("contents")[0].GetProperty("parts")[0].GetProperty("text").GetString()!);
 			Assert.Equal(new[] { "preferences", "initialLengthMeters", "observations" }, input.RootElement.EnumerateObject().Select(x => x.Name));
-			Assert.Equal(new[] { "shape", "profile", "elevation", "targetDistanceMeters", "targetDurationSeconds" }, input.RootElement.GetProperty("preferences").EnumerateObject().Select(x => x.Name));
+			Assert.Equal(new[] { "shape", "profile", "elevation", "targetDistanceMeters", "targetDurationSeconds", "targetDistanceRangeMeters", "targetDurationRangeSeconds" }, input.RootElement.GetProperty("preferences").EnumerateObject().Select(x => x.Name));
 			Assert.Equal("road", input.RootElement.GetProperty("preferences").GetProperty("profile").GetString());
 			Assert.Equal(8000, input.RootElement.GetProperty("observations")[0].GetProperty("distanceDeltaMeters").GetDouble());
 			Assert.Equal(new[] { "seed", "requestedLengthMeters", "outcome", "distanceMeters", "durationSeconds", "ascentMeters", "distanceDeltaMeters", "durationDeltaSeconds" }, input.RootElement.GetProperty("observations")[0].EnumerateObject().Select(x => x.Name));

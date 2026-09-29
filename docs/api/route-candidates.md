@@ -21,7 +21,7 @@ seekClimbs. No destination is permitted for a loop.
 }
 ```
 
-Distance and/or targetDurationSeconds are required. A duration-only example:
+At least one distance/time scalar or explicit range is required. A duration-only example:
 
 ```json
 {
@@ -33,8 +33,10 @@ Distance and/or targetDurationSeconds are required. A duration-only example:
 }
 ```
 
-Distance, when supplied, determines initial requested loop length. Otherwise length is
-seconds * 20000 / 3600, with the explicit assumption initial_speed_20_kmh. This
+Distance, when supplied, determines initial requested loop length: use the scalar
+or the midpoint of targetDistanceRangeMeters. Otherwise use the duration scalar
+or targetDurationRangeSeconds midpoint, multiplied by 20000 / 3600, with the
+explicit assumption initial_speed_20_kmh. This
 initial search assumption is not a rider fitness estimate. Ranking always uses
 the provider's estimated duration. Lengths outside 1000..100000 metres return
 422 before network work; they are never clamped. The lower bound is our MVP
@@ -53,9 +55,9 @@ with no eligible result includes `excludedCandidates` and
 | attemptedCount | Started provider calls, including failed and duplicate results; 1..3 |
 | warnings | Search-level machine-readable codes |
 | candidates[].seed | Originating provider seed, not a persistent route ID |
-| candidates[].assessment.distanceDeltaMeters | Actual minus target; null if distance not requested |
-| candidates[].assessment.durationDeltaSeconds | Actual minus target; null if time not requested |
-| candidates[].assessment.targetsMatched | Every supplied target within inclusive 10% tolerance |
+| candidates[].assessment.distanceDeltaMeters | Scalar: actual minus target. Range: zero inside, signed nearest-bound delta outside. Null if absent |
+| candidates[].assessment.durationDeltaSeconds | Same delta rule, in seconds; null if time not requested |
+| candidates[].assessment.targetsMatched | Every supplied scalar within inclusive 10%, and every explicit range within exact inclusive bounds |
 | candidates[].assessment.score | Base score plus remaining-repeat penalty; lower is better, not a probability/confidence |
 | candidates[].assessment.quality | Road-v1 geometry-based evidence and retracing metrics, described below |
 | candidates[].route | Same object shape as GeneratedRouteResponse: geometry, metrics, attribution, warnings, gpx |
@@ -73,7 +75,9 @@ required. The provider may snap the start onto its road graph.
 The server asks ORS for seeds 1, 2 and 3 sequentially with round_trip.points=3.
 After a valid response outside target tolerance, the next requested length is
 calibrated using that response. For one target, multiply the last requested
-length by target/actual (distance or provider-estimated time). For two targets,
+length by target/actual (distance or provider-estimated time). Explicit ranges
+use their midpoint as the correction aim, but an observation anywhere inside
+all supplied constraints retains the current requested length. For two targets,
 use the harmonic mean of their target/actual factors: this balances the worst
 relative error under a local linear approximation. This is a heuristic, not a
 model of the road network or rider speed. A change in seed can change the response.
@@ -88,11 +92,15 @@ Exact coordinate sequences and their reversals
 are deduplicated, ignoring elevation, keeping the earliest seed. Partial road
 overlap and out-and-back sections are allowed. Graph updates can change results.
 
-For each supplied target, calculate abs(actual - target) / target. The mean of
+For each supplied scalar, calculate abs(actual - target) / target. For an explicit
+range, delta is zero for min <= actual <= max, actual - min below min, and
+actual - max above max. Its relative error is abs(delta) / midpoint. No extra
+tolerance or floating-point boundary allowance is applied to explicit ranges.
+The mean of
 these errors, each capped at 1 for scoring, is targetError. Signed deviations
 in the response are not capped. Unknown targets do not participate.
 
-The inclusive 10% comparison allows 1e-15 of relative floating-point roundoff
+The legacy scalar inclusive 10% comparison allows 1e-15 of relative floating-point roundoff
 at the boundary. This does not round route metrics, signed deviations or scores.
 
 - balanced: score = targetError; ascent does not affect the score.

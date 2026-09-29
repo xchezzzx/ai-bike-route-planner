@@ -63,7 +63,7 @@ public class RouteRefinementQualificationTests
 		Assert.Equal("failed", report.RootElement.GetProperty("status").GetString());
 		Assert.Equal("passed", report.RootElement.GetProperty("results")[0].GetProperty("status").GetString());
 		Assert.Equal("unrun", report.RootElement.GetProperty("results")[1].GetProperty("status").GetString());
-		Assert.Equal("route-search-v2", report.RootElement.GetProperty("contractVersion").GetString());
+		Assert.Equal("route-search-v3", report.RootElement.GetProperty("contractVersion").GetString());
 		Assert.Equal(1, report.RootElement.GetProperty("maxCalls").GetInt32());
 	}
 
@@ -92,7 +92,7 @@ public class RouteRefinementQualificationTests
 	public async Task CorpusIsValidAndLiveAdvisorRunsOnlyWithExplicitOptIn()
 	{
 		using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(System.IO.Path.Combine(AppContext.BaseDirectory, "route-refinement-v2.json"), TestContext.Current.CancellationToken));
-		Assert.Equal("route-search-v2", corpus.RootElement.GetProperty("contractVersion").GetString());
+		Assert.Equal("route-search-v3", corpus.RootElement.GetProperty("contractVersion").GetString());
 		Assert.Equal(2, corpus.RootElement.GetProperty("version").GetInt32());
 		var cases = JsonSerializer.Deserialize<AdvisorCase[]>(corpus.RootElement.GetProperty("advisorCases"), Json)!;
 		Assert.Equal(6, cases.Length);
@@ -131,7 +131,7 @@ public class RouteRefinementQualificationTests
 	{
 		var results = cases.Select(c => new CaseResult(c.Id)).ToArray();
 		var status = "running";
-		Task Save() => persist(JsonSerializer.Serialize(new { contractVersion = "route-search-v2", maxCalls, status, results }, Json));
+		Task Save() => persist(JsonSerializer.Serialize(new { contractVersion = "route-search-v3", maxCalls, status, results }, Json));
 		try
 		{
 			await Save();

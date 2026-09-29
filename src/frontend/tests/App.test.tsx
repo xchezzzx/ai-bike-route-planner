@@ -87,6 +87,42 @@ it('clears deferred location centering when a newer planning action starts', asy
   expect(screen.getByTestId('map')).toHaveAttribute('data-focus', 'none');
 });
 
+it('prepares and generates a manual interval without collapsing it to a scalar', async () => {
+  const user = await setupPrompt();
+  const ranged = { ...intent, targetDistanceMeters: null, targetDistanceRangeMeters: { min: 35000, max: 45000 } };
+  replies.validate = ranged;
+  await user.click(screen.getByRole('radio', { name: 'Manual' }));
+  const distance = screen.getByRole('group', { name: 'Distance (km)' });
+  await user.click(within(distance).getByRole('radio', { name: 'Range' }));
+  await user.type(within(distance).getByLabelText('Minimum'), '35');
+  await user.type(within(distance).getByLabelText('Maximum'), '45');
+  await user.click(screen.getByRole('button', { name: 'Validate preferences' }));
+  await screen.findByText('Ready to generate');
+  expect(posts[0].body).toMatchObject({ targetDistanceRangeMeters: { min: 35000, max: 45000 } });
+  expect(posts[0].body).not.toHaveProperty('targetDistanceMeters');
+  expect(screen.getByText('35 km – 45 km')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('button', { name: 'Download GPX' });
+  expect(posts[1].body).toEqual(ranged);
+  await user.click(within(distance).getByRole('radio', { name: 'Target' }));
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
+});
+
+it.each([
+  { targetDistanceRangeMeters: { min: 40000, max: 30000 } },
+  { targetDistanceMeters: 25000, targetDistanceRangeMeters: { min: 20000, max: 30000 } },
+  { targetDistanceRangeMeters: { min: 20000 } },
+  { targetDurationRangeSeconds: { min: 60.5, max: 90 } },
+])('rejects an invalid canonical interval %j', async patch => {
+  const user = await setupPrompt();
+  const bad = { ...intent, targetDistanceMeters: null, ...patch };
+  replies.interpret = { ...interpretation, draft: bad, intent: bad };
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The API returned an unusable response.');
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+});
+
 async function prepareRefinement() {
   const user = await setupPrompt();
   await user.click(screen.getByRole('button', { name: 'Interpret request' }));

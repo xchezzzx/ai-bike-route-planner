@@ -25,12 +25,19 @@ POST /api/route-intents/validate accepts application/json:
 - targetDistanceMeters is a finite positive number when supplied.
 - targetDurationSeconds is a positive whole number, at most 922337203685
   (the largest whole-second duration representable by TimeSpan).
-- Loops require at least one target. For pointToPoint both targets are optional.
-  Both are allowed as preferences; supplied invalid values are still rejected.
+- Optional targetDistanceRangeMeters and targetDurationRangeSeconds are closed
+  `{ "min": ..., "max": ... }` objects. Both bounds are required and positive;
+  min must be <= max (equal bounds are valid). Distance bounds are finite numbers;
+  duration bounds are whole seconds, at most 922337203685 each.
+- Omitted/null ranges preserve scalar clients. A scalar and range for the same
+  metric are mutually exclusive; different metrics can independently use either.
+- Loops require at least one distance/time scalar or range. For pointToPoint all
+  targets are optional; supplied invalid values are still rejected.
 - destination uses the same coordinate object. It is prohibited for loop,
   required for pointToPoint, and must differ from start by coordinate value.
 - No service-area, feasible-length, road-access, or route-safety guarantee is made.
-- Unknown JSON properties are rejected to catch misspelled preferences.
+- Unknown and duplicate JSON properties (including nested bounds and
+  case-insensitive aliases) are rejected to catch misspelled preferences.
 
 200 returns validated parameters with explicit balanced default, numeric units,
 and null for absent destination/targets. This is a validation result, not a route.
@@ -41,7 +48,26 @@ JSON field paths (for example start.latitude). Error arrays contain stable codes
 required, invalid_value, out_of_range, must_be_positive, target_required,
 destination_not_allowed, must_differ_from_start. A missing pair of targets is
 reported on both target fields for loops (also when shape is unresolved).
+Range errors use `range_reversed` and `target_conflict` on the range field.
+Missing, nonpositive or oversized/nonfinite bounds use `required`,
+`must_be_positive` or `out_of_range` on the `.min`/`.max` path respectively.
 The UI translates codes into RU/EN/HE.
+
+Example range-only loop (also accepted by the loop generation endpoints):
+
+```json
+{
+  "start": { "latitude": 32.0853, "longitude": 34.7818 },
+  "shape": "loop",
+  "profile": "road",
+  "targetDistanceRangeMeters": { "min": 18000, "max": 22000 },
+  "targetDurationRangeSeconds": { "min": 3000, "max": 4200 }
+}
+```
+
+Validated responses and interpretation drafts/intents preserve both bounds;
+absent scalar/range fields are null. Explicit ranges match exact inclusive
+bounds, without the legacy scalar 10% tolerance. See [ranking](route-candidates.md).
 
 Malformed JSON, wrong JSON types, unknown properties, and missing/null body return
 generic 400 ProblemDetails, not field-level semantic codes. Unsupported content

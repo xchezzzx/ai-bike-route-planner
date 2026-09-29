@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CyclingRoutes.Application.Interpretation;
+using CyclingRoutes.Contracts.RoutePlanning;
 
 namespace CyclingRoutes.Infrastructure.Interpretation;
 
@@ -28,14 +29,14 @@ internal static class GeminiResponseParser
 			if (part.EnumerateObject().Any(x => x.Name is not ("text" or "thought" or "thoughtSignature"))) throw Invalid();
 			using var extraction = JsonDocument.Parse(part.GetProperty("text").GetString()!);
 			var data = extraction.RootElement;
-			Closed(data, ["shape", "profile", "elevation", "targetDistanceMeters", "targetDurationSeconds", "issues"]);
+			Closed(data, ["shape", "profile", "elevation", "targetDistanceMeters", "targetDurationSeconds", "targetDistanceRangeMeters", "targetDurationRangeSeconds", "issues"]);
 			var issues = data.GetProperty("issues");
 			if (issues.GetArrayLength() > 16) throw Invalid();
 			var parsed = new List<ExtractionIssue>();
 			foreach (var item in issues.EnumerateArray())
 			{
 				Closed(item, ["field", "code"]);
-				var field = Token(item.GetProperty("field"), ["shape", "profile", "elevation", "targetDistanceMeters", "targetDurationSeconds", "start", "destination", "prompt"]);
+				var field = Token(item.GetProperty("field"), ["shape", "profile", "elevation", "targetDistanceMeters", "targetDurationSeconds", "targetDistanceRangeMeters", "targetDurationRangeSeconds", "start", "destination", "prompt"]);
 				var code = Token(item.GetProperty("code"), ["ambiguous", "invalid_value", "location_requires_map_selection", "unsupported_preference"]);
 				if (field is null || code is null) throw Invalid();
 				parsed.Add(new(field, code));
@@ -48,12 +49,31 @@ internal static class GeminiResponseParser
 			return new(Token(data.GetProperty("shape"), ["loop", "pointToPoint"]),
 				Token(data.GetProperty("profile"), ["road", "gravel"]),
 				Token(data.GetProperty("elevation"), ["minimize", "balanced", "seekClimbs"]),
-				meters, seconds, parsed.Distinct().ToArray());
+				meters, seconds, parsed.Distinct().ToArray(),
+				ReadDistanceRange(data.GetProperty("targetDistanceRangeMeters")),
+				ReadDurationRange(data.GetProperty("targetDurationRangeSeconds")));
 		}
 		catch (Exception error) when (error is JsonException or InvalidOperationException or KeyNotFoundException or FormatException or ArgumentException or OverflowException)
 		{
 			throw Invalid();
 		}
+	}
+
+	private static DistanceRangeRequest? ReadDistanceRange(JsonElement value)
+	{
+		if (value.ValueKind == JsonValueKind.Null) return null;
+		Closed(value, ["min", "max"]);
+		var min = value.GetProperty("min").GetDouble();
+		var max = value.GetProperty("max").GetDouble();
+		if (!double.IsFinite(min) || !double.IsFinite(max)) throw Invalid();
+		return new(min, max);
+	}
+
+	private static DurationRangeRequest? ReadDurationRange(JsonElement value)
+	{
+		if (value.ValueKind == JsonValueKind.Null) return null;
+		Closed(value, ["min", "max"]);
+		return new(value.GetProperty("min").GetInt64(), value.GetProperty("max").GetInt64());
 	}
 
 	private static void Closed(JsonElement value, string[] names)
