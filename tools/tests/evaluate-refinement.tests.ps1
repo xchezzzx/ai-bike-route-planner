@@ -7,14 +7,22 @@ Assert-True ($LASTEXITCODE -eq 0) 'Offline refinement validation failed.'
 $root = Join-Path ([IO.Path]::GetTempPath()) ('refinement-test-' + [guid]::NewGuid())
 [IO.Directory]::CreateDirectory($root) | Out-Null
 try {
-    foreach ($scenario in @('degenerate', 'partial', 'pass', 'duplicate', 'quota', 'invalid', 'disconnect')) {
+    foreach ($scenario in @('noMatch', 'emptyPartial', 'badExclusion', 'duplicateSeed', 'degenerate', 'partial', 'pass', 'duplicate', 'quota', 'invalid', 'disconnect')) {
         $requestCount = if ($scenario -in @('quota', 'disconnect')) { 1 } else { 2 }
         $geometry = @(@{latitude=32;longitude=34}, @{latitude=32.01;longitude=34.01}, @{latitude=32.02;longitude=34.01}, @{latitude=32;longitude=34})
         if ($scenario -eq 'degenerate') { $geometry = @($geometry[0], $geometry[0], $geometry[0], $geometry[0]) }
         $candidate = @{ seed=1; assessment=@{targetsMatched=$true}; route=@{geometry=$geometry;distanceMeters=20000;estimatedDurationSeconds=3600;ascentMeters=100;gpx='<gpx/>'} }
-        $search = @{requestedLengthMeters=20000; attemptedCount=2; assumptions=@(); warnings=@(); candidates=@($candidate)}
+        $search = @{requestedLengthMeters=20000; attemptedCount=2; assumptions=@(); warnings=@(); candidates=@($candidate); excludedCandidates=@()}
+        $excluded = @{seed=2; distanceMeters=30000; estimatedDurationSeconds=3600; assessment=@{targetsMatched=$false}; reasons=@('targets_not_met')}
+        if ($scenario -in @('noMatch', 'emptyPartial', 'badExclusion')) {
+            $search.candidates=@(); $search.excludedCandidates=@($excluded)
+            $search.warnings=@('no_candidate_meets_requirements','candidates_excluded')
+        }
+        if ($scenario -eq 'emptyPartial') { $search.warnings += @('candidate_generation_incomplete','routing_timeout') }
+        if ($scenario -eq 'badExclusion') { $excluded.reasons=@('secret') }
+        if ($scenario -eq 'duplicateSeed') { $excluded.seed=1; $search.excludedCandidates=@($excluded) }
         if ($scenario -eq 'partial') { $search.warnings = @('candidate_generation_incomplete', 'routing_timeout', 'secret') }
-        if ($scenario -eq 'duplicate') { $search.candidates = @($candidate, $candidate) }
+        if ($scenario -eq 'duplicate') { $second=$candidate.Clone(); $second.seed=2; $search.candidates = @($candidate, $second) }
         $plan = @{search=$search;advisorCallCount=1;advisorStatus='stopped';advisorFailure=$null;attempts=@(@{seed=1},@{seed=2})}
         $responses = @($search, $plan)
         $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
@@ -61,6 +69,12 @@ try {
             if($scenario -eq 'pass'){ Assert-True ($report.results[0].bestMeanTargetError -eq 0) 'Wrong error metric' }
             if($scenario -eq 'duplicate'){ Assert-True ($report.results[0].uniqueCount -eq 1) 'Duplicate count wrong' }
             if($scenario -eq 'partial'){ Assert-True ($report.results[0].routingFailures -ccontains 'routing_timeout') 'Routing failure reason missing' }
+            if($scenario -eq 'noMatch') {
+                Assert-True ($report.results[0].status -ceq 'noMatch') 'Empty valid result is not a provider error'
+                Assert-True ($report.results[0].usableCount -eq 0 -and $null -eq $report.results[0].bestMeanTargetError) 'Empty result has false metrics'
+            }
+            if($scenario -eq 'emptyPartial'){ Assert-True ($report.results[0].status -ceq 'incomplete') 'Partial failure was hidden' }
+            if($scenario -in @('badExclusion','duplicateSeed')){ Assert-True ($report.results[0].status -ceq 'error') 'Invalid exclusions accepted' }
         } finally { $listener.Stop(); Stop-Job $job -ErrorAction SilentlyContinue; Remove-Job $job -Force }
     }
     Write-Output 'Refinement harness passed: offline, pass, partial, duplicate, quota, malformed response, disconnect, pacing, no retries.'

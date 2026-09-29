@@ -63,4 +63,6 @@ it cannot override deterministic exclusions or fabricate geometry. `accepted` in
 the attempt trace means valid unique geometry acquired, not a final selectable route.
 A stop decision can leave `search.candidates` empty with explained exclusions.
 The three-routing/one-advisor budgets and provider-failure handling are unchanged.
-
+The evaluator reports `noMatch` for a valid empty selection and `incomplete` when
+an upstream failure also occurred. Both retain nonzero qualification exit status;
+empty-set best target error is null. No extra calls or automatic retries are added.

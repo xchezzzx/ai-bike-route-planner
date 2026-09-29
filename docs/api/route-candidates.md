@@ -162,4 +162,3 @@ Partial provider failures remain warnings even if no candidate survives. The
 combined retained/excluded set contains at most three unique acquired candidates.
 Deploy backend/frontend together: older clients reject the newly valid empty array.
 Earlier examples below illustrate the pre-quality contract and omit these additions.
-

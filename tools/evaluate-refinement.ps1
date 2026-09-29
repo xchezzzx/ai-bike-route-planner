@@ -12,8 +12,21 @@ Set-StrictMode -Version Latest
 function Is-Number($n) { return $null -ne $n -and $n -is [ValueType] -and $n -isnot [bool] -and [double]::IsFinite([double]$n) }
 function Measure-Search($body, $intent, [bool]$advised) {
     $search = if($advised){$body.search}else{$body}
-    if ($search -isnot [Collections.IDictionary] -or $search.candidates -isnot [array] -or $search.candidates.Count -lt 1 -or $search.candidates.Count -gt 3 -or
+    if ($search -isnot [Collections.IDictionary] -or $search.candidates -isnot [array] -or $search.excludedCandidates -isnot [array] -or
+        $search.candidates.Count + $search.excludedCandidates.Count -notin @(1,2,3) -or
         -not (Is-Number $search.attemptedCount) -or $search.attemptedCount -notin @(1,2,3) -or $search.warnings -isnot [array]) { throw 'Invalid search response' }
+    if($search.candidates.Count + $search.excludedCandidates.Count -gt $search.attemptedCount){throw 'Invalid candidate count'}
+    $seeds = [Collections.Generic.HashSet[int]]::new()
+    foreach($candidate in @($search.candidates) + @($search.excludedCandidates)){
+        if(-not (Is-Number $candidate.seed) -or $candidate.seed -lt 1 -or $candidate.seed -gt 16 -or [Math]::Truncate($candidate.seed) -ne $candidate.seed -or -not $seeds.Add([int]$candidate.seed)){throw 'Invalid seed'}
+    }
+    $exclusions = @($search.excludedCandidates | ForEach-Object {
+        if(-not (Is-Number $_.distanceMeters) -or $_.distanceMeters -le 0 -or -not (Is-Number $_.estimatedDurationSeconds) -or $_.estimatedDurationSeconds -le 0 -or
+            $_.reasons -isnot [array] -or $_.reasons.Count -lt 1 -or $_.reasons.Count -gt 3 -or
+            @($_.reasons | Where-Object {$_ -cnotin @('targets_not_met','road_surface_limit_exceeded','road_waytype_excluded')}).Count -gt 0){throw 'Invalid exclusion'}
+        @{seed=$_.seed;reasons=$_.reasons}
+    })
+    if($search.candidates.Count -eq 0 -and 'no_candidate_meets_requirements' -cnotin $search.warnings){throw 'Missing no-match warning'}
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $metrics = @($search.candidates | ForEach-Object {
         $route = $_.route
@@ -50,10 +63,12 @@ function Measure-Search($body, $intent, [bool]$advised) {
     $knownFailures = @('routing_rate_limited','routing_not_configured','routing_credentials_rejected','routing_unavailable','routing_timeout','route_not_found','routing_invalid_response','routing_limit_exceeded')
     $routingFailures = @($search.warnings | Where-Object {$_ -is [string] -and $_ -cin $knownFailures})
     if($advised){$routingFailures += @($body.attempts | Where-Object {$_ -is [Collections.IDictionary] -and $_.Contains('failure') -and $_.failure -cin $knownFailures} | ForEach-Object {$_.failure})}
-    return @{status=$(if($incomplete){'incomplete'}else{'passed'});routingCalls=$search.attemptedCount;advisorCalls=$advisorCalls;
+    $incomplete = $incomplete -or $routingFailures.Count -gt 0
+    return @{status=$(if($incomplete){'incomplete'}elseif($metrics.Count -eq 0){'noMatch'}else{'passed'});routingCalls=$search.attemptedCount;advisorCalls=$advisorCalls;
         advisorStatus=$advisorStatus;advisorFailure=$advisorFailure;usableCount=$metrics.Count;uniqueCount=$seen.Count;
         ascentAvailableCount=@($metrics | Where-Object {$null -ne $_.ascentMeters}).Count;
-        bestMeanTargetError=($metrics | Measure-Object meanTargetError -Minimum).Minimum;
+        bestMeanTargetError=$(if($metrics.Count -gt 0){($metrics | Measure-Object meanTargetError -Minimum).Minimum}else{$null});
+        excludedCount=$exclusions.Count;excludedCandidates=$exclusions;
         routingFailures=@($routingFailures | Select-Object -Unique);
         targetsMatched=(@($metrics | Where-Object targetsMatched).Count -gt 0);candidates=$metrics;
         quota=($advisorFailure -ceq 'quota' -or 'routing_rate_limited' -cin $search.warnings)}
