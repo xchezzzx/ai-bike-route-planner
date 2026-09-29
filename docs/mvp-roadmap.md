@@ -110,7 +110,8 @@ lanes or legal access, and it does not change the ORS routing profile.
    tools, with application-owned budgets and unchanged user constraints.
    Implementation is ready for PR review; first diagnose rejected live advisor
    responses and complete a separately bounded requalification before merge.
-5. Add automatic track names and verify actual Israeli route/GPX quality.
+5. Add opt-in browser geolocation as a start-point shortcut, then automatic
+   track names, and verify actual Israeli route/GPX quality.
 6. Prepare public deployment: abuse protection, current free-tier checks,
    hosting configuration, secrets and staging/production verification.
 
@@ -145,6 +146,37 @@ before persistence, without requiring an LLM to invent place names.
 - Acceptance: endpoint lookup, loops, same-settlement A-B routes, distance
   rounding, unavailable place names, filename sanitization and consistency
   across UI/GPX/downloads are covered by tests.
+
+## Planned addition: current location as start
+
+Requested on 2026-09-29; not implemented. Small frontend usability task using
+the existing coordinate-selection/invalidation flow; no new backend endpoint,
+paid service, API key, native app or location history required.
+
+- Add an accessible location icon button with EN/RU/HE labels and RTL support.
+  The current map control with a location-like icon only resets the map view;
+  keep reset and actual geolocation actions distinguishable.
+- Call `navigator.geolocation.getCurrentPosition` only after an explicit user
+  action. Do not request permission on page load or continuously track location.
+- On success, use coordinates as start (never destination), center the map and
+  show reported accuracy. Accuracy is not guaranteed, even with high-accuracy
+  mode. For coarse fixes, propose the position for confirmation instead of
+  silently replacing an existing start; choose a concrete threshold in design.
+- Reuse normal start edits to invalidate prepared intent/results and cancel or
+  fence stale interpretation/generation responses. A late geolocation callback
+  must not overwrite a newer manual/map selection or a newer location request.
+- Handle denied permission, timeout, unavailable position, unsupported API and
+  embedded-browser restrictions without losing the existing start or results.
+  Always retain manual/map selection. Release testing includes a regular browser.
+- Production requires HTTPS and an allowing Permissions-Policy. No automatic
+  route generation, reverse geocoding, analytics logging or persistent storage
+  of the obtained position. Coordinates enter the normal API flow only on a
+  subsequent explicit planning action; map centering can request map tiles.
+- Test success, inaccurate fixes/confirmation, every failure, stale callbacks,
+  start-only behavior, result invalidation, localization and desktop/mobile UI
+  using mocked browser geolocation. Real-device accuracy is a separate check.
+
+Reference: [Browser Geolocation API](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition).
 
 ## Previously proposed service shortlist
 
