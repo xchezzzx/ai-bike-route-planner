@@ -28,6 +28,7 @@ maplibregl.setWorkerUrl(workerUrl);
 
 function fit(map: LibreMap, candidate?: Candidate) {
   if (!candidate) return;
+  map.resize();
   const bounds = new maplibregl.LngLatBounds();
   candidate.route.geometry.forEach(point => bounds.extend([point.longitude, point.latitude]));
   map.fitBounds(bounds, { padding: 52, maxZoom: 15, duration: 0 });
