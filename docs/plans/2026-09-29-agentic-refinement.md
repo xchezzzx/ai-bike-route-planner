@@ -10,7 +10,7 @@
 
 **Spec:** [Approved design](../api/agentic-refinement-design.md), approved 2026-09-29.
 
-**Status:** User approved autonomous implementation on 2026-09-29; execution in progress. Paths below are repository-relative. Backend commands run at repository root; npm commands run in `src/frontend`.
+**Status:** Tasks 1-5 implemented; Task 6 offline checks/review fixes complete, live gate failed and merge withheld. User approved autonomous implementation on 2026-09-29. Paths below are repository-relative. Backend commands run at repository root; npm commands run in `src/frontend`.
 
 ## Global Constraints
 
@@ -93,11 +93,11 @@ Enums: action Stop/Search; reason Distance/Duration/Elevation/Explore/Stop; outc
 
 **Interfaces:** Corpus has separate `advisorCases` (typed synthetic Task 1 contexts and allowed actions/invariants) and `routeCases` (explicit Israeli intent DTOs). `tools/evaluate-refinement.ps1 [-RunLive] [-BaseUrl <loopback-url>] [-CaseLimit <1..4>]` defaults to offline validation; live comparison sequentially calls /candidates and /plan on identical route cases, at least 5 seconds between requests, no retries. Advisor tests validate corpus offline by default. Only when process environment `CYCLING_LIVE_ADVISOR=1`, `dotnet test src/backend/CyclingRoutes.Tests.Integration --filter RouteRefinementQualificationTests` additionally resolves the real advisor from the development API factory and runs the six cases with 5-second pacing, using existing local configuration; clear the opt-in environment variable afterward. No public debug endpoint or key contents printed/saved. CI must explicitly leave this variable unset.
 
-- [ ] Define 6 bounded synthetic advisor cases: matching targets, too long, too short, duration-only, nonbalanced elevation with missing ascent, and adversarial/malformed model responses. Deterministic malformed-response rejection is mandatory offline; live tests check schema/bounds, not a supposedly unique best seed. Pin privacy assertions again at serialized transport boundary.
-- [ ] Define 4 reproducible route cases (Tel Aviv, Haifa, Jerusalem, Beersheba; exact starts and targets checked against existing routing coverage). Unit-test harness offline with fake responses for full pass, partial/duplicate routes, failures, exhausted quota, interruption/unrun cases and malformed report input. RED then GREEN: `pwsh -NoProfile -File tools/tests/evaluate-refinement.tests.ps1`; failures/unrun produce nonzero exit and remain in report.
-- [ ] Report per arm: original intent, actual calls, latency, target relative errors, target-match flag, usable/unique count, ascent availability, sanitized failures, quota responses and observed advice status. Separate functional qualification from quality comparison; a valid worse result is not an improvement. Cap live run at 24 ORS and 10 Gemini requests across both sets; no automatic reruns, paid fallback or CI live credentials.
-- [ ] Verify whole branch: `dotnet test src/backend/CyclingRoutes.slnx`, existing offline prompt harness, new offline harness, `npm test`, `npm run build`, `npm run test:e2e`, `git diff --check`. Fresh independent whole-diff review; resolve actionable findings and rerun affected tests before final commit `test: qualify bounded route refinement`.
-- [ ] Run bounded live qualification separately with available existing credentials. Record raw sanitized evidence and negative findings. If provider availability prevents qualification, keep feature delivery incomplete rather than equating offline tests with live success; no default-on claim.
+- [x] Define 6 bounded synthetic advisor cases: matching targets, too long, too short, duration-only, nonbalanced elevation with missing ascent, and conflicting extreme observations. Adversarial/malformed model responses are covered by deterministic adapter rejection tests; live tests check schema/bounds, not a supposedly unique best seed. Privacy assertions are at the serialized transport boundary.
+- [x] Define 4 reproducible route cases (Tel Aviv, Haifa, Jerusalem, Beersheba); all starts returned routes in the live comparison. Harness tests cover pass, partial/duplicate/degenerate routes, quota, malformed responses, disconnect and unrun reporting. Advisor harness covers cancellation before/pacing/during calls. RED then GREEN verified; failures/unrun remain visible.
+- [x] Report original intent, actual calls, latency, relative target errors, usable/unique counts, ascent and sanitized failures. Rename aggregate metric to `bestMeanTargetError` after review; preserve historic report semantics explicitly. Live total was exactly 24 ORS and 10 Gemini, no retries.
+- [x] Verify whole branch: 268 unit + 263 integration tests, existing/new offline harnesses, 88 frontend tests, production build, 22 browser tests and `git diff --check`. Independent review found three important issues and one minor; all corrected with regressions. Docker build/no-key smoke passed.
+- [x] Attempt bounded live qualification and record [negative evidence](../evaluation/route-refinement-2026-09-29.md): advisor 1/6 passed; comparison had fallback and one worse result. Qualification did NOT pass. No automatic rerun or default-on claim.
 - [ ] Open/attach PR, wait for BOTH backend/frontend CI on final SHA, then merge under existing user authorization after live gate/review pass. Verify main CI, sync local main, restart only affected local services and inspect real UI. Record commit/PR and verification evidence in this plan.
 
 ## Handoff and Subsequent Work
@@ -106,10 +106,16 @@ Self-review: design flow, limits, privacy, parser, API, UI, evaluation and merge
 
 Execution evidence so far: baseline 219 unit + 188 integration tests. Tasks 1-4
 were committed separately; latest backend suite has 268 unit + 256 integration
-tests. Task 5 passed 88 frontend tests, production build and 22 desktop/mobile
+tests before review; final backend suite has 268 unit + 263 integration tests.
+Task 5 passed 88 frontend tests, production build and 22 desktop/mobile
 browser cases including refined/fallback search, selected GPX and Hebrew RTL.
 Task 6 offline harness passes success, partial/duplicate routes, quota, malformed
-responses, disconnect, unrun reporting and five-second pacing. Live results,
-independent review and CI gates are not yet complete.
+responses, disconnect, degenerate geometry, unrun reporting and five-second pacing.
+Independent review findings are resolved. Live qualification failed; retain an
+unmerged PR even if CI is green. Task 6 delivery remains incomplete.
+
+Review rulings: response guards remain in `routePlan.ts`; test-only advisor
+execution was extracted to exercise cancellation persistence; the aggregate
+error metric was clarified without changing ranking. No review findings deferred.
 
 After this slice: automatic settlement/profile/distance track naming, route-quality/device acceptance, then public-deployment prerequisites, in that order. They remain separate deliveries, not implied by completing this plan. The advisor may fail to improve quality; document that outcome instead of adding unapproved tools or widening budgets.

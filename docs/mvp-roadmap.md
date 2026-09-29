@@ -47,12 +47,15 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    2026-09-29 passed all 34 cases, closing the current corpus qualification gate.
    Prior failures remain evidence of variability, not erased by a successful run;
    manual route input remains independent of Gemini.
-   Stage 6b remains future work:
+   Stage 6b is implemented on the feature branch, not yet delivered to main:
    AI guides candidate construction/refinement through routing tools; graph-based
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
    The [bounded refinement design](api/agentic-refinement-design.md) was approved
    on 2026-09-29. Its [implementation plan](plans/2026-09-29-agentic-refinement.md)
-   awaits review; product implementation has not started.
+   is approved and Tasks 1-5 are implemented. Independent review findings were
+   corrected with regression tests. Live qualification failed (1/6 advisor cases;
+   mixed four-city comparison), so Task 6 delivery/merge remains incomplete.
+   See [evidence and next checks](evaluation/route-refinement-2026-09-29.md).
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
    Implemented and merged through PR #10, with manual input as a
@@ -94,12 +97,15 @@ lanes or legal access, and it does not change the ORS routing profile.
    still inform availability and production-readiness decisions.
 3. Stage 6b: bounded AI-guided candidate construction/refinement using routing
    tools, with application-owned budgets and unchanged user constraints.
+   Implementation is ready for PR review; first diagnose rejected live advisor
+   responses and complete a separately bounded requalification before merge.
 4. Add automatic track names and verify actual Israeli route/GPX quality.
 5. Prepare public deployment: abuse protection, current free-tier checks,
    hosting configuration, secrets and staging/production verification.
 
-Persistence is not a prerequisite for these deliveries. Stage 6b, geographic
-naming, field/device acceptance and public hosting are not implemented yet.
+Persistence is not a prerequisite for these deliveries. Stage 6b is implemented
+but not live-qualified or merged. Geographic naming, field/device acceptance
+and public hosting remain outstanding.
 
 ## Planned addition: automatic track names
 

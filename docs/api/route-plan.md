@@ -11,6 +11,8 @@ Only road loops are supported. A loop needs a positive distance and/or duration;
 initial length is distance or time at 20 km/h and must be 1000..100000 metres.
 Body limit: 64 KiB including chunked bodies, UTF-8 JSON only. Malformed/domain input
 returns 400, oversize 413, unsupported media 415, unsupported planning intent 422.
+Repeated JSON properties, including nested coordinates and case-insensitive
+aliases, are rejected with 400 before any provider call.
 
 The response is `{ search, advisorCallCount, advisorStatus, advisorFailure, attempts }`.
 `search` uses the existing [candidate response](route-candidates.md), including
@@ -43,6 +45,12 @@ raw prompts, GPX, history and keys are excluded from its input. ORS receives the
 start coordinate. No free model prose is returned. Structured-output reference:
 [Google API documentation](https://ai.google.dev/gemini-api/docs/structured-output).
 
+The EN/RU/HE UI exposes an unchecked-by-default AI refinement checkbox for ready
+road loops and a bounded application-owned attempt trace. `/plan` gets a
+100-second client deadline; existing requests retain their 60-second deadline.
+Changing inputs or the mode cancels/fences stale responses.
+
 Not a safety/access/traffic guarantee; not support for gravel, stops, exclusions
-or geographic reasoning. Quality qualification and opt-in UI delivery remain
-pending the execution plan's offline/live/review gates.
+or geographic reasoning. Offline tests and review fixes pass, but the first
+[live qualification](../evaluation/route-refinement-2026-09-29.md) failed. Keep
+the PR unmerged and the feature experimental; do not claim quality improvement.
