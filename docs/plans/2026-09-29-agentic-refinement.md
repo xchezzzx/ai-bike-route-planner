@@ -113,6 +113,10 @@ Task 6 offline harness passes success, partial/duplicate routes, quota, malforme
 responses, disconnect, degenerate geometry, unrun reporting and five-second pacing.
 Independent review findings are resolved. Live qualification failed; retain an
 unmerged PR even if CI is green. Task 6 delivery remains incomplete.
+Draft [PR #15](https://github.com/xchezzzx/ai-bike-route-planner/pull/15) contains
+the logical commits and negative qualification evidence. Initial backend CI
+revealed an inherited child exit code in the offline harness; reproduced with
+the Actions PowerShell wrapper and corrected with explicit successful completion.
 
 Review rulings: response guards remain in `routePlan.ts`; test-only advisor
 execution was extracted to exercise cancellation persistence; the aggregate

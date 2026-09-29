@@ -68,3 +68,5 @@ try {
     Get-ChildItem -LiteralPath $root -File | Remove-Item -Force
     Remove-Item -LiteralPath $root
 }
+# Negative child scenarios intentionally exit 1; do not leak that to the CI wrapper.
+exit 0
