@@ -7,8 +7,9 @@ Current implementation: .NET 10 API, route-intent validation, provider-backed
 point-to-point road routing, ranked road-loop candidates, GPX export, and a
 Gemini-backed prompt interpretation API with clarifications, and a local React
 testing interface with map selection, manual preferences, candidates and GPX.
-Interpretation is offline-tested; full live model qualification remains pending
-because of provider availability and remaining semantic mismatches. Gravel-specific routing, agentic route
+Interpretation passes offline tests and the current 34-case live corpus (2026-09-29).
+Earlier runs had provider errors and semantic mismatches; this is not a production
+reliability guarantee. Gravel-specific routing, agentic route
 refinement, persistence and public deployment are not yet implemented.
 
 ## Browser testing

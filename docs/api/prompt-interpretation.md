@@ -2,7 +2,8 @@
 
 POST `/api/route-intents/interpret` interprets preferences only. It makes at most
 one Gemini call and never calls ORS, generates coordinates/GPX, or saves a prompt.
-Implementation is offline-tested; real model quality is not yet qualified.
+Implementation is offline-tested. The current live corpus passed 34/34 cases on
+2026-09-29; this qualifies that corpus, not production reliability or all prompts.
 
 ## Request and response
 
@@ -192,7 +193,15 @@ point cases and the named-destination conflict passed. Report:
 `artifacts/prompt-evaluation-20260929T113106-3459e791.json` (ignored).
 This run used 5000 ms pacing and no retries; exit code 1 is intentional.
 
-Live qualification remains pending until the corpus completes successfully.
+Subsequent full live run on 2026-09-29 passed **34/34**, with no failed comparisons,
+provider errors or unrun cases. Contract v3, model configuration and expectations
+were unchanged; the runner used 5000 ms pacing and no retries. Report:
+`artifacts/prompt-evaluation-20260929T123528-32e009a1.json` (ignored; copied to the
+primary checkout), exit code 0. This closes the current corpus qualification
+gate, not a production reliability or general language-understanding guarantee.
+Earlier unsuccessful runs remain recorded above. Repeat qualification after
+prompt/schema/model changes and keep handling availability failures in the UI.
+
 Do not call fixture or fake-provider test results a multilingual model pass rate.
 The delivered React UI supports manual input without Gemini. Stage 6b agentic
 refinement and manual road/device checks remain separate, outstanding work.
