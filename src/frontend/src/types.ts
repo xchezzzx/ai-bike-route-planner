@@ -20,6 +20,7 @@ export interface Interpretation {
   assumptions: string[];
 }
 export interface GeneratedRoute {
+	segments?: RouteSegment[] | null;
   geometry: (Coordinate & { elevationMeters: number | null })[];
   distanceMeters: number;
   estimatedDurationSeconds: number;
@@ -29,6 +30,9 @@ export interface GeneratedRoute {
   warnings: string[];
   gpx: string;
 }
+export type RouteSurface = 'asphalt' | 'paved' | 'unpaved' | 'other' | 'unknown';
+export type RouteWayType = 'stateRoad' | 'road' | 'street' | 'path' | 'track' | 'cycleway' | 'footway' | 'steps' | 'ferry' | 'construction' | 'unknown';
+export interface RouteSegment { fromPointIndex: number; toPointIndex: number; surface: RouteSurface; wayType: RouteWayType }
 export interface Candidate {
   seed: number;
   assessment: CandidateAssessment | null;
