@@ -10,7 +10,7 @@
 
 **Spec:** [Approved road-loop quality design](../specs/2026-09-29-road-loop-quality-design.md).
 
-**Status:** Approved by the user and implemented inline. Tasks 1-5 complete; Task 6 local replay, Release, Docker and browser gates pass. Independent review found two validation gaps, corrected with regressions. Delivery/CI verification is in progress; PR #15's separate failed live gate is not waived.
+**Status:** Approved by the user and implemented inline. All six implementation/delivery tasks complete; local replay, Release, Docker and browser gates pass. Independent review findings are corrected and closed with regressions. Commits are pushed to draft PR #15 and fresh remote CI was inspected; its live check results are authoritative for each new commit. PR #15's separate failed live gate is not waived and merge remains blocked.
 
 ## Global Constraints
 
@@ -129,9 +129,9 @@ in `src/backend/CyclingRoutes.Infrastructure/Routing/`. Do not reorganize other 
 - [x] Run `dotnet restore src/backend/CyclingRoutes.slnx`, `dotnet build src/backend/CyclingRoutes.slnx --configuration Release --no-restore`, `dotnet test src/backend/CyclingRoutes.slnx --configuration Release --no-build --verbosity normal`; both PowerShell evaluator harnesses; full frontend test/build/browser suite. Ensure CYCLING_LIVE_ADVISOR is unset in the test process. Record actual counts/errors, not historic counts.
 - [x] Docker smoke: build with the existing Dockerfile, launch an ephemeral loopback port with no provider keys, verify /health=Healthy, interpretation missing-key=503 and malformed JSON=400, then stop only that created container. Follow existing CI recipe; do not stop user containers or existing development servers.
 - [x] Perform full diff/related-code review against every spec section, including provider parsing, metrics, empty result and CI fixture selection. Fix findings with regression tests and rerun affected suites. Obtain independent review when available; otherwise label the review as self-review.
-- [ ] Commit verified delivery docs. Push logical commits only after local gates pass and update/attach the existing draft PR15 rather than creating a duplicate PR for the same branch. Inspect fresh CI status; do not merge while its live AI qualification remains failed. Do not enable billing or use green offline quality tests to bypass that gate.
+- [x] Commit verified delivery docs. Push logical commits only after local gates pass and update/attach the existing draft PR15 rather than creating a duplicate PR for the same branch. Inspect fresh CI status; do not merge while its live AI qualification remains failed. Do not enable billing or use green offline quality tests to bypass that gate.
 - [x] Preserve the current dev server until verification finishes. If restarting the owned worktree session is necessary, use tools/start-local.ps1 and its manifest, preserve secrets, choose free ports and provide the resulting URL. Do not reuse stale-process behavior as evidence of new code.
-- [ ] Report what changed, tests run and remaining construction/live/device gaps. The next phase is a separate road-network waypoint prototype, not an implicit promise that this filter made route generation better.
+- [x] Report what changed, tests run and remaining construction/live/device gaps. The next phase is a separate road-network waypoint prototype, not an implicit promise that this filter made route generation better.
 
 ## Self-review Record
 

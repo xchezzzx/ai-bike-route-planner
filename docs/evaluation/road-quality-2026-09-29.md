@@ -73,12 +73,15 @@ committed. Prior provider-summary totals are not used as exact numeric oracles.
   `503 ai_not_configured`, malformed JSON `400`. Only test-owned containers stopped.
 - Independent review found missing evaluator quality validation and an array
   accepted as a frontend evidence-state enum. Both reproduced with failing
-  tests, corrected, and covered by the passing suites.
+  tests, corrected, and covered by the passing suites. Follow-up review also found
+  an array-valued evaluator policy version; retained/excluded regressions now
+  reject it. The reviewer confirmed all findings closed by code inspection.
 
 ## Delivery and Remaining Work
 
-Local gates pass. Logical commits are prepared for existing draft PR #15; fresh
-remote CI is checked during delivery. The separate earlier live AI qualification
+Local gates pass. Logical commits are pushed to [draft PR #15](https://github.com/xchezzzx/ai-bike-route-planner/pull/15);
+both remote CI workflows were inspected after the push. Consult the PR checks for
+their current outcome at each commit. The separate earlier live AI qualification
 failed and is not waived by this work. No merge or public deployment is permitted
 until that gate and both CI workflows pass.
 
