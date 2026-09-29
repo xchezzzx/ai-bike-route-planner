@@ -13,6 +13,7 @@ import type { Candidate, Coordinate, Locale } from './types';
 
 interface Props {
   locale: Locale;
+  theme?: 'light' | 'dark';
   start?: Coordinate;
   destination?: Coordinate;
   pick: 'start' | 'destination';
@@ -37,9 +38,17 @@ function fit(map: LibreMap, candidate?: Candidate) {
 export default function RouteMap(props: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LibreMap | null>(null);
+  const appliedStyle = useRef('');
+  const deadline = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const fitted = useRef<{ map: LibreMap; candidate: Candidate } | undefined>(undefined);
   const latest = useRef(props);
   latest.current = props;
   const [ready, setReady] = useState(false);
+  const [styleReady, setStyleReady] = useState(false);
+  const loadHadError = useRef(false);
+  const readyRef = useRef(ready);
+  readyRef.current = ready;
+  const [styleRevision, setStyleRevision] = useState(0);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [mode, setMode] = useState<SegmentDisplayMode>('surface');
@@ -49,31 +58,40 @@ export default function RouteMap(props: Props) {
   const currentSegments = useRef(segmentData);
   currentSegments.current = segmentData;
   const text = (key: Parameters<typeof t>[1]) => t(props.locale, key);
+  const styleUrl = `https://tiles.openfreemap.org/styles/${props.theme === 'dark' ? 'dark' : 'liberty'}`;
 
   useEffect(() => {
     let map: LibreMap | undefined;
     let resize: ResizeObserver | undefined;
     let disposed = false;
-    setReady(false); setFailed(false);
-    const deadline = setTimeout(() => { if (!disposed) setFailed(true); }, 20000);
+    setReady(false); setStyleReady(false); setFailed(false); loadHadError.current = false;
+    deadline.current = setTimeout(() => { if (!disposed) setFailed(true); }, 20000);
     try {
       map = new maplibregl.Map({
         container: container.current!,
-        style: 'https://tiles.openfreemap.org/styles/liberty',
+        style: styleUrl,
         center, zoom: 11, attributionControl: false,
         canvasContextAttributes: { preserveDrawingBuffer: true },
       });
       mapRef.current = map;
+      appliedStyle.current = styleUrl;
       map.getCanvas().setAttribute('aria-label', t(latest.current.locale, 'mapCanvas'));
       map.addControl(new maplibregl.AttributionControl({ compact: false }), 'bottom-right');
-      map.on('error', () => { if (!disposed) { clearTimeout(deadline); setFailed(true); } });
+      map.on('error', () => { if (!disposed) { loadHadError.current = true; clearTimeout(deadline.current); setFailed(true); } });
       map.on('webglcontextlost', () => { if (!disposed) setFailed(true); });
-      map.on('load', () => {
+      map.on('style.load', () => {
         if (disposed) return;
         highlightCycleways(map!);
-        clearTimeout(deadline); setReady(true); setFailed(false);
+        setStyleReady(true);
+        setStyleRevision(value => value + 1);
+      });
+      map.on('idle', () => {
+        // Parsed style JSON is not proof that sprites, sources and visible tiles loaded.
+        if (disposed || loadHadError.current || !map!.loaded()) return;
+        clearTimeout(deadline.current); setReady(true); setFailed(false);
       });
       map.on('click', event => {
+        if (!readyRef.current) return;
         const hits = map!.getLayer('segment-hit') ? map!.queryRenderedFeatures(event.point, { layers: ['segment-hit'] }) : [];
         if (hits.length) {
           const index = Number(hits[0].properties.segmentIndex);
@@ -88,11 +106,23 @@ export default function RouteMap(props: Props) {
       });
       resize = new ResizeObserver(() => { map?.resize(); });
       resize.observe(container.current!);
-    } catch { clearTimeout(deadline); setFailed(true); }
+    } catch { clearTimeout(deadline.current); setFailed(true); }
     return () => {
-      disposed = true; clearTimeout(deadline); resize?.disconnect(); map?.remove(); mapRef.current = null;
+      disposed = true; clearTimeout(deadline.current); resize?.disconnect(); map?.remove(); mapRef.current = null;
     };
   }, [attempt]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || appliedStyle.current === styleUrl) return;
+    setReady(false); setStyleReady(false); readyRef.current = false; setFailed(false); loadHadError.current = false;
+    clearTimeout(deadline.current);
+    deadline.current = setTimeout(() => { if (mapRef.current === map) setFailed(true); }, 20000);
+    // A full style swap cancels the initial style request too; diff mode does not.
+    // The map instance and its camera remain unchanged.
+    try { appliedStyle.current = styleUrl; map.setStyle(styleUrl, { diff: false }); }
+    catch { clearTimeout(deadline.current); setFailed(true); }
+  }, [styleUrl, attempt]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -113,7 +143,7 @@ export default function RouteMap(props: Props) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !ready) return;
+    if (!map || !styleReady) return;
     const data: FeatureCollection<LineString> = { type: 'FeatureCollection', features: props.candidates.map((candidate, index) => ({
       type: 'Feature', properties: { index, color: colors[index % colors.length] },
       geometry: { type: 'LineString', coordinates: candidate.route.geometry.map(point => [point.longitude, point.latitude]) },
@@ -126,16 +156,20 @@ export default function RouteMap(props: Props) {
         map.addLayer({ id: 'route-lines', type: 'line', source: 'routes', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-opacity': 0.55 } });
       }
       map.setFilter('route-lines', ['!=', ['get', 'index'], props.selected]);
-      fit(map, props.candidates[props.selected]);
+      const selected = props.candidates[props.selected];
+      // A style reload restores overlays, but must not undo the rider's pan/zoom.
+      if (selected && (fitted.current?.map !== map || fitted.current.candidate !== selected)) {
+        fit(map, selected); fitted.current = { map, candidate: selected };
+      }
     } catch { setFailed(true); }
     return () => { disposed = true; };
-  }, [ready, props.candidates, props.selected]);
+  }, [styleReady, styleRevision, props.candidates, props.selected]);
 
   useEffect(() => { setSelectedSegment(null); }, [props.candidates, props.selected, attempt]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !ready) return;
+    if (!map || !styleReady) return;
     const color = colors[props.selected % colors.length];
     const empty: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
     const data = candidate ? patternFeatures(candidate.route, segmentData.segments, mode, color) : empty;
@@ -151,7 +185,7 @@ export default function RouteMap(props: Props) {
       }
     } catch { setFailed(true); }
     return () => { disposed = true; };
-  }, [ready, candidate, segmentData, props.selected, mode]);
+  }, [styleReady, styleRevision, candidate, segmentData, props.selected, mode]);
 
   return <><section className="map-panel" aria-label={text('map')} aria-busy={!ready && !failed}>
     <div ref={container} className="map-container" />

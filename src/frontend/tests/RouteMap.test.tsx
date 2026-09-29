@@ -12,6 +12,8 @@ vi.mock('maplibre-gl', () => ({
   Map: class {
     events: Record<string, (event?: any) => void> = {}; layers = new Map(); sources = new Map(); hits: any[] = [];
     fitBounds = vi.fn(); remove = vi.fn(); resize = vi.fn(); setPaintProperty = vi.fn(); setFilter = vi.fn();
+    setStyle = vi.fn(() => { this.layers.clear(); this.sources.clear(); });
+    loaded() { return true; }
     constructor() { state.maps.push(this); }
     on(name: string, fn: (event?: any) => void) { this.events[name] = fn; }
     getCanvas() { return document.createElement('canvas'); } addControl() {} getStyle() { return { layers: [] }; }
@@ -24,10 +26,14 @@ vi.mock('maplibre-gl', () => ({
 beforeEach(() => { state.maps.length = 0; vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }); });
 const routeProps = () => ({ locale: 'en' as const, pick: 'start' as const, candidates: candidates.candidates, selected: 0, onRouteSelect: vi.fn(), onSelect: vi.fn() });
 const click = { point: { x: 1, y: 1 }, lngLat: { lat: 32, wrap: () => ({ lng: 34 }) } };
+async function loadMap(map: any) {
+  await act(() => map.events['style.load']());
+  await act(() => map.events.idle());
+}
 
 it('switches modes without refitting and restores layers on retry', async () => {
   const props = routeProps(); render(<RouteMap {...props} />);
-  const map = state.maps[0]; await act(() => map.events.load());
+  const map = state.maps[0]; await loadMap(map);
   expect(map.getLayer('segment-hit').source).toBe('track-segment-hits');
   expect(map.getSource('track-segment-hits').data.features[0].properties.segmentIndex).toBe(0);
   expect(map.resize).toHaveBeenCalled();
@@ -39,12 +45,12 @@ it('switches modes without refitting and restores layers on retry', async () => 
   expect(map.layers.size).toBe(layerCount); expect(state.maps).toHaveLength(1);
   await act(() => map.events.error());
   await userEvent.click(screen.getByRole('button', { name: 'Retry map' }));
-  await act(() => state.maps[1].events.load());
+  await loadMap(state.maps[1]);
   expect(state.maps[1].getLayer('segment-hit')).toBeTruthy();
 });
 it('inspects the selected hit area before alternatives and never moves endpoints on gaps', async () => {
   const props = routeProps(); const ui = render(<RouteMap {...props} />);
-  const map = state.maps[0]; await act(() => map.events.load());
+  const map = state.maps[0]; await loadMap(map);
   map.hits = [{ layer: { id: 'segment-hit' }, properties: { segmentIndex: 0, candidateIndex: 0 } }];
   await act(() => map.events.click(click));
   expect(screen.getByRole('region', { name: 'Segment details' })).toHaveTextContent('Unknown surface');
@@ -55,4 +61,20 @@ it('inspects the selected hit area before alternatives and never moves endpoints
   expect(props.onSelect).toHaveBeenCalledWith({ latitude: 32, longitude: 34 });
   ui.rerender(<RouteMap {...props} candidates={[]} />);
   expect(screen.queryByRole('radio', { name: 'Surface' })).not.toBeInTheDocument();
+});
+
+it('restores overlays on style load without refitting or clearing the inspected segment', async () => {
+  const props = routeProps(); const ui = render(<RouteMap {...props} theme="light" />);
+  const map = state.maps[0]; await loadMap(map);
+  map.hits = [{ layer: { id: 'segment-hit' }, properties: { segmentIndex: 0, candidateIndex: 0 } }];
+  await act(() => map.events.click(click));
+  const fits = map.fitBounds.mock.calls.length;
+  ui.rerender(<RouteMap {...props} theme="dark" />);
+  expect(map.setStyle).toHaveBeenCalledWith('https://tiles.openfreemap.org/styles/dark', { diff: false });
+  await loadMap(map);
+  expect(state.maps).toHaveLength(1);
+  expect(map.fitBounds).toHaveBeenCalledTimes(fits);
+  expect(map.getLayer('segment-hit')).toBeTruthy();
+  expect(map.getSource('track-segments').data.features).not.toHaveLength(0);
+  expect(screen.getByRole('region', { name: 'Segment details' })).toBeInTheDocument();
 });

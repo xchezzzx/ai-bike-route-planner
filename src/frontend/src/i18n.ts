@@ -2,6 +2,10 @@ import type { Locale } from './types';
 
 // A single key set keeps every application label and known backend code translated.
 const messages = {
+  theme: ['Theme', 'Тема', 'ערכת נושא'],
+  themeSystem: ['System', 'Системная', 'מערכת'],
+  themeLight: ['Light', 'Светлая', 'בהירה'],
+  themeDark: ['Dark', 'Тёмная', 'כהה'],
   segmentDisplay: ['Track display', 'Отображение трека', 'תצוגת מסלול'],
   segmentSurface: ['Surface', 'Покрытие', 'פני השטח'],
   segmentWayType: ['Road type', 'Тип дороги', 'סוג הדרך'],
