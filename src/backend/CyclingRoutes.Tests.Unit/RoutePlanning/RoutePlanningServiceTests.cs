@@ -35,7 +35,8 @@ public class RoutePlanningServiceTests
 		var result = await Service(provider, advisor).PlanAsync(Intent(), TestContext.Current.CancellationToken);
 		Assert.Equal(new[] { (1, 20000d), (2, 20000d), (7, 16000d) }, provider.Calls);
 		Assert.Equal(20000, result.Search.RequestedLengthMeters);
-		Assert.Equal(new[] { 7, 1, 2 }, result.Search.Candidates.Select(x => x.Seed));
+		Assert.Equal(new[] { 7 }, result.Search.Candidates.Select(x => x.Seed));
+		Assert.Equal(new[] { 1, 2 }, result.Search.ExcludedCandidates.Select(x => x.Seed));
 		Assert.Equal(100, result.Search.Candidates[0].Assessment.DistanceDeltaMeters);
 		Assert.Equal(new[] { RouteSearchReason.Explore, RouteSearchReason.Explore, RouteSearchReason.Distance }, result.Attempts.Select(x => x.Reason));
 		Assert.Equal(2, advisor.Calls[0].Observations.Count);
@@ -92,7 +93,8 @@ public class RoutePlanningServiceTests
 			var result = await Service(provider, advisor).PlanAsync(Intent(), TestContext.Current.CancellationToken);
 			Assert.Equal(RouteAdvisorStatus.SkippedNoCandidates, result.AdvisorStatus);
 			Assert.Equal(new[] { RouteSearchOutcome.NoRoute, RouteSearchOutcome.NoRoute, RouteSearchOutcome.Accepted }, result.Attempts.Select(x => x.Outcome));
-			Assert.Single(result.Search.Candidates);
+			Assert.Empty(result.Search.Candidates);
+			Assert.Equal(3, Assert.Single(result.Search.ExcludedCandidates).Seed);
 		}
 		Assert.Equal(3, provider.Calls.Count);
 		Assert.Empty(advisor.Calls);
@@ -106,9 +108,10 @@ public class RoutePlanningServiceTests
 		var duplicate = path with { Points = (reverse ? path.Points.Reverse() : path.Points).Select(p => p with { ElevationMeters = 999 }).ToArray() };
 		var result = await Service(new Provider((seed, _) => Task.FromResult(seed == 7 ? duplicate : Loop(seed))), new Advisor((_, _) => Task.FromResult(Advice())))
 			.PlanAsync(Intent(), TestContext.Current.CancellationToken);
-		Assert.Equal(2, result.Search.Candidates.Count);
+		Assert.Empty(result.Search.Candidates);
+		Assert.Equal(new[] { 1, 2 }, result.Search.ExcludedCandidates.Select(x => x.Seed));
 		Assert.Equal(RouteSearchOutcome.Duplicate, result.Attempts[^1].Outcome);
-		Assert.Equal(1, result.Search.Candidates[0].Route.Path.Points[0].ElevationMeters);
+		Assert.Equal(1, path.Points[0].ElevationMeters);
 	}
 
 	[Theory]
@@ -124,7 +127,8 @@ public class RoutePlanningServiceTests
 		Assert.Equal(RouteAdvisorStatus.SkippedRoutingFailure, result.AdvisorStatus);
 		Assert.Equal(RouteSearchOutcome.Failed, result.Attempts[1].Outcome);
 		Assert.Equal(failure, result.Attempts[1].Failure);
-		Assert.Single(result.Search.Candidates);
+		Assert.Empty(result.Search.Candidates);
+		Assert.Equal(1, Assert.Single(result.Search.ExcludedCandidates).Seed);
 		Assert.Equal(2, provider.Calls.Count);
 		Assert.Empty(advisor.Calls);
 	}
@@ -191,10 +195,12 @@ public class RoutePlanningServiceTests
 			new(new(32, 34), RouteShape.Loop, CyclingProfile.Road, targetDuration: TimeSpan.FromHours(1)), TestContext.Current.CancellationToken);
 		Assert.Equal(20000, result.Search.RequestedLengthMeters);
 		Assert.Contains("initial_speed_20_kmh", result.Search.Assumptions);
-		Assert.All(result.Search.Candidates, c => { Assert.Equal(1400, c.Assessment.DurationDeltaSeconds); Assert.Null(c.Assessment.DistanceDeltaMeters); });
+		Assert.Empty(result.Search.Candidates);
+		Assert.Equal(3, result.Search.ExcludedCandidates.Count);
+		Assert.All(result.Search.ExcludedCandidates, c => { Assert.Equal(1400, c.Assessment.DurationDeltaSeconds); Assert.Null(c.Assessment.DistanceDeltaMeters); });
 	}
 
-	private static RoutePlanningService Service(Provider p, Advisor a, TimeProvider? clock = null) => new(p, a, new(), clock ?? TimeProvider.System);
+	private static RoutePlanningService Service(Provider p, Advisor a, TimeProvider? clock = null) => new(p, a, new(new(), new()), clock ?? TimeProvider.System);
 	private static RouteIntent Intent(ElevationPreference elevation = ElevationPreference.Balanced) => new(new(32, 34), RouteShape.Loop, CyclingProfile.Road, new(20000), elevation: elevation);
 	private static RouteSearchAdvice Advice() => new(RouteSearchAction.Search, 7, 16000, RouteSearchReason.Distance);
 	private static RoutedPath Loop(int seed, double distance = 28000) => new(

@@ -2,7 +2,7 @@ using CyclingRoutes.Domain.RoutePlanning;
 
 namespace CyclingRoutes.Application.Routing;
 
-public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandidateRanker ranker, TimeProvider timeProvider)
+public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandidateSelector selector, TimeProvider timeProvider)
 {
 	public async Task<RouteCandidateSearchResult> GenerateAsync(RouteIntent intent, CancellationToken cancellationToken)
 	{
@@ -51,9 +51,9 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandid
 		if (deadline.IsCancellationRequested) incompleteFailure = RoutingFailure.Timeout;
 		if (candidates.Count == 0) throw new RoutingException(incompleteFailure ?? RoutingFailure.NoRoute);
 
-		var ranked = ranker.Rank(intent, candidates);
+		var selection = selector.Select(intent, candidates, cancellationToken);
 		var generated = new List<GeneratedRouteCandidate>();
-		foreach (var item in ranked)
+		foreach (var item in selection.Retained)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 			generated.Add(new(item.Candidate.Seed, item.Assessment,
@@ -63,9 +63,9 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandid
 		if (deadline.IsCancellationRequested) incompleteFailure = RoutingFailure.Timeout;
 		var warnings = new List<string> { "candidate_search_limited" };
 		if (incompleteFailure is not null) warnings.Add("candidate_generation_incomplete");
-		if (!ranked.Any(x => x.Assessment.TargetsMatched)) warnings.Add("no_candidate_within_tolerance");
+		RoadCandidateSelector.AddWarnings(selection, warnings);
 		return new(length, intent.TargetDistance is null ? ["initial_speed_20_kmh"] : [], attemptedCount,
-			warnings.ToArray(), generated.ToArray(), incompleteFailure);
+			warnings.ToArray(), generated.ToArray(), incompleteFailure, selection.Excluded);
 	}
 
 }

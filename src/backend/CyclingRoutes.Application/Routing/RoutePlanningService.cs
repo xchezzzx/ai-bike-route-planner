@@ -3,7 +3,7 @@ using CyclingRoutes.Domain.RoutePlanning;
 namespace CyclingRoutes.Application.Routing;
 
 public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearchAdvisor advisor,
-	RouteCandidateRanker ranker, TimeProvider timeProvider)
+	RoadCandidateSelector selector, TimeProvider timeProvider)
 {
 	public async Task<RoutePlanningResult> PlanAsync(RouteIntent intent, CancellationToken cancellationToken)
 	{
@@ -77,7 +77,7 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 			advisorStatus = RouteAdvisorStatus.SkippedNoCandidates;
 			await SearchAsync(3, initial, RouteSearchReason.Explore);
 		}
-		else if (intent.Elevation != ElevationPreference.Balanced || !ranker.Rank(intent, candidates).Any(x => x.Assessment.TargetsMatched))
+		else if (intent.Elevation != ElevationPreference.Balanced || selector.Select(intent, candidates, cancellationToken).Retained.Count == 0)
 		{
 			var context = new RouteSearchContext(new(intent.Shape, intent.Profile, intent.Elevation,
 				intent.TargetDistance?.Meters, intent.TargetDuration?.TotalSeconds), initial, Array.AsReadOnly(observations.ToArray()));
@@ -118,9 +118,9 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 
 		CanContinue();
 		if (candidates.Count == 0) throw new RoutingException(incomplete ?? RoutingFailure.NoRoute);
-		var ranked = ranker.Rank(intent, candidates);
+		var selection = selector.Select(intent, candidates, cancellationToken);
 		var generated = new List<GeneratedRouteCandidate>();
-		foreach (var item in ranked)
+		foreach (var item in selection.Retained)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 			generated.Add(new(item.Candidate.Seed, item.Assessment,
@@ -130,8 +130,8 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 		var warnings = new List<string> { "candidate_search_limited" };
 		if (incomplete is not null) warnings.Add("candidate_generation_incomplete");
 		if (advisorFailure is not null) warnings.Add("advisor_fallback");
-		if (!ranked.Any(x => x.Assessment.TargetsMatched)) warnings.Add("no_candidate_within_tolerance");
+		RoadCandidateSelector.AddWarnings(selection, warnings);
 		return new(new(initial, intent.TargetDistance is null ? ["initial_speed_20_kmh"] : [], attempts.Count,
-			warnings.ToArray(), generated.ToArray(), incomplete), advisorCalls, advisorStatus, advisorFailure, attempts.ToArray());
+			warnings.ToArray(), generated.ToArray(), incomplete, selection.Excluded), advisorCalls, advisorStatus, advisorFailure, attempts.ToArray());
 	}
 }

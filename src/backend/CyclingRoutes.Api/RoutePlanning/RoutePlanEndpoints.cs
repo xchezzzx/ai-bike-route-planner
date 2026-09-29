@@ -27,7 +27,8 @@ public static class RoutePlanEndpoints
 			var warnings = search.Warnings.ToList();
 			if (search.IncompleteFailure is { } failure) warnings.Add(RoutingProblemMapper.Describe(failure).Code);
 			var response = new RoutePlanResponse(new(search.RequestedLengthMeters, search.Assumptions, search.AttemptedCount,
-				warnings.ToArray(), search.Candidates.Select(RouteCandidateResponseMapper.ToResponse).ToArray()), result.AdvisorCallCount,
+				warnings.ToArray(), search.Candidates.Select(RouteCandidateResponseMapper.ToResponse).ToArray(),
+				search.ExcludedCandidates.Select(RouteCandidateResponseMapper.ToResponse).ToArray()), result.AdvisorCallCount,
 				Code(result.AdvisorStatus), result.AdvisorFailure is { } advisorFailure ? Code(advisorFailure) : null,
 				result.Attempts.Select(x => new RoutePlanAttemptResponse(x.Seed, x.RequestedLengthMeters, Code(x.Outcome), Code(x.Reason),
 					x.Failure is { } attemptFailure ? RoutingProblemMapper.Describe(attemptFailure).Code : null)).ToArray());

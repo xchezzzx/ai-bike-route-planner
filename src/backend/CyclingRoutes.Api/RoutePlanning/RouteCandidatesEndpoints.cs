@@ -28,7 +28,7 @@ public static class RouteCandidatesEndpoints
 			var candidates = result.Candidates.Select(RouteCandidateResponseMapper.ToResponse).ToArray();
 			cancellationToken.ThrowIfCancellationRequested();
 			return TypedResults.Ok(new RouteCandidatesResponse(result.RequestedLengthMeters, result.Assumptions,
-				result.AttemptedCount, warnings.ToArray(), candidates));
+				result.AttemptedCount, warnings.ToArray(), candidates, result.ExcludedCandidates.Select(RouteCandidateResponseMapper.ToResponse).ToArray()));
 		}
 		catch (RoutingException error)
 		{

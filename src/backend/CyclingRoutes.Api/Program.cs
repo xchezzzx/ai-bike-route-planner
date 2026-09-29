@@ -36,6 +36,8 @@ builder.Services.AddHttpClient<IRouteIntentInterpreter, GeminiRouteIntentInterpr
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddTransient<InterpretationService>();
 builder.Services.AddSingleton<RouteCandidateRanker>();
+builder.Services.AddSingleton<RoadQualityAssessor>();
+builder.Services.AddSingleton<RoadCandidateSelector>();
 builder.Services.AddTransient<RouteCandidateService>();
 builder.Services.AddHttpClient<IRouteSearchAdvisor, GeminiRouteSearchAdvisor>(client =>
 {

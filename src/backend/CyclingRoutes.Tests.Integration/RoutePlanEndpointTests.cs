@@ -21,6 +21,44 @@ public class RoutePlanEndpointTests : IClassFixture<WebApplicationFactory<Progra
 	private static HttpClient Client(WebApplicationFactory<Program> app) => app.CreateClient(new() { BaseAddress = new("https://localhost"), AllowAutoRedirect = false });
 
 	[Theory]
+	[InlineData("candidates", false)]
+	[InlineData("plan", false)]
+	[InlineData("candidates", true)]
+	[InlineData("plan", true)]
+	public async Task QualityExclusions_AreNotRoutesOrProviderFailures(string endpoint, bool partial)
+	{
+		var provider = new Provider((seed, _) =>
+		{
+			if (partial && seed == 2) throw new RoutingException(RoutingFailure.RateLimited);
+			var path = Path(seed, 20000);
+			var length = RouteGeometryMetrics.EdgeLengths(path.Points, default).Sum();
+			return Task.FromResult(path with { Evidence = new(length, true, false, new(0, length, 0, 0), new(length, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)) });
+		});
+		var advisor = new Advisor((_, _) => Task.FromResult(new RouteSearchAdvice(RouteSearchAction.Stop, null, null, RouteSearchReason.Stop)));
+		using var app = With(provider, advisor);
+		using var client = Client(app);
+		using var response = await client.PostAsync($"/api/routes/{endpoint}", new StringContent(Body, Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+		var search = endpoint == "plan" ? json.RootElement.GetProperty("search") : json.RootElement;
+		Assert.Equal(0, search.GetProperty("candidates").GetArrayLength());
+		Assert.Equal(partial ? 1 : endpoint == "plan" ? 2 : 3, search.GetProperty("excludedCandidates").GetArrayLength());
+		Assert.Equal(partial || endpoint == "plan" ? 2 : 3, provider.Calls);
+		Assert.Equal(!partial && endpoint == "plan" ? 1 : 0, advisor.Calls);
+		foreach (var excluded in search.GetProperty("excludedCandidates").EnumerateArray())
+		{
+			Assert.False(excluded.TryGetProperty("route", out _));
+			Assert.False(excluded.TryGetProperty("gpx", out _));
+			Assert.True(excluded.GetProperty("assessment").GetProperty("targetsMatched").GetBoolean());
+			Assert.Contains("road_surface_limit_exceeded", excluded.GetProperty("reasons").EnumerateArray().Select(x => x.GetString()));
+		}
+		var warnings = search.GetProperty("warnings").EnumerateArray().Select(x => x.GetString()).ToArray();
+		Assert.Contains("no_candidate_meets_requirements", warnings);
+		Assert.DoesNotContain("no_candidate_within_tolerance", warnings);
+		if (partial) Assert.Contains("routing_rate_limited", warnings);
+	}
+
+	[Theory]
 	[InlineData("search", "searched", 3, 1)] [InlineData("stop", "stopped", 2, 1)]
 	[InlineData("quota", "failed", 3, 1)] [InlineData("matched", "notNeeded", 2, 0)]
 	[InlineData("noInitial", "skippedNoCandidates", 3, 0)] [InlineData("partial", "skippedRoutingFailure", 2, 0)]
@@ -52,6 +90,9 @@ public class RoutePlanEndpointTests : IClassFixture<WebApplicationFactory<Progra
 		Assert.Equal(routeCalls, provider.Calls); Assert.Equal(adviceCalls, advisor.Calls);
 		Assert.Equal(scenario == "quota" ? "quota" : null, root.GetProperty("advisorFailure").GetString());
 		if (scenario == "partial") Assert.Contains("routing_rate_limited", text);
+		Assert.Equal(scenario == "matched" ? 2 : 0, root.GetProperty("search").GetProperty("candidates").GetArrayLength());
+		Assert.Equal(scenario == "matched" ? 0 : scenario is "partial" or "noInitial" ? 1 : routeCalls,
+			root.GetProperty("search").GetProperty("excludedCandidates").GetArrayLength());
 		foreach (var candidate in root.GetProperty("search").GetProperty("candidates").EnumerateArray())
 		{
 			var route = candidate.GetProperty("route");

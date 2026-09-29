@@ -141,3 +141,25 @@ tel-aviv-candidates-20260928-181717. Automated tests use no live API key.
 Manual road/access/safety checks and Garmin/Wahoo import remain outstanding.
 Israel is the initial test region, not an enforced geofence. See the
 [approved design and provider sources](route-candidates-design.md).
+# Quality selection (road-v1)
+
+The current response returns only candidates within all requested target tolerances
+(inclusive +/-10%) and the road-quality limits. `excludedCandidates` contains
+seed, provider distance/duration, assessment/quality and fixed rejection reasons,
+without geometry or GPX. A completed search may return HTTP 200 with zero selectable
+candidates; no acquired geometry still uses the existing provider/NoRoute error.
+Unknown coverage is not paved coverage and does not by itself reject a route.
+
+`assessment.quality` reports geometry length, surface/waytype metre totals, surface
+evidence state (`unavailable`, `partial`, `complete`), and exact repeated/shared-stem/
+remaining repeated metres. These are data-based diagnostics, not access/safety
+certification. `targetsMatched` concerns distance/time only. Score includes the
+remaining-repeat penalty used in ordering. See the
+[policy specification](../superpowers/specs/2026-09-29-road-loop-quality-design.md).
+
+`candidates_excluded` and `no_candidate_meets_requirements` explain filtering.
+Partial provider failures remain warnings even if no candidate survives. The
+combined retained/excluded set contains at most three unique acquired candidates.
+Deploy backend/frontend together: older clients reject the newly valid empty array.
+Earlier examples below illustrate the pre-quality contract and omit these additions.
+

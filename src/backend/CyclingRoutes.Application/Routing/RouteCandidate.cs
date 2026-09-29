@@ -22,4 +22,5 @@ public sealed record RouteCandidateSearchResult(
 	int AttemptedCount,
 	IReadOnlyList<string> Warnings,
 	IReadOnlyList<GeneratedRouteCandidate> Candidates,
-	RoutingFailure? IncompleteFailure);
+	RoutingFailure? IncompleteFailure,
+	IReadOnlyList<ExcludedRouteCandidate> ExcludedCandidates);

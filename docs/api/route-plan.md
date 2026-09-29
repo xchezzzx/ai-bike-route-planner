@@ -54,3 +54,13 @@ Not a safety/access/traffic guarantee; not support for gravel, stops, exclusions
 or geographic reasoning. Offline tests and review fixes pass, but the first
 [live qualification](../evaluation/route-refinement-2026-09-29.md) failed. Keep
 the PR unmerged and the feature experimental; do not claim quality improvement.
+# Road quality integration (road-v1)
+
+The nested search now uses the same quality/selection contract as
+[/candidates](route-candidates.md). An in-tolerance but surface-excluded route no
+longer triggers balanced-elevation early stop. The advisor schema stays metric-only;
+it cannot override deterministic exclusions or fabricate geometry. `accepted` in
+the attempt trace means valid unique geometry acquired, not a final selectable route.
+A stop decision can leave `search.candidates` empty with explained exclusions.
+The three-routing/one-advisor budgets and provider-failure handling are unchanged.
+
