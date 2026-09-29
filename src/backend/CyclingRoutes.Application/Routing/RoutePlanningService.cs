@@ -23,6 +23,7 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 		RouteSearchAdvisorFailure? advisorFailure = null;
 		var advisorStatus = RouteAdvisorStatus.NotNeeded;
 		var advisorCalls = 0;
+		var nextLength = initial;
 
 		bool CanContinue()
 		{
@@ -44,6 +45,7 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 				var path = await provider.GetRoadLoopAsync(intent.Start, length, seed, call.Token);
 				call.Token.ThrowIfCancellationRequested();
 				RoadLoopGeometry.Validate(path);
+				nextLength = LoopSearchLength.Correct(intent, initial, length, path);
 				var outcome = candidates.Any(x => RoadLoopGeometry.SameGeometry(x.Path, path))
 					? RouteSearchOutcome.Duplicate : RouteSearchOutcome.Accepted;
 				if (outcome == RouteSearchOutcome.Accepted) candidates.Add(new(seed, path));
@@ -70,12 +72,12 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 		}
 
 		await SearchAsync(1, initial, RouteSearchReason.Explore);
-		await SearchAsync(2, initial, RouteSearchReason.Explore);
+		await SearchAsync(2, nextLength, RouteSearchReason.Explore);
 		if (!CanContinue()) advisorStatus = RouteAdvisorStatus.SkippedRoutingFailure;
 		else if (candidates.Count == 0)
 		{
 			advisorStatus = RouteAdvisorStatus.SkippedNoCandidates;
-			await SearchAsync(3, initial, RouteSearchReason.Explore);
+			await SearchAsync(3, nextLength, RouteSearchReason.Explore);
 		}
 		else if (intent.Elevation != ElevationPreference.Balanced || selector.Select(intent, candidates, cancellationToken).Retained.Count == 0)
 		{
@@ -106,7 +108,7 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 			if (advisorFailure is not null)
 			{
 				advisorStatus = RouteAdvisorStatus.Failed;
-				await SearchAsync(3, initial, RouteSearchReason.Explore);
+				await SearchAsync(3, nextLength, RouteSearchReason.Explore);
 			}
 			else if (advice!.Action == RouteSearchAction.Stop) advisorStatus = RouteAdvisorStatus.Stopped;
 			else

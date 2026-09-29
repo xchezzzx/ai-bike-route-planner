@@ -1,7 +1,8 @@
 # Optional Road Loop Refinement
 
 POST `/api/routes/plan` accepts the same canonical intent as `/api/routes/candidates`.
-It is opt-in; existing `/generate`, `/candidates` and interpretation remain unchanged.
+It is opt-in; `/generate` and interpretation remain unchanged. Both loop-search
+endpoints share the bounded [adaptive length calibration](route-candidates.md).
 
 ```json
 {"start":{"latitude":32.0853,"longitude":34.7818},"shape":"loop","profile":"road","targetDistanceMeters":20000,"elevation":"minimize"}
@@ -30,7 +31,10 @@ Seeds 1 and 2 precede advice. A retained road-v1 candidate with balanced elevati
 No usable initial candidates skip AI and try seed 3. Otherwise one advisor can
 stop or propose a fresh seed 3..16 and length within both 1000..100000 metres
 and 0.5..1.5 of initial. Invalid proposals are rejected, never clamped. Failure
-falls back to seed 3 at original length if time remains (`advisor_fallback`).
+falls back to seed 3 at the last calibrated length if time remains (`advisor_fallback`).
+The second deterministic attempt is also calibrated from the first valid result.
+Original targets and advisor proposal validation are unchanged; the trace records
+actual requested lengths and the advisor observes those same lengths.
 
 Limits: 3 ORS calls, 1 advisor call, 90 seconds overall, 15 seconds per ORS call,
 30 seconds per advisor call. No retries. Caller cancellation takes precedence.
@@ -62,12 +66,14 @@ road loops and a bounded application-owned attempt trace. `/plan` gets a
 Changing inputs or the mode cancels/fences stale responses.
 
 Not a safety/access/traffic guarantee; not support for gravel, stops, exclusions
-or geographic reasoning. Offline tests and review fixes pass, but the first
-[live qualification](../evaluation/route-refinement-2026-09-29.md) failed. Keep
-the PR unmerged and the feature experimental; do not claim quality improvement.
-The [v2 correction](../evaluation/route-refinement-diagnostics-2026-09-29.md)
-passed its first live stop case, then the provider returned HTTP 503 on the search
-case. Four cases remain unrun; the full live gate and route comparison are pending.
+or geographic reasoning. The first
+[live qualification](../evaluation/route-refinement-2026-09-29.md) failed. The latest
+[v2 qualification](../evaluation/route-refinement-diagnostics-2026-09-29.md) passed
+all six advisor cases, but the four-city comparison remained negative: only Tel
+Aviv retained target-matching routes. Adaptive calibration was subsequently tested
+offline, not requalified live. The user explicitly accepted merge after green CI
+with these known limitations and later manual testing. Keep the feature opt-in
+and experimental; do not claim proven route-quality improvement.
 
 ## Road quality integration (road-v1)
 
