@@ -46,6 +46,33 @@ public class RouteGenerationEndpointTests : IClassFixture<WebApplicationFactory<
 	}
 
 	[Theory]
+	[InlineData(false)]
+	[InlineData(true)]
+	public async Task SegmentMetadata_PreservesDirectRouteAndGpx(bool annotated)
+	{
+		var body = System.Text.Json.Nodes.JsonNode.Parse(OpenRouteServiceProviderTests.ValidResponse)!;
+		if (annotated) body["features"]![0]!["properties"]!["extras"] = System.Text.Json.Nodes.JsonNode.Parse("""{"surface":{"values":[[0,1,3]]},"waytype":{"values":[[0,1,6]]}}""");
+		using var app = WithProviderResponse(200, body.ToJsonString());
+		using var client = app.CreateClient(new() { BaseAddress = new("https://localhost") });
+		using var response = await client.PostAsync("/api/routes/generate", ValidContent(), TestContext.Current.CancellationToken);
+		response.EnsureSuccessStatusCode();
+		using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+		var route = json.RootElement;
+		Assert.True(route.TryGetProperty("segments", out var segments), "API must expose segment evidence.");
+		Assert.Equal(1, segments.GetArrayLength());
+		Assert.Equal(0, segments[0].GetProperty("fromPointIndex").GetInt32());
+		Assert.Equal(1, segments[0].GetProperty("toPointIndex").GetInt32());
+		Assert.Equal(annotated ? "asphalt" : "unknown", segments[0].GetProperty("surface").GetString());
+		Assert.Equal(annotated ? "cycleway" : "unknown", segments[0].GetProperty("wayType").GetString());
+		using var originalApp = WithProviderResponse(200, OpenRouteServiceProviderTests.ValidResponse);
+		using var originalClient = originalApp.CreateClient(new() { BaseAddress = new("https://localhost") });
+		using var originalResponse = await originalClient.PostAsync("/api/routes/generate", ValidContent(), TestContext.Current.CancellationToken);
+		using var original = JsonDocument.Parse(await originalResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+		Assert.Equal(original.RootElement.GetProperty("geometry").GetRawText(), route.GetProperty("geometry").GetRawText());
+		Assert.Equal(original.RootElement.GetProperty("gpx").GetString(), route.GetProperty("gpx").GetString());
+	}
+
+	[Theory]
 	[InlineData(401, "do not expose this", 503, "routing_credentials_rejected")]
 	[InlineData(429, "do not expose this", 503, "routing_rate_limited")]
 	[InlineData(503, "do not expose this", 503, "routing_unavailable")]

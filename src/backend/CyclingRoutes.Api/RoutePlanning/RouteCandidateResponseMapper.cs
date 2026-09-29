@@ -7,13 +7,10 @@ internal static class RouteCandidateResponseMapper
 {
 	public static RouteCandidateResponse ToResponse(GeneratedRouteCandidate candidate)
 	{
-		var path = candidate.Route.Path;
 		var assessment = candidate.Assessment;
 		return new(candidate.Seed,
 			Assessment(assessment),
-			new(path.Points.Select(point => new RoutePointResponse(point.Position.Latitude, point.Position.Longitude, point.ElevationMeters)).ToArray(),
-				path.DistanceMeters, path.EstimatedDurationSeconds, path.AscentMeters, path.DescentMeters,
-				path.Attribution, candidate.Route.Warnings, candidate.Route.Gpx));
+			GeneratedRouteResponseMapper.ToResponse(candidate.Route));
 	}
 
 	public static ExcludedRouteCandidateResponse ToResponse(ExcludedRouteCandidate candidate) =>

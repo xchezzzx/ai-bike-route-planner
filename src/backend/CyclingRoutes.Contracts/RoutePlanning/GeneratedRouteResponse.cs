@@ -10,4 +10,5 @@ public sealed record GeneratedRouteResponse(
 	double? DescentMeters,
 	string Attribution,
 	IReadOnlyList<string> Warnings,
-	string Gpx);
+	string Gpx,
+	IReadOnlyList<RouteSegmentResponse>? Segments = null);

@@ -22,11 +22,7 @@ public static class RouteGenerationEndpoints
 		try
 		{
 			var result = await service.GenerateAsync(intent, cancellationToken);
-			var path = result.Path;
-			return TypedResults.Ok(new GeneratedRouteResponse(
-				path.Points.Select(point => new RoutePointResponse(point.Position.Latitude, point.Position.Longitude, point.ElevationMeters)).ToArray(),
-				path.DistanceMeters, path.EstimatedDurationSeconds, path.AscentMeters, path.DescentMeters,
-				path.Attribution, result.Warnings, result.Gpx));
+			return TypedResults.Ok(GeneratedRouteResponseMapper.ToResponse(result));
 		}
 		catch (RoutingException error)
 		{
