@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError, request } from './api';
 import { codeText } from './i18n';
 import { buildManual, limitations, readCoordinate } from './request';
-import type { Candidate, Candidates, GeneratedRoute, Inputs, Intent, Interpretation, RoutePlan } from './types';
+import type { Candidate, Candidates, Coordinate, GeneratedRoute, Inputs, Intent, Interpretation, RoutePlan } from './types';
+import { useStartLocation } from './useStartLocation';
 import { validPlan } from './routePlan';
 import { validRoadCandidates } from './routeQuality';
 
@@ -20,14 +21,21 @@ export function usePlanner() {
   const [error, setError] = useState<ApiError | null>(null);
   const revision = useRef(0);
   const active = useRef<AbortController | null>(null);
+  const [locationCenter, setLocationCenter] = useState<Coordinate | undefined>(undefined);
+  const location = useStartLocation(() => revision.current, point => {
+    update({ start: { latitude: point.latitude.toFixed(6), longitude: point.longitude.toFixed(6) } });
+    setLocationCenter(point);
+  });
 
   function invalidate() {
+    location.cancel(); setLocationCenter(undefined);
     revision.current++;
     active.current?.abort();
     active.current = null;
     setPending(null); setError(null); setIntent(null); setInterpretation(null); setResults(null); setPlanning(null); setSelected(0);
   }
   function setRefine(value: boolean) {
+    location.cancel(); setLocationCenter(undefined);
     revision.current++;
     active.current?.abort(); active.current = null;
     setPending(null); setError(null); setResults(null); setPlanning(null); setSelected(0); setRefineValue(value);
@@ -37,6 +45,7 @@ export function usePlanner() {
 
   async function run(kind: NonNullable<Pending>, operation: (signal: AbortSignal) => Promise<() => void>) {
     if (active.current) return;
+    location.cancel(); setLocationCenter(undefined);
     const version = ++revision.current;
     const controller = new AbortController();
     active.current = controller;
@@ -103,7 +112,7 @@ export function usePlanner() {
     });
   }
   function cancel() { invalidate(); setError(new ApiError('cancelled')); }
-  return { inputs, update, interpretation, intent, results, selected, select: setSelected, pending, error, prepare, generate, cancel, refine, setRefine, planning };
+  return { inputs, update, interpretation, intent, results, selected, select: setSelected, pending, error, prepare, generate, cancel, refine, setRefine, planning, location, locationCenter };
 }
 
 function validIntent(intent: Intent): boolean {

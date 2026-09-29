@@ -3,7 +3,7 @@ import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as LibreMap } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { FeatureCollection, LineString } from 'geojson';
-import { LocateFixed, Maximize, Minus, Plus, RefreshCw } from 'lucide-react';
+import { Map as MapIcon, Maximize, Minus, Plus, RefreshCw } from 'lucide-react';
 import { t } from './i18n';
 import { highlightCycleways } from './cyclingStyle';
 import { readRouteSegments, segmentFeatures } from './routeSegments';
@@ -16,6 +16,7 @@ interface Props {
   theme?: 'light' | 'dark';
   start?: Coordinate;
   destination?: Coordinate;
+  focus?: Coordinate;
   pick: 'start' | 'destination';
   candidates: Candidate[];
   selected: number;
@@ -41,6 +42,7 @@ export default function RouteMap(props: Props) {
   const appliedStyle = useRef('');
   const deadline = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const fitted = useRef<{ map: LibreMap; candidate: Candidate } | undefined>(undefined);
+  const focused = useRef<{ map: LibreMap; point: Coordinate } | undefined>(undefined);
   const latest = useRef(props);
   latest.current = props;
   const [ready, setReady] = useState(false);
@@ -126,6 +128,14 @@ export default function RouteMap(props: Props) {
 
   useEffect(() => {
     const map = mapRef.current;
+    const point = props.focus;
+    if (!map || !ready || !point || focused.current?.map === map && focused.current.point === point) return;
+    map.jumpTo({ center: [point.longitude, point.latitude], zoom: 14 });
+    focused.current = { map, point };
+  }, [ready, props.focus]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map) return;
     map.getCanvas().setAttribute('aria-label', text('mapCanvas'));
     if (!ready) return;
@@ -194,7 +204,7 @@ export default function RouteMap(props: Props) {
       <button className="icon-button" type="button" title={text('zoomIn')} aria-label={text('zoomIn')} disabled={!ready} onClick={() => mapRef.current?.zoomIn({ duration: 0 })}><Plus size={19} /></button>
       <button className="icon-button" type="button" title={text('zoomOut')} aria-label={text('zoomOut')} disabled={!ready} onClick={() => mapRef.current?.zoomOut({ duration: 0 })}><Minus size={19} /></button>
       <button className="icon-button" type="button" title={text('fit')} aria-label={text('fit')} disabled={!ready || !props.candidates.length} onClick={() => mapRef.current && fit(mapRef.current, props.candidates[props.selected])}><Maximize size={17} /></button>
-      <button className="icon-button" type="button" title={text('resetMap')} aria-label={text('resetMap')} disabled={!ready} onClick={() => mapRef.current?.jumpTo({ center, zoom: 11 })}><LocateFixed size={18} /></button>
+      <button className="icon-button" type="button" title={text('resetMap')} aria-label={text('resetMap')} disabled={!ready} onClick={() => mapRef.current?.jumpTo({ center, zoom: 11 })}><MapIcon size={18} /></button>
     </div>
   </section>
     <RouteSegmentControls {...segmentData} locale={props.locale} mode={mode} onModeChange={setMode}

@@ -5,7 +5,7 @@ import App from '../src/App';
 import { candidates, intent, interpretation, route, refinement } from './fixtures';
 
 // jsdom has no WebGL; the browser suite exercises the actual MapLibre canvas.
-vi.mock('../src/RouteMap', () => ({ default: () => <div /> }));
+vi.mock('../src/RouteMap', () => ({ default: ({ focus }: { focus?: unknown }) => <div data-testid="map" data-focus={focus ? 'queued' : 'none'} /> }));
 
 let posts: { path: string; body: unknown; signal: AbortSignal }[];
 let replies: Record<string, unknown>;
@@ -29,6 +29,63 @@ async function setupPrompt() {
   await user.type(screen.getByLabelText('Ride request'), 'A 25 km road loop');
   return user;
 }
+
+it('applies current location only to start and invalidates completed routes', async () => {
+  let success!: PositionCallback;
+  const getCurrentPosition = vi.fn(callback => { success = callback; });
+  vi.stubGlobal('isSecureContext', true);
+  Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  await user.type(screen.getByLabelText('Destination latitude'), '32.1');
+  await user.type(screen.getByLabelText('Destination longitude'), '34.8');
+  await user.click(screen.getByRole('radio', { name: 'Destination' }));
+  const ab = { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 } };
+  replies.interpret = { ...interpretation, draft: ab, intent: ab };
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('button', { name: 'Download GPX' });
+  expect(getCurrentPosition).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Use my location as start' }));
+  act(() => success({ coords: { latitude: 32.8, longitude: 35, accuracy: 15 } } as GeolocationPosition));
+  expect(screen.getByLabelText('Start latitude')).toHaveValue('32.800000');
+  expect(screen.getByLabelText('Destination latitude')).toHaveValue('32.1');
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
+  expect(screen.getByText(/Start updated/)).toHaveTextContent('Reported accuracy: 15 m');
+  expect(posts).toHaveLength(2);
+});
+
+it('preserves results on geolocation denial and ignores a fix after manual edits', async () => {
+  let success!: PositionCallback; let failure!: PositionErrorCallback;
+  vi.stubGlobal('isSecureContext', true);
+  Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: vi.fn((ok, error) => { success = ok; failure = error; }) }, configurable: true });
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('button', { name: 'Download GPX' });
+  await user.click(screen.getByRole('button', { name: 'Use my location as start' }));
+  act(() => failure({ code: 1 } as GeolocationPositionError));
+  expect(screen.getByRole('alert')).toHaveTextContent('Location permission was denied.');
+  expect(screen.getByRole('button', { name: 'Download GPX' })).toBeEnabled();
+  await user.click(screen.getByRole('button', { name: 'Use my location as start' }));
+  await user.clear(screen.getByLabelText('Start latitude'));
+  await user.type(screen.getByLabelText('Start latitude'), '32.9');
+  act(() => success({ coords: { latitude: 32.8, longitude: 35, accuracy: 15 } } as GeolocationPosition));
+  expect(screen.getByLabelText('Start latitude')).toHaveValue('32.9');
+});
+
+it('clears deferred location centering when a newer planning action starts', async () => {
+  let success!: PositionCallback;
+  vi.stubGlobal('isSecureContext', true);
+  Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: vi.fn(ok => { success = ok; }) }, configurable: true });
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Use my location as start' }));
+  act(() => success({ coords: { latitude: 32.8, longitude: 35, accuracy: 15 } } as GeolocationPosition));
+  expect(screen.getByTestId('map')).toHaveAttribute('data-focus', 'queued');
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  expect(screen.getByTestId('map')).toHaveAttribute('data-focus', 'none');
+});
 
 async function prepareRefinement() {
   const user = await setupPrompt();
