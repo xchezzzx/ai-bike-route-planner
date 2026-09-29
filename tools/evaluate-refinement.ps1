@@ -14,7 +14,7 @@ function Assert-RoadAssessment($candidate, $intent, [bool]$excluded) {
     $a=$candidate.assessment
     if($a -isnot [Collections.IDictionary] -or $a.targetsMatched -isnot [bool] -or -not (Is-Number $a.score) -or $a.score -lt 0){throw 'Invalid assessment'}
     $q=$a.quality
-    if($q -isnot [Collections.IDictionary] -or $q.policyVersion -cne 'road-v1' -or -not (Is-Number $q.geometryLengthMeters) -or $q.geometryLengthMeters -le 0 -or
+    if($q -isnot [Collections.IDictionary] -or $q.policyVersion -isnot [string] -or $q.policyVersion -cne 'road-v1' -or -not (Is-Number $q.geometryLengthMeters) -or $q.geometryLengthMeters -le 0 -or
         $q.surfaceEvidenceState -isnot [string] -or $q.surfaceEvidenceState -cnotin @('unavailable','partial','complete') -or $q.waytypeSupplied -isnot [bool]){throw 'Invalid quality'}
     $length=[double]$q.geometryLengthMeters; $epsilon=$length*1e-8
     $partitions=@{

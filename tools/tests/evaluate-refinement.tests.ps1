@@ -1,4 +1,4 @@
-param([string[]]$Scenarios = @('missingQuality', 'badQualityTotal', 'badQualityState', 'unjustifiedExclusion', 'falseTargetMatch', 'noMatch', 'emptyPartial', 'badExclusion', 'duplicateSeed', 'degenerate', 'partial', 'pass', 'duplicate', 'quota', 'invalid', 'disconnect'))
+param([string[]]$Scenarios = @('arrayPolicy', 'excludedArrayPolicy', 'missingQuality', 'badQualityTotal', 'badQualityState', 'unjustifiedExclusion', 'falseTargetMatch', 'noMatch', 'emptyPartial', 'badExclusion', 'duplicateSeed', 'degenerate', 'partial', 'pass', 'duplicate', 'quota', 'invalid', 'disconnect'))
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $runner = Join-Path $PSScriptRoot '../evaluate-refinement.ps1'
@@ -23,13 +23,14 @@ try {
         $search = @{requestedLengthMeters=20000; attemptedCount=2; assumptions=@(); warnings=@(); candidates=@($candidate); excludedCandidates=@()}
         $excludedAssessment=$assessment.Clone(); $excludedAssessment.targetsMatched=$false; $excludedAssessment.distanceDeltaMeters=10000
         $excluded = @{seed=2; distanceMeters=30000; estimatedDurationSeconds=3600; assessment=$excludedAssessment; reasons=@('targets_not_met')}
-        if ($scenario -in @('noMatch', 'emptyPartial', 'badExclusion', 'unjustifiedExclusion')) {
+        if ($scenario -in @('noMatch', 'emptyPartial', 'badExclusion', 'unjustifiedExclusion', 'excludedArrayPolicy')) {
             $search.candidates=@(); $search.excludedCandidates=@($excluded)
             $search.warnings=@('no_candidate_meets_requirements','candidates_excluded')
         }
         if ($scenario -eq 'emptyPartial') { $search.warnings += @('candidate_generation_incomplete','routing_timeout') }
         if ($scenario -eq 'badExclusion') { $excluded.reasons=@('secret') }
         if ($scenario -eq 'missingQuality') { [void]$assessment.Remove('quality') }
+        if ($scenario -in @('arrayPolicy','excludedArrayPolicy')) { $quality.policyVersion=@('road-v1') }
         if ($scenario -eq 'badQualityTotal') { $quality.surface.unknownMeters=1 }
         if ($scenario -eq 'badQualityState') { $quality.surfaceEvidenceState=@('complete') }
         if ($scenario -eq 'unjustifiedExclusion') { $excluded.reasons=@('road_surface_limit_exceeded') }
@@ -88,7 +89,7 @@ try {
                 Assert-True ($report.results[0].usableCount -eq 0 -and $null -eq $report.results[0].bestMeanTargetError) 'Empty result has false metrics'
             }
             if($scenario -eq 'emptyPartial'){ Assert-True ($report.results[0].status -ceq 'incomplete') 'Partial failure was hidden' }
-            if($scenario -in @('badExclusion','duplicateSeed','missingQuality','badQualityTotal','badQualityState','unjustifiedExclusion','falseTargetMatch')){
+            if($scenario -in @('badExclusion','duplicateSeed','missingQuality','badQualityTotal','badQualityState','unjustifiedExclusion','falseTargetMatch','arrayPolicy','excludedArrayPolicy')){
                 Assert-True (@($report.results | Where-Object { $_.status -cne 'error' -or $_.error -cne 'invalid_response' }).Count -eq 0) "Malformed result accepted: $scenario"
             }
         } finally { $listener.Stop(); Stop-Job $job -ErrorAction SilentlyContinue; Remove-Job $job -Force }
