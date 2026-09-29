@@ -110,8 +110,9 @@ lanes or legal access, and it does not change the ORS routing profile.
    tools, with application-owned budgets and unchanged user constraints.
    Implementation is ready for PR review; first diagnose rejected live advisor
    responses and complete a separately bounded requalification before merge.
-5. Add opt-in browser geolocation as a start-point shortcut, then automatic
-   track names, and verify actual Israeli route/GPX quality.
+5. Simplify start selection with a Loop / A-B control and opt-in browser
+   geolocation, then add automatic track names and verify actual Israeli
+   route/GPX quality.
 6. Prepare public deployment: abuse protection, current free-tier checks,
    hosting configuration, secrets and staging/production verification.
 
@@ -177,6 +178,32 @@ paid service, API key, native app or location history required.
   using mocked browser geolocation. Real-device accuracy is a separate check.
 
 Reference: [Browser Geolocation API](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition).
+
+## Planned addition: Loop / A-B segmented control
+
+Requested on 2026-09-29; not implemented. Use one accessible route-shape
+selector above the coordinate fields in both prompt and manual modes. Replace
+the manual shape dropdown rather than creating a second independent selection.
+
+- Loop: show only start coordinates, hide the destination marker and destination
+  pick action, and make map clicks select start. Omit destination from requests;
+  a hidden stale value must not cause validation failures or reach interpretation.
+- A-B: show both coordinate fields and enable choosing either map point.
+  A prepared A-B intent requires both points; retain existing optional targets.
+- Preserve the previous destination only in transient form state for returning
+  to A-B; it is inactive in Loop. Switching shape invalidates prepared intent,
+  route results and downloads, cancels active work and fences late responses.
+- Prompt and toggle must not silently contradict each other. An explicit user
+  shape choice is a constraint; contradictory prompt intent requires clarification
+  before generation. Define unset/default versus explicit selection and any
+  interpretation-contract changes during design, including corpus requalification
+  if prompt/schema semantics change. Never rewrite a validated intent client-side
+  just to match the visible toggle.
+- Coordinate selection and current-location action share the same start update
+  flow. Labels, keyboard operation and RTL work in EN/RU/HE.
+- Tests cover both directions of switching, hidden destination omission/marker
+  removal, retained draft destination, map pick reset, conflicting prompt,
+  cancelled/stale responses and desktop/mobile layout.
 
 ## Previously proposed service shortlist
 
