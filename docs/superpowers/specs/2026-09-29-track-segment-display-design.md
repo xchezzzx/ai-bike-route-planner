@@ -1,6 +1,6 @@
 # Track Segment Display
 
-Status: written specification approved by the user; implementation plan pending approval.
+Status: specification and plan approved; implemented in dependent Draft PR #16.
 Date: 2026-09-29.
 
 ## Intent and Scope
@@ -21,7 +21,8 @@ remain separate requested follow-ups, not part of this specification.
 
 ## Existing Flow
 
-- `OpenRouteServiceProvider` already requests `surface` and `waytype` extras.
+- At design time, loop requests included `surface` and `waytype` extras. Implementation
+  also requests them on the existing A-B call; no additional provider call is made.
 - `OpenRouteServiceEvidenceParser` validates index ranges but currently retains
   only category totals in `RoadEvidence`.
 - `RoutedPath` carries optional evidence into quality assessment and responses.

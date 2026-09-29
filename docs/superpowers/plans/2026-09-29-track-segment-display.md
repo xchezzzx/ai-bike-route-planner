@@ -132,18 +132,26 @@ Assert.Equal(new[] {
 - Reuse `src/frontend/e2e/basemap.ts`, existing fixtures and `pngjs` pixel checks.
 - Create `docs/evaluation/track-segment-display.md` recording actual executed checks, not predictions.
 
-- [ ] Add deterministic browser tests for EN/RU/HE on both configured desktop/mobile projects. Synthetic routes include every category and separated long horizontal segments for stable pixel sampling. Block unexpected external requests; never fall through to live generation.
-- [ ] Assert Surface default, both mode patterns, muted alternatives, visible legend, segment selection by pointer and keyboard, exact downloaded GPX, and unknown fallback on legacy/malformed annotations.
-- [ ] Sample canvas pixels along known fixture lines to distinguish continuous color from white-backed gaps; capture screenshots for both modes and inspect them. Verify a tap centered on a known gap opens details without moving endpoints. Verify an empty-map click still changes the active endpoint.
-- [ ] Verify route replacement, empty results, repeated mode switches and map retry clear stale details; camera remains unchanged for a mode-only switch. Assert no additional API calls during mode switches. Check no horizontal overflow, overlapping controls or hidden attribution at 390px and 1440px widths, including RTL.
-- [ ] Run `npm run test:e2e -- e2e/track-segments.spec.ts` from `src/frontend`; use an unused preview port if 4173 is occupied, never kill an unrelated process. Confirm tests fail against missing/broken behavior, then fix only identified integration defects and rerun.
-- [ ] Run `dotnet test src/backend/CyclingRoutes.slnx`, then frontend `npm test`, `npm run build`, `npm run test:e2e`, and `git diff --check`. Success requires all tests executed and green; do not count skipped live qualification as passed. If running preview locks assemblies, use Debug or separate output paths, not an unrequested server restart.
-- [ ] Review the full feature diff for preserved road quality, budgets, geometry and GPX. Record exact counts, commands, screenshots and limitations in evaluation notes. Commit: `test: verify track segment display across locales and viewports`.
-- [ ] Publish the scoped dependent PR, attach it to this task and wait for its final-head CI. State dependency on Draft PR #15 and its unresolved live gate. Do not merge around that gate. Refresh the user's preview only once implementation is verified and no unrelated session is disrupted; report the actual URL and code revision shown.
+- [x] Add deterministic browser tests for EN/RU/HE on both configured desktop/mobile projects. Synthetic routes include every category and separated long horizontal segments for stable pixel sampling. Block unexpected external requests; never fall through to live generation.
+- [x] Assert Surface default, both mode patterns, muted alternatives, visible legend, segment selection by pointer and keyboard, exact downloaded GPX, and unknown fallback on legacy/malformed annotations.
+- [x] Sample canvas pixels along known fixture lines to distinguish continuous color from white-backed gaps; capture screenshots for both modes and inspect them. Verify a tap centered on a known gap opens details without moving endpoints. Verify an empty-map click still changes the active endpoint.
+- [x] Verify route replacement, empty results, repeated mode switches and map retry clear stale details; camera remains unchanged for a mode-only switch. Assert no additional API calls during mode switches. Check no horizontal overflow, overlapping controls or hidden attribution at 390px and 1440px widths, including RTL.
+- [x] Run `npm run test:e2e -- e2e/track-segments.spec.ts` from `src/frontend`; use an unused preview port if 4173 is occupied, never kill an unrelated process. Confirm tests fail against missing/broken behavior, then fix only identified integration defects and rerun.
+- [x] Run `dotnet test src/backend/CyclingRoutes.slnx`, then frontend `npm test`, `npm run build`, `npm run test:e2e`, and `git diff --check`. Success requires all tests executed and green; do not count skipped live qualification as passed. If running preview locks assemblies, use Debug or separate output paths, not an unrequested server restart.
+- [x] Review the full feature diff for preserved road quality, budgets, geometry and GPX. Record exact counts, commands, screenshots and limitations in evaluation notes. Commit: `test: verify track segment display across locales and viewports`.
+- [x] Publish the scoped dependent PR, attach it to this task and wait for its final-head CI. State dependency on Draft PR #15 and its unresolved live gate. Do not merge around that gate. Refresh the user's preview only once implementation is verified and no unrelated session is disrupted; report the actual URL and code revision shown.
 
 ## Approval and Follow-Ups
 
-Status: user-approved; Tasks 1-4 implemented, Task 5 final qualification in progress.
+Status: all five tasks complete; independent review fixes and both CI jobs passed
+on code head `647a6a3`. Draft PR #16 remains dependent on PR #15's unresolved live
+merge gate. Current-head checks, including documentation-only updates, are tracked
+on PR #16. Preview: http://127.0.0.1:61765/ (code `647a6a3`).
+
+Review follow-up: coalesce adjacent identical visual patterns without merging exact
+inspection intervals; verify dense 200-interval rendering in both modes. Correct
+the no-match fixture and require a successful localized no-match response. Local
+regression: 289 backend unit + 377 integration, 144 frontend, 48 browser tests.
 
 Preserve the user's autonomous execution preference: execute sequentially in this thread with scoped commits and an independent review when available. Approval of this plan starts implementation; do not ask again for each task.
 

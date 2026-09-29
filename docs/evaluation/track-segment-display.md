@@ -46,7 +46,30 @@ Implementation base: `9078382` (approved design and plan).
   in Prompt mode`. Repeating the entire Vitest suite after browser completion
   passed 142/142 in 40s without code/test timeout changes. Avoid running those
   resource-intensive suites concurrently on this host.
-- Independent review and final CI remain pending at this checkpoint.
+- Independent review found dash phase restarting across dense evidence intervals
+  and a malformed no-match browser fixture. Both were reproduced: each dense-mode
+  test saw zero white gap pixels, and the no-match assertion timed out.
+- Visual runs now coalesce adjacent identical patterns, while a separate hit-test
+  source preserves exact evidence intervals. Dense 200-interval regressions pass
+  in both modes on desktop/mobile, including inspection of an original interval.
+- The no-match fixture now satisfies the API contract. All three locales verify
+  the successful no-match message and absence of errors before checking controls.
+- After review fixes, all 144 frontend tests, the production build and all 48
+  browser scenarios passed. The fix commit is `647a6a3`; final-head CI is tracked
+  on PR #16, independently of these local results.
+- Both GitHub CI jobs passed on the reviewed/fixed code head `647a6a3`:
+  [backend](https://github.com/xchezzzx/ai-bike-route-planner/actions/runs/36606047552)
+  and [frontend](https://github.com/xchezzzx/ai-bike-route-planner/actions/runs/36606047530).
+  Current-head status, including documentation-only updates, is tracked on PR #16.
+
+## Review Limits
+
+- No unresolved review findings. The fixture finding was promoted from minor to
+  a required fix because the plan explicitly requires successful no-match coverage.
+- No real-provider frequency claim follows from the synthetic dense-segment case.
+- Repeated retry/intersection stress and large-selector performance have not been
+  exhaustively qualified; existing lifecycle/interaction tests remain the coverage.
+- The local preview is http://127.0.0.1:61765/ (API proxy health returned Healthy).
 
 ## Decisions and Limits
 
