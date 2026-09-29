@@ -29,8 +29,8 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandid
 				attemptedCount++;
 				var path = await provider.GetRoadLoopAsync(intent.Start, length, seed, search.Token);
 				search.Token.ThrowIfCancellationRequested();
-				ValidateLoop(path);
-				if (!candidates.Any(x => SameGeometry(x.Path, path))) candidates.Add(new(seed, path));
+				RoadLoopGeometry.Validate(path);
+				if (!candidates.Any(x => RoadLoopGeometry.SameGeometry(x.Path, path))) candidates.Add(new(seed, path));
 			}
 			catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
 			{
@@ -68,23 +68,4 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RouteCandid
 			warnings.ToArray(), generated.ToArray(), incompleteFailure);
 	}
 
-	private static void ValidateLoop(RoutedPath path)
-	{
-		if (path.Points.Count < 4 || path.Points[0].Position != path.Points[^1].Position
-			|| path.Points.Select(x => x.Position).Distinct().Take(3).Count() < 3)
-			throw new RoutingException(RoutingFailure.InvalidResponse);
-	}
-
-	private static bool SameGeometry(RoutedPath left, RoutedPath right)
-	{
-		if (left.Points.Count != right.Points.Count) return false;
-		var forward = true;
-		var reverse = true;
-		for (var i = 0; i < left.Points.Count && (forward || reverse); i++)
-		{
-			forward &= left.Points[i].Position == right.Points[i].Position;
-			reverse &= left.Points[i].Position == right.Points[^(i + 1)].Position;
-		}
-		return forward || reverse;
-	}
 }
