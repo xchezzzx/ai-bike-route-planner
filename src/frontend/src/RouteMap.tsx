@@ -5,6 +5,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { FeatureCollection, LineString } from 'geojson';
 import { LocateFixed, Maximize, Minus, Plus, RefreshCw } from 'lucide-react';
 import { t } from './i18n';
+import { highlightCycleways } from './cyclingStyle';
 import type { Candidate, Coordinate, Locale } from './types';
 
 interface Props {
@@ -59,6 +60,7 @@ export default function RouteMap(props: Props) {
       map.on('webglcontextlost', () => { if (!disposed) setFailed(true); });
       map.on('load', () => {
         if (disposed) return;
+        highlightCycleways(map!);
         clearTimeout(deadline); setReady(true); setFailed(false);
       });
       map.on('click', event => {

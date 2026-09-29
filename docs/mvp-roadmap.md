@@ -68,6 +68,18 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
 
 ## Current execution order
 
+Priority map correction (2026-09-29): highlight explicit cycleways in Liberty
+before continuing interpretation qualification and stage 6b. Implemented with
+blue path strokes, preserving pedestrian paths, bridge/tunnel ordering and
+generated-route overlays. No new map provider or key. Unit regression was RED
+before implementation; desktop pixel test found zero blue pixels before the fix
+while the pedestrian control passed. Afterward 74 frontend tests, a production
+build and all 18 desktop/mobile browser tests passed. Independent scoped review
+found no material defects. Real OpenFreeMap tiles at Reading Park show the blue
+cycleway next to unchanged white pedestrian paths; screenshot in primary
+artifacts/reading-cycleway-20260929.png. This does not verify all on-road bike
+lanes or legal access, and it does not change the ORS routing profile.
+
 1. Complete the route-request usability delivery: optional distance/time for
    A-B, clear generation readiness, supported manual choices and multilingual
    selected-map-point interpretation. See the
