@@ -1,6 +1,6 @@
 # Track Segment Display
 
-Status: conversational design approved; written specification awaiting review.
+Status: written specification approved by the user; implementation plan pending approval.
 Date: 2026-09-29.
 
 ## Intent and Scope
