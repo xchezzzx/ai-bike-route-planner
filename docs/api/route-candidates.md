@@ -33,7 +33,7 @@ Distance and/or targetDurationSeconds are required. A duration-only example:
 }
 ```
 
-Distance, when supplied, determines requested loop length. Otherwise length is
+Distance, when supplied, determines initial requested loop length. Otherwise length is
 seconds * 20000 / 3600, with the explicit assumption initial_speed_20_kmh. This
 initial search assumption is not a rider fitness estimate. Ranking always uses
 the provider's estimated duration. Lengths outside 1000..100000 metres return
@@ -70,8 +70,21 @@ required. The provider may snap the start onto its road graph.
 
 ## Search and ranking
 
-The server asks ORS for seeds 1, 2 and 3 sequentially, using the same preferred
-length and round_trip.points=3. Exact coordinate sequences and their reversals
+The server asks ORS for seeds 1, 2 and 3 sequentially with round_trip.points=3.
+After a valid response outside target tolerance, the next requested length is
+calibrated using that response. For one target, multiply the last requested
+length by target/actual (distance or provider-estimated time). For two targets,
+use the harmonic mean of their target/actual factors: this balances the worst
+relative error under a local linear approximation. This is a heuristic, not a
+model of the road network or rider speed. A change in seed can change the response.
+Keep the last requested length if all targets already match or an attempt returns
+no route. Bound internally generated lengths to 1000..100000 metres and
+0.5..1.5 of the initial length; original user targets are never changed or clamped.
+The initial length remains `requestedLengthMeters` in the response. The advised
+search uses the same calibration for its second attempt and deterministic fallback;
+accepted advisor proposals are still validated and used unchanged.
+
+Exact coordinate sequences and their reversals
 are deduplicated, ignoring elevation, keeping the earliest seed. Partial road
 overlap and out-and-back sections are allowed. Graph updates can change results.
 

@@ -1,8 +1,9 @@
 # Advisor diagnostics and local v2 correction
 
-**Latest result: v2 advisor corpus passed 6/6; four-city route comparison did not
-pass. Merge remains blocked pending an explicit test-release acceptance of the
-documented route-quality limitations. Historical attempts are preserved below.**
+**Latest live result: v2 advisor corpus passed 6/6; four-city route comparison did
+not pass. The user subsequently authorized merging after the local adaptive-search
+fix and green CI even without demonstrated live improvement, for later manual
+testing. This changes release acceptance, not the negative evidence below.**
 
 ## Authorized budget and evidence
 
@@ -167,3 +168,34 @@ The user was asked whether to accept these known limitations for a test release,
 keeping refinement opt-in and making no quality-improvement claim. Until that
 explicit release decision, all three PRs remain Draft/unmerged. Successful CI
 does not convert the failed comparison into a passed gate.
+
+## Adaptive calibration and release decision
+
+After first declining a limited test release, the user approved adaptive length
+calibration and explicitly authorized merging PRs #15-#17 after green CI even if
+quality improvement is not established, to avoid a dependent PR queue and perform
+manual testing later. Refinement remains opt-in/off by default. No new provider
+budget was used for this correction; the live reports above precede it.
+
+Both deterministic search and the advised search's second attempt/fallback now
+use the previous valid response to calibrate requested length. One-target
+calibration is `requested * target / actual`; two-target calibration balances the
+worst relative error under a local linear approximation. Targets within the
+existing inclusive 10% tolerance keep the requested length. Generated search
+lengths stay within 1000..100000 m and 0.5..1.5 of the initial length. NoRoute
+retains the last calibrated length. Existing geometry, surface, ranking,
+cancellation, error handling and call limits remain unchanged; advisor proposals
+are still strictly validated, never clamped or repaired.
+
+Regression tests first reproduced the repeated-length problem (14 failing,
+four already-passing boundary cases), then all 18 service scenarios passed.
+Nine defensive cases cover tolerance boundaries, invalid metrics and extreme
+finite values. Full Release verification: 316 unit and 349 integration tests
+passed, without live provider opt-in. Old fixed-length assertions were updated
+only where the intended behavior changed; rejection/fallback assertions remain.
+
+These synthetic linear-provider tests establish calculation and integration,
+not effectiveness on the real road network. Changing the seed can change the
+length response nonlinearly; no guarantee of a matching loop or improved road
+choice is made. Manual/live quality qualification remains outstanding under
+the user's explicit release acceptance. CI must still pass before merge.
