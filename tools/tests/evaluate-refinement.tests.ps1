@@ -7,12 +7,13 @@ Assert-True ($LASTEXITCODE -eq 0) 'Offline refinement validation failed.'
 $root = Join-Path ([IO.Path]::GetTempPath()) ('refinement-test-' + [guid]::NewGuid())
 [IO.Directory]::CreateDirectory($root) | Out-Null
 try {
-    foreach ($scenario in @('pass', 'partial', 'duplicate', 'quota', 'invalid', 'disconnect')) {
+    foreach ($scenario in @('degenerate', 'partial', 'pass', 'duplicate', 'quota', 'invalid', 'disconnect')) {
         $requestCount = if ($scenario -in @('quota', 'disconnect')) { 1 } else { 2 }
         $geometry = @(@{latitude=32;longitude=34}, @{latitude=32.01;longitude=34.01}, @{latitude=32.02;longitude=34.01}, @{latitude=32;longitude=34})
+        if ($scenario -eq 'degenerate') { $geometry = @($geometry[0], $geometry[0], $geometry[0], $geometry[0]) }
         $candidate = @{ seed=1; assessment=@{targetsMatched=$true}; route=@{geometry=$geometry;distanceMeters=20000;estimatedDurationSeconds=3600;ascentMeters=100;gpx='<gpx/>'} }
         $search = @{requestedLengthMeters=20000; attemptedCount=2; assumptions=@(); warnings=@(); candidates=@($candidate)}
-        if ($scenario -eq 'partial') { $search.warnings = @('candidate_generation_incomplete') }
+        if ($scenario -eq 'partial') { $search.warnings = @('candidate_generation_incomplete', 'routing_timeout', 'secret') }
         if ($scenario -eq 'duplicate') { $search.candidates = @($candidate, $candidate) }
         $plan = @{search=$search;advisorCallCount=1;advisorStatus='stopped';advisorFailure=$null;attempts=@(@{seed=1},@{seed=2})}
         $responses = @($search, $plan)
@@ -57,8 +58,9 @@ try {
             $report = $raw | ConvertFrom-Json -AsHashtable
             Assert-True ($report.results.Count -eq 2) 'Missing arm in report'
             Assert-True (@($report.results | Where-Object status -eq 'unrun').Count -eq 2-$requestCount) 'Wrong unrun count'
-            if($scenario -eq 'pass'){ Assert-True ($report.results[0].meanTargetError -eq 0) 'Wrong error metric' }
+            if($scenario -eq 'pass'){ Assert-True ($report.results[0].bestMeanTargetError -eq 0) 'Wrong error metric' }
             if($scenario -eq 'duplicate'){ Assert-True ($report.results[0].uniqueCount -eq 1) 'Duplicate count wrong' }
+            if($scenario -eq 'partial'){ Assert-True ($report.results[0].routingFailures -ccontains 'routing_timeout') 'Routing failure reason missing' }
         } finally { $listener.Stop(); Stop-Job $job -ErrorAction SilentlyContinue; Remove-Job $job -Force }
     }
     Write-Output 'Refinement harness passed: offline, pass, partial, duplicate, quota, malformed response, disconnect, pacing, no retries.'

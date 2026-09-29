@@ -25,6 +25,7 @@ function Measure-Search($body, $intent, [bool]$advised) {
             @($_.latitude, $_.longitude) | ConvertTo-Json -Compress
         })
         if($positions[0] -cne $positions[-1]){throw 'Unclosed route'}
+        if(@($positions | Select-Object -Unique).Count -lt 3){throw 'Degenerate route'}
         $forward = $positions -join '|'
         [array]::Reverse($positions)
         $reverse = $positions -join '|'
@@ -46,10 +47,14 @@ function Measure-Search($body, $intent, [bool]$advised) {
         $advisorCalls=$body.advisorCallCount; $advisorStatus=$body.advisorStatus; $advisorFailure=$body.advisorFailure
     }
     $incomplete = 'candidate_generation_incomplete' -cin $search.warnings -or $null -ne $advisorFailure -or $seen.Count -ne $metrics.Count
+    $knownFailures = @('routing_rate_limited','routing_not_configured','routing_credentials_rejected','routing_unavailable','routing_timeout','route_not_found','routing_invalid_response','routing_limit_exceeded')
+    $routingFailures = @($search.warnings | Where-Object {$_ -is [string] -and $_ -cin $knownFailures})
+    if($advised){$routingFailures += @($body.attempts | Where-Object {$_ -is [Collections.IDictionary] -and $_.Contains('failure') -and $_.failure -cin $knownFailures} | ForEach-Object {$_.failure})}
     return @{status=$(if($incomplete){'incomplete'}else{'passed'});routingCalls=$search.attemptedCount;advisorCalls=$advisorCalls;
         advisorStatus=$advisorStatus;advisorFailure=$advisorFailure;usableCount=$metrics.Count;uniqueCount=$seen.Count;
         ascentAvailableCount=@($metrics | Where-Object {$null -ne $_.ascentMeters}).Count;
-        meanTargetError=($metrics | Measure-Object meanTargetError -Minimum).Minimum;
+        bestMeanTargetError=($metrics | Measure-Object meanTargetError -Minimum).Minimum;
+        routingFailures=@($routingFailures | Select-Object -Unique);
         targetsMatched=(@($metrics | Where-Object targetsMatched).Count -gt 0);candidates=$metrics;
         quota=($advisorFailure -ceq 'quota' -or 'routing_rate_limited' -cin $search.warnings)}
 }

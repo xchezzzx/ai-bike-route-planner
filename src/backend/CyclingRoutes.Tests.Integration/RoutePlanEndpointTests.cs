@@ -89,6 +89,10 @@ public class RoutePlanEndpointTests : IClassFixture<WebApplicationFactory<Progra
 	[InlineData("\"targetDistanceMeters\":20000", "\"targetDistanceMeters\":\"20000\"", 400)]
 	[InlineData("\"targetDistanceMeters\":20000", "\"targetDistanceMeters\":-1", 400)]
 	[InlineData("\"targetDistanceMeters\":20000", "\"targetDistanceMeters\":20000,\"unknown\":1", 400)]
+	[InlineData("\"targetDistanceMeters\":20000", "\"targetDistanceMeters\":20000,\"targetDistanceMeters\":30000", 400)]
+	[InlineData("\"targetDistanceMeters\":20000", "\"targetDistanceMeters\":20000,\"TargetDistanceMeters\":30000", 400)]
+	[InlineData("\"latitude\":32", "\"latitude\":32,\"latitude\":33", 400)]
+	[InlineData("\"latitude\":32", "\"latitude\":32,\"Latitude\":33", 400)]
 	[InlineData("\"road\"", "\"gravel\"", 422)]
 	[InlineData("\"targetDistanceMeters\":20000", "\"targetDistanceMeters\":100001", 422)]
 	public async Task StrictValidationRunsBeforeProviders(string oldValue, string newValue, int status) => await Rejected(Body.Replace(oldValue, newValue), "application/json", status);
