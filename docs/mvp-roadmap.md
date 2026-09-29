@@ -4,6 +4,23 @@ This is the staged direction agreed in the project conversation. Backend:
 C#/.NET 10 modular monolith. Frontend: React + TypeScript, web only. Initial
 service area: Israel. Languages: English, Hebrew (RTL), and Russian.
 
+## Current release acceptance (2026-09-29)
+
+The user approved merging PRs #15-#17 after green CI, including adaptive loop
+length calibration, even without proven live quality improvement. Manual testing
+will follow completion of the current work. This supersedes the historical merge
+holds in the milestone record below; it does not mark negative live results as
+passes. The latest v2 advisor corpus passed 6/6, while only Tel Aviv retained
+matching routes in the four-city comparison. Calibration was subsequently tested
+offline, not live. AI refinement stays off by default. See the
+[evidence and accepted limitations](evaluation/route-refinement-diagnostics-2026-09-29.md).
+
+Outstanding work: real-road/GPX acceptance, distance/time ranges, browser
+geolocation, geographic track names, and public-deployment prerequisites (API
+abuse protection, secrets, hosting and CD). None is completed by merging these PRs.
+
+## Milestone history
+
 1. Repository and CI baseline: solution references, GitHub Actions, protected
    main, pull-request workflow, /health integration test. Completed previously.
 2. Route planning domain (issue #4): GeoCoordinate, Distance, profile/shape/
@@ -115,16 +132,17 @@ lanes or legal access, and it does not change the ORS routing profile.
    construction follows as a separate prototype, not a promised engine migration.
 4. Stage 6b: bounded AI-guided candidate construction/refinement using routing
    tools, with application-owned budgets and unchanged user constraints.
-   Implementation is ready for PR review; first diagnose rejected live advisor
-   responses and complete a separately bounded requalification before merge.
+   V2 advisor corpus passed 6/6. Adaptive length calibration is implemented and
+   offline-tested. Merge is approved after CI under the limited release acceptance
+   above; real route-quality improvement remains unverified.
 5. Simplify start selection with a Loop / A-B control and opt-in browser
    geolocation, then add automatic track names and verify actual Israeli
    route/GPX quality.
 6. Prepare public deployment: abuse protection, current free-tier checks,
    hosting configuration, secrets and staging/production verification.
 
-Persistence is not a prerequisite for these deliveries. Stage 6b is implemented
-but not live-qualified or merged. Geographic naming, field/device acceptance
+Persistence is not a prerequisite for these deliveries. Stage 6b is implemented;
+provider-contract acceptance is distinct from route-quality acceptance. Geographic naming, field/device acceptance
 and public hosting remain outstanding.
 
 ## Planned addition: automatic track names

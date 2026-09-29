@@ -3,6 +3,12 @@
 Date: 2026-09-29. Branch: `oleg/dark-theme`. Feature base: `a16ed9b`.
 The user approved the bounded in-chat design before implementation.
 
+Release update (2026-09-29): the user subsequently approved merging #15-#17 after
+green CI with the documented route-quality limitations and later manual testing.
+This supersedes the historical Draft/live-gate hold below. The integrated branch
+also includes bounded adaptive loop calibration; its real-road effect is not
+live-qualified. See [the qualification record](route-refinement-diagnostics-2026-09-29.md).
+
 ## Delivered Scope
 
 - Light, dark and system modes through `next-themes` 0.4.6, with an explicit
