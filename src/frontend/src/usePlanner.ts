@@ -3,6 +3,7 @@ import { ApiError, request } from './api';
 import { buildManual, limitations, readCoordinate } from './request';
 import type { Candidate, Candidates, GeneratedRoute, Inputs, Intent, Interpretation, RoutePlan } from './types';
 import { validPlan } from './routePlan';
+import { validRoadCandidates } from './routeQuality';
 
 const initial: Inputs = { locale: 'en', mode: 'prompt', prompt: '', start: { latitude: '', longitude: '' }, destination: { latitude: '', longitude: '' }, manual: { shape: 'loop', profile: 'road', elevation: 'balanced', distance: '', duration: '' } };
 type Pending = 'interpreting' | 'validating' | 'generating' | null;
@@ -84,9 +85,9 @@ export function usePlanner() {
       } else if (intent.shape === 'loop') response = await request<Candidates>('/api/routes/candidates', intent, signal);
       else {
         const route = await request<GeneratedRoute>('/api/routes/generate', intent, signal);
-        response = { requestedLengthMeters: 0, attemptedCount: 1, assumptions: [], warnings: [], candidates: [{ seed: 0, assessment: null, route }] };
+        response = { requestedLengthMeters: 0, attemptedCount: 1, assumptions: [], warnings: [], candidates: [{ seed: 0, assessment: null, route }], excludedCandidates: [] };
       }
-      if (!Array.isArray(response.candidates) || !response.candidates.length || !response.candidates.every(validRoute) || !Array.isArray(response.warnings) || !Array.isArray(response.assumptions)) throw new ApiError('invalid_response');
+      if (intent.shape === 'loop' ? !validRoadCandidates(response) : !Array.isArray(response.candidates) || !response.candidates.length || !response.candidates.every(validRoute) || !Array.isArray(response.warnings) || !Array.isArray(response.assumptions)) throw new ApiError('invalid_response');
       return () => { setResults(response); setPlanning(plan); };
     });
   }

@@ -42,6 +42,42 @@ async function prepareRefinement() {
   return user;
 }
 
+it.each([false, true])('shows explained no-match results after a successful result (AI=%s)', async advised => {
+  const user = advised ? await prepareRefinement() : await setupPrompt();
+  if (!advised) await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('button', { name: 'Download GPX' });
+  const empty = { ...candidates, candidates: [], excludedCandidates: [{ seed: 1, distanceMeters: 40000, estimatedDurationSeconds: 4500,
+    assessment: { ...candidates.candidates[0].assessment!, targetsMatched: false }, reasons: ['targets_not_met'] }],
+    warnings: ['no_candidate_meets_requirements', 'candidate_generation_incomplete', 'routing_timeout'] };
+  if (advised) replies.plan = { ...refinement, search: empty };
+  else replies.candidates = empty;
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByText('No routes meet these requirements.');
+  expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  await user.click(screen.getByText('Excluded routes'));
+  expect(screen.getByText('This route does not meet the target tolerance.')).toBeInTheDocument();
+  if (advised) expect(screen.getByText('AI-guided search completed')).toBeInTheDocument();
+});
+
+it.each([false, true])('shows surface uncertainty and small known non-road coverage (unknown=%s)', async unknown => {
+  const response = structuredClone(candidates);
+  const q = response.candidates[0].assessment!.quality;
+  q.surfaceEvidenceState = unknown ? 'unavailable' : 'partial';
+  q.surface = unknown
+    ? { pavedMeters: 0, nonRoadMeters: 0, otherKnownMeters: 0, unknownMeters: q.geometryLengthMeters }
+    : { pavedMeters: 4900, nonRoadMeters: 100, otherKnownMeters: 0, unknownMeters: 5000 };
+  replies.candidates = response;
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  const quality = await screen.findByRole('region', { name: 'Road data' });
+  expect(within(quality).getByText(unknown ? 'Surface data is unavailable.' : 'Surface data is incomplete.')).toBeInTheDocument();
+  expect(within(quality).getByText(unknown ? 'Unknown surface' : 'Unpaved / loose surface').parentElement).toHaveTextContent(unknown ? '10 km' : '0.1 km');
+  expect(screen.getByRole('button', { name: 'Download GPX' })).toBeEnabled();
+});
+
 it('opts into refinement only on Generate and renders application-owned trace', async () => {
   const user = await prepareRefinement();
   await user.click(screen.getByRole('button', { name: 'Generate routes' }));

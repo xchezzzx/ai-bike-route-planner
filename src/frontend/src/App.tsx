@@ -6,6 +6,7 @@ import { readCoordinate } from './request';
 import RouteMap from './RouteMap';
 import type { CoordinateInput, Draft, Locale } from './types';
 import { usePlanner } from './usePlanner';
+import { ExcludedRoutes, RouteQuality } from './RoadQualityPanel';
 
 export default function App() {
   const planner = usePlanner();
@@ -94,8 +95,9 @@ export default function App() {
       </aside>
       <div className="map-and-results">
         <RouteMap locale={locale} start={point('start')} destination={point('destination')} pick={pick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => update({ [pick]: { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) } })} />
-        {results && chosen ? <section className="results" aria-label={text('routes')}>
-          <div className="results-heading"><h2>{text('routes')} <span className="count">{results.candidates.length}</span></h2><button type="button" className="icon-button download" title={text('download')} aria-label={text('download')} onClick={download}><Download size={20} /><span dir="ltr">GPX</span></button></div>
+        {results ? <section className="results" aria-label={text('routes')}>
+          <div className="results-heading"><h2>{text('routes')} <span className="count">{results.candidates.length}</span></h2>{chosen && <button type="button" className="icon-button download" title={text('download')} aria-label={text('download')} onClick={download}><Download size={20} /><span dir="ltr">GPX</span></button>}</div>
+          {chosen ? <>
           <div role="radiogroup" aria-label={text('routes')} className="route-options">{results.candidates.map((candidate, index) => <label className={`route-option ${selected === index ? 'selected' : ''}`} key={candidate.seed}>
             <input type="radio" name="route" checked={selected === index} onChange={() => planner.select(index)} />
             <span className={`route-swatch color-${index % 3}`} /><span>{text('route')} {index + 1}</span><b dir="ltr">{quantity(locale, candidate.route.distanceMeters, 'km', 1000)}</b>
@@ -103,7 +105,10 @@ export default function App() {
           <dl className="route-metrics"><div><dt>{text('duration')}</dt><dd dir="ltr">{quantity(locale, chosen.route.estimatedDurationSeconds, 'min', 60)}</dd></div><div><dt>{text('ascent')}</dt><dd dir="ltr">{quantity(locale, chosen.route.ascentMeters, 'm')}</dd></div><div><dt>{text('descent')}</dt><dd dir="ltr">{quantity(locale, chosen.route.descentMeters, 'm')}</dd></div><div><dt>{text('attempts')}</dt><dd dir="ltr">{results.attemptedCount}</dd></div></dl>
           <p className="target-match">{chosen.assessment?.targetsMatched && <Check size={16} />}{text(chosen.assessment ? chosen.assessment.targetsMatched ? 'matched' : 'notMatched' : 'notAssessed')}</p>
           {chosen.assessment && <dl className="comparison"><div><dt>{text('searchDistance')}</dt><dd dir="ltr">{quantity(locale, results.requestedLengthMeters, 'km', 1000)}</dd></div>{chosen.assessment.distanceDeltaMeters != null && <div><dt>{text('distanceDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.distanceDeltaMeters, 'km', 1000)}</dd></div>}{chosen.assessment.durationDeltaSeconds != null && <div><dt>{text('durationDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.durationDeltaSeconds, 'min', 60)}</dd></div>}</dl>}
-          <Notices codes={[...results.warnings, ...chosen.route.warnings]} locale={locale} title="warnings" />
+          {chosen.assessment?.quality && <RouteQuality quality={chosen.assessment.quality} locale={locale} />}
+          </> : <div role="status"><p>{text('noMatches')}</p><p>{text('attempts')}: {results.attemptedCount}</p></div>}
+          <Notices codes={[...results.warnings.filter(code => code !== 'no_candidate_meets_requirements'), ...(chosen?.route.warnings ?? [])]} locale={locale} title="warnings" />
+          <ExcludedRoutes candidates={results.excludedCandidates} locale={locale} />
           <Notices codes={results.assumptions} locale={locale} title="assumptions" />
           {planner.planning && <div className="planning-summary">
             <p role="status">{codeText(locale, `advisor_${planner.planning.advisorStatus}`)}</p>
@@ -119,7 +124,7 @@ export default function App() {
               </li>)}</ol>
             </details>
           </div>}
-          <p className="safety">{text('safety')}</p><p className="route-attribution" dir="auto">{chosen.route.attribution}</p>
+          <p className="safety">{text('safety')}</p>{chosen && <p className="route-attribution" dir="auto">{chosen.route.attribution}</p>}
         </section> : <div className="empty-state">{text('empty')}</div>}
       </div>
     </main>

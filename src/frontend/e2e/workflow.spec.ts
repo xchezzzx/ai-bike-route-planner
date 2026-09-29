@@ -36,6 +36,53 @@ async function generate(page: Page) {
   await expect(page.getByRole('region', { name: 'Routes', exact: true })).toBeVisible();
 }
 
+for (const locale of ['en', 'ru', 'he'] as const) test(`quality selection and cleared no-match map (${locale})`, async ({ page }, testInfo) => {
+  await mockNetwork(page);
+  let empty = false;
+  const excluded = [2, 3].map(seed => ({ seed, distanceMeters: 40000 + seed, estimatedDurationSeconds: 4500,
+    assessment: { ...candidates.candidates[0].assessment!, targetsMatched: false }, reasons: ['targets_not_met'] }));
+  await page.route('**/api/routes/candidates', r => r.fulfill({ json: { ...candidates,
+    candidates: empty ? [] : [candidates.candidates[0]], excludedCandidates: excluded,
+    warnings: empty ? ['no_candidate_meets_requirements', 'candidates_excluded'] : ['candidates_excluded'],
+  } }));
+  const labels = {
+    en: { prepare: 'Interpret request', generate: 'Generate routes', excluded: 'Excluded routes', noMatch: 'No routes meet these requirements.', download: 'Download GPX' },
+    ru: { prepare: 'Разобрать запрос', generate: 'Построить маршруты', excluded: 'Исключённые маршруты', noMatch: 'Подходящих маршрутов не найдено.', download: 'Скачать GPX' },
+    he: { prepare: 'פירוש הבקשה', generate: 'יצירת מסלולים', excluded: 'מסלולים שנפסלו', noMatch: 'לא נמצאו מסלולים שעומדים בדרישות.', download: 'הורדת GPX' },
+  }[locale];
+  await page.goto('/');
+  await prompt(page);
+  if (locale !== 'en') {
+    await page.getByLabel('Language', { exact: true }).selectOption(locale);
+    await page.getByRole('button', { name: labels.prepare, exact: true }).click();
+  }
+  await page.getByRole('button', { name: labels.generate, exact: true }).click();
+  await expect(page.locator('.route-option')).toHaveCount(1);
+  await expect(page.locator('.quality-metrics').first()).toBeVisible();
+  await page.getByText(labels.excluded, { exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath(`quality-${locale}.png`), fullPage: true });
+  const canvas = page.locator('.maplibregl-canvas');
+  const greenPixels = async () => {
+    const png = PNG.sync.read(await canvas.screenshot()); let green = 0;
+    for (let i = 0; i < png.data.length; i += 4) if (png.data[i] < 45 && png.data[i + 1] > 80 && png.data[i + 1] < 150 && png.data[i + 2] < 110) green++;
+    return green;
+  };
+  await expect.poll(greenPixels).toBeGreaterThan(100);
+  const before = await greenPixels();
+  empty = true;
+  await page.getByRole('button', { name: labels.generate, exact: true }).click();
+  await expect(page.getByText(labels.noMatch, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: labels.download, exact: true })).toHaveCount(0);
+  await expect(page.locator('.route-option')).toHaveCount(0);
+  await expect.poll(greenPixels).toBeLessThan(before / 2);
+  await expect(page.locator('html')).toHaveAttribute('dir', locale === 'he' ? 'rtl' : 'ltr');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const png = PNG.sync.read(await canvas.screenshot()); const colors = new Set<number>();
+  for (let i = 0; i < png.data.length; i += 4) colors.add((png.data[i] << 16) | (png.data[i + 1] << 8) | png.data[i + 2]);
+  expect(colors.size).toBeGreaterThan(10);
+  await page.screenshot({ path: testInfo.outputPath(`no-match-${locale}.png`), fullPage: true });
+});
+
 for (const fallback of [false, true]) test(`AI refinement trace and selected GPX (fallback=${fallback})`, async ({ page }, testInfo) => {
   await mockNetwork(page);
   const calls: unknown[] = [];

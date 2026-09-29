@@ -1,9 +1,10 @@
 import type { RoutePlan } from './types';
+import { validRoadCandidates } from './routeQuality';
 
 const failures = ['routing_not_configured', 'routing_credentials_rejected', 'unsupported_intent', 'route_not_found', 'routing_rate_limited', 'routing_unavailable', 'routing_timeout', 'routing_invalid_response', 'search_distance_out_of_range', 'routing_limit_exceeded'];
 
 export function validPlan(plan: RoutePlan): boolean {
-  if (!plan?.search || !Number.isInteger(plan.search.attemptedCount) || plan.search.attemptedCount < 1 || plan.search.attemptedCount > 3
+  if (!plan?.search || !validRoadCandidates(plan.search) || !Number.isInteger(plan.search.attemptedCount) || plan.search.attemptedCount < 1 || plan.search.attemptedCount > 3
     || !Number.isFinite(plan.search.requestedLengthMeters) || plan.search.requestedLengthMeters < 1000 || plan.search.requestedLengthMeters > 100000
     || ![0, 1].includes(plan.advisorCallCount)
     || !['notNeeded', 'skippedNoCandidates', 'skippedRoutingFailure', 'searched', 'stopped', 'failed'].includes(plan.advisorStatus)
