@@ -41,6 +41,10 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    received correct successful responses; the latest original 25-case run had
    11 passes and 14 upstream 503 failures. No mismatches among those 11 responses.
    See [interpretation contract and runbook](api/prompt-interpretation.md).
+   Contract v3 adds selected-map-point references and targetless A-B requests.
+   Latest 34-case live run on 2026-09-29: 32 passed, one ai_unavailable and one
+   Russian targetless A-B false location clarification. Qualification is still
+   open; manual route input remains independent of Gemini.
    Stage 6b remains future work:
    AI guides candidate construction/refinement through routing tools; graph-based
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
@@ -61,6 +65,51 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    CI exercises a production build with deterministic API/map browser fixtures.
    Local loopback launch is available. Public staging/production hosting is not
    configured; free-tier verification and abuse protection remain prerequisites.
+
+## Current execution order
+
+1. Complete the route-request usability delivery: optional distance/time for
+   A-B, clear generation readiness, supported manual choices and multilingual
+   selected-map-point interpretation. See the
+   [execution record](plans/2026-09-29-route-request-usability.md).
+2. Finish full live interpretation qualification, recording semantic failures
+   separately from provider availability. Offline passing tests do not close it.
+3. Stage 6b: bounded AI-guided candidate construction/refinement using routing
+   tools, with application-owned budgets and unchanged user constraints.
+4. Add automatic track names and verify actual Israeli route/GPX quality.
+5. Prepare public deployment: abuse protection, current free-tier checks,
+   hosting configuration, secrets and staging/production verification.
+
+Persistence is not a prerequisite for these deliveries. Stage 6b, geographic
+naming, field/device acceptance and public hosting are not implemented yet.
+
+## Planned addition: automatic track names
+
+Requested on 2026-09-29; not implemented. Add to the route/GPX delivery stage
+before persistence, without requiring an LLM to invent place names.
+
+- Name each generated candidate using the settlements nearest its actual start
+  and finish, the route surface/profile label, and its actual generated distance.
+  Example: `Tel-Aviv-Haifa-road-105` and `Tel-Aviv-Haifa-road-105.gpx`.
+- Use actual route distance rounded to the nearest whole kilometre, not the
+  requested target distance. Keep precise distance available in route metrics.
+- Use one canonical name in the API response, route selection UI, GPX track
+  name (`trk/name`) and downloaded filename. Selecting another candidate must
+  use that candidate's name and GPX.
+- Resolve settlement names from geographic data (reverse geocoding or a local
+  settlement dataset). Choose the data source during implementation after
+  checking Israel coverage, licensing, free quotas and caching requirements.
+- Proposed filename convention: English/Latin place names, hyphen separators,
+  safe filesystem characters, independent of the selected UI language.
+  Proposed loop format: `Tel-Aviv-loop-road-40`, avoiding duplicate endpoints.
+- Distinguish the routing profile from verified physical surface coverage:
+  `road`/`gravel` must not imply that every segment's surface was checked when
+  only the provider's routing profile is known.
+- Missing settlement data or a lookup failure must not block route generation
+  or GPX export. Use an explicit neutral fallback name, never fabricated places.
+- Acceptance: endpoint lookup, loops, same-settlement A-B routes, distance
+  rounding, unavailable place names, filename sanitization and consistency
+  across UI/GPX/downloads are covered by tests.
 
 ## Previously proposed service shortlist
 

@@ -182,6 +182,17 @@ process-local smoke request to `gemini-3.5-flash-lite`, after checking its free
 tier and structured-output support, timed out at the 30-second application limit.
 No further calls to that model were made; saved model configuration was not changed.
 
+Contract v3 qualification on 2026-09-29 expanded the corpus to 34 cases.
+The initial run passed 27, with four availability errors and three mismatches.
+After clarifying Russian abstract endpoint labels and signed-target validation,
+the second run passed 32/34. `en-missing` returned `ai_unavailable`;
+`ru-point-to-point-no-target` still incorrectly emitted location clarifications
+despite an explicit matching example in the system instruction. Other selected
+point cases and the named-destination conflict passed. Report:
+`artifacts/prompt-evaluation-20260929T113106-3459e791.json` (ignored).
+This run used 5000 ms pacing and no retries; exit code 1 is intentional.
+
 Live qualification remains pending until the corpus completes successfully.
-Do not call fixture or fake-provider test results a multilingual model pass rate. Stage 6b, agentic
-route refinement, the React UI, and manual road/device checks are separate work.
+Do not call fixture or fake-provider test results a multilingual model pass rate.
+The delivered React UI supports manual input without Gemini. Stage 6b agentic
+refinement and manual road/device checks remain separate, outstanding work.
