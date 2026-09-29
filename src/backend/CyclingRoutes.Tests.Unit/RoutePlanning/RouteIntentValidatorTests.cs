@@ -94,6 +94,20 @@ public class RouteIntentValidatorTests
 	}
 
 	[Fact]
+	public void PointToPointWithoutTargets_IsValid()
+	{
+		var result = _validator.Validate(ValidRequest() with
+		{
+			Shape = "pointToPoint", Destination = new() { Latitude = 32.1, Longitude = 34.9 },
+			TargetDistanceMeters = null
+		}, TestContext.Current.CancellationToken);
+		Assert.Empty(result.Errors);
+		Assert.NotNull(result.Intent);
+		Assert.Null(result.Intent.TargetDistance);
+		Assert.Null(result.Intent.TargetDuration);
+	}
+
+	[Fact]
 	public void EqualPointToPointCoordinates_AreRejectedByValue()
 	{
 		var result = _validator.Validate(ValidRequest() with

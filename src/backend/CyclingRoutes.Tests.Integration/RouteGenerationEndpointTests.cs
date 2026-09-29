@@ -17,12 +17,16 @@ public class RouteGenerationEndpointTests : IClassFixture<WebApplicationFactory<
 	private readonly WebApplicationFactory<Program> _factory;
 	public RouteGenerationEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
-	[Fact]
-	public async Task SuccessfulGeneration_ReturnsProviderGeometryAndMatchingGpx()
+	[Theory]
+	[InlineData(true)]
+	[InlineData(false)]
+	public async Task SuccessfulGeneration_ReturnsProviderGeometryAndMatchingGpx(bool hasTarget)
 	{
 		using var factory = WithProviderResponse(200, OpenRouteServiceProviderTests.ValidResponse);
 		using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
-		using var content = ValidContent();
+		using var content = hasTarget ? ValidContent() : new StringContent("""
+			{"start":{"latitude":32.0853,"longitude":34.7818},"destination":{"latitude":32.1,"longitude":34.82},"shape":"pointToPoint","profile":"road"}
+			""", Encoding.UTF8, "application/json");
 		using var response = await client.PostAsync("/api/routes/generate", content, TestContext.Current.CancellationToken);
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 		using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
@@ -30,7 +34,9 @@ public class RouteGenerationEndpointTests : IClassFixture<WebApplicationFactory<
 		Assert.Equal(987.6, json.RootElement.GetProperty("estimatedDurationSeconds").GetDouble());
 		Assert.Equal(2, json.RootElement.GetProperty("geometry").GetArrayLength());
 		Assert.Equal(32.0853, json.RootElement.GetProperty("geometry")[0].GetProperty("latitude").GetDouble());
-		Assert.Equal("targets_not_optimized", json.RootElement.GetProperty("warnings")[0].GetString());
+		var warnings = json.RootElement.GetProperty("warnings").EnumerateArray().Select(x => x.GetString()).ToArray();
+		if (hasTarget) Assert.Contains("targets_not_optimized", warnings);
+		else Assert.DoesNotContain("targets_not_optimized", warnings);
 		XNamespace ns = "http://www.topografix.com/GPX/1/1";
 		var gpx = XDocument.Parse(json.RootElement.GetProperty("gpx").GetString()!);
 		var points = gpx.Descendants(ns + "trkpt").ToArray();

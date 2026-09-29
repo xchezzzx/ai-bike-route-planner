@@ -52,7 +52,7 @@ public sealed class RouteIntentValidator
 			else duration = TimeSpan.FromTicks(seconds * TimeSpan.TicksPerSecond);
 		}
 
-		if (request.TargetDistanceMeters is null && request.TargetDurationSeconds is null)
+		if (shape != RouteShape.PointToPoint && request.TargetDistanceMeters is null && request.TargetDurationSeconds is null)
 		{
 			errors["targetDistanceMeters"] = ["target_required"];
 			errors["targetDurationSeconds"] = ["target_required"];

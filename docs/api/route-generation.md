@@ -11,8 +11,9 @@ Loops and sampled preference ranking are available through the separate
 estimatedDurationSeconds, ascentMeters/descentMeters when available, attribution,
 warnings, and gpx (a GPX 1.1 XML string of exactly the returned geometry).
 The client can save gpx as UTF-8 without another routing call. There is no route
-ID or persistence. Targets are not optimized yet: every result includes
-targets_not_optimized. Provider time is an estimate, not rider-specific fitness.
+ID or persistence. A-B requests may omit both targets. Targets are not optimized
+yet: results include targets_not_optimized only when a target was supplied.
+Provider time is an estimate, not rider-specific fitness.
 
 400 retains the existing validation/binding semantics. Other ProblemDetails
 contain an extension code, never the upstream body, coordinates or credentials:

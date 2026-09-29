@@ -42,9 +42,9 @@ public sealed class RouteIntent
 				"Target duration must be greater than zero.");
 		}
 
-		if (targetDistance is null && targetDuration is null)
+		if (shape == RouteShape.Loop && targetDistance is null && targetDuration is null)
 		{
-			throw new ArgumentException("A target distance or duration is required.");
+			throw new ArgumentException("A loop requires a target distance or duration.");
 		}
 
 		if (shape == RouteShape.Loop && destination is not null)

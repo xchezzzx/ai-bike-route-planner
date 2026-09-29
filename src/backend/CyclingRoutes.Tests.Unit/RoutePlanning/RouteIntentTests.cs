@@ -14,6 +14,7 @@ public class RouteIntentTests
 	[InlineData(RouteShape.PointToPoint, true, false)]
 	[InlineData(RouteShape.PointToPoint, false, true)]
 	[InlineData(RouteShape.PointToPoint, true, true)]
+	[InlineData(RouteShape.PointToPoint, false, false)]
 	public void Constructor_AcceptsEitherOrBothTargets(RouteShape shape, bool hasDistance, bool hasDuration)
 	{
 		var intent = new RouteIntent(Start, shape, CyclingProfile.Gravel,
@@ -55,7 +56,6 @@ public class RouteIntentTests
 
 	[Theory]
 	[InlineData(RouteShape.Loop)]
-	[InlineData(RouteShape.PointToPoint)]
 	public void Constructor_RejectsMissingTargets(RouteShape shape)
 	{
 		Assert.Throws<ArgumentException>(() => new RouteIntent(Start, shape, CyclingProfile.Road,
