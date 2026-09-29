@@ -7,7 +7,7 @@ import { LocateFixed, Maximize, Minus, Plus, RefreshCw } from 'lucide-react';
 import { t } from './i18n';
 import { highlightCycleways } from './cyclingStyle';
 import { readRouteSegments, segmentFeatures } from './routeSegments';
-import { segmentLayers, segmentPatternKey, type SegmentDisplayMode } from './routeSegmentStyle';
+import { patternFeatures, segmentLayers, type SegmentDisplayMode } from './routeSegmentStyle';
 import RouteSegmentControls from './RouteSegmentControls';
 import type { Candidate, Coordinate, Locale } from './types';
 
@@ -136,10 +136,14 @@ export default function RouteMap(props: Props) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    const data = candidate ? segmentFeatures(candidate.route, segmentData.segments, props.selected, colors[props.selected % colors.length]) : { type: 'FeatureCollection' as const, features: [] };
-    data.features.forEach((feature, index) => { feature.properties!.pattern = segmentPatternKey(segmentData.segments[index], mode); });
+    const color = colors[props.selected % colors.length];
+    const empty: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
+    const data = candidate ? patternFeatures(candidate.route, segmentData.segments, mode, color) : empty;
+    const hits = candidate ? segmentFeatures(candidate.route, segmentData.segments, props.selected, color) : empty;
     let disposed = false;
     try {
+      if (map.getSource('track-segment-hits')) void (map.getSource('track-segment-hits') as GeoJSONSource).setData(hits).catch(() => { if (!disposed) setFailed(true); });
+      else map.addSource('track-segment-hits', { type: 'geojson', data: hits });
       if (map.getSource('track-segments')) void (map.getSource('track-segments') as GeoJSONSource).setData(data).catch(() => { if (!disposed) setFailed(true); });
       else {
         map.addSource('track-segments', { type: 'geojson', data });

@@ -3,7 +3,8 @@ import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
 import { basemap } from './basemap';
 import { candidates, interpretation, route } from '../tests/fixtures';
-import type { RouteSegment, RouteSurface, RouteWayType } from '../src/types';
+import type { GeneratedRoute, RouteSegment, RouteSurface, RouteWayType } from '../src/types';
+import { t } from '../src/i18n';
 
 const coordinates = [[34.78,32.11],[34.84,32.11],[34.84,32.10],[34.78,32.10],[34.78,32.09],[34.84,32.09],
   [34.84,32.08],[34.78,32.08],[34.78,32.07],[34.84,32.07],[34.84,32.06],[34.78,32.06],[34.78,32.11]];
@@ -13,9 +14,9 @@ const annotated = { ...route, geometry: coordinates.map(([longitude, latitude]) 
   segments: ways.map((wayType, i): RouteSegment => ({ fromPointIndex: i, toPointIndex: i + 1, surface: surfaces[i % surfaces.length], wayType })),
 };
 
-async function setup(page: Page, metadata: 'valid' | 'missing' | 'invalid' = 'valid') {
+async function setup(page: Page, metadata: 'valid' | 'missing' | 'invalid' = 'valid', fixture: GeneratedRoute = annotated) {
   let calls = 0; let empty = false; let failMap = false;
-  const selected = { ...annotated, segments: metadata === 'missing' ? undefined : metadata === 'invalid' ? [{ ...annotated.segments[0], toPointIndex: 999 }] : annotated.segments };
+  const selected = { ...fixture, segments: metadata === 'missing' ? undefined : metadata === 'invalid' ? [{ ...annotated.segments[0], toPointIndex: 999 }] : fixture.segments };
   await page.route('**/*', async intercepted => {
     const url = new URL(intercepted.request().url());
     if (url.hostname === 'tiles.openfreemap.org') return failMap ? intercepted.abort() : intercepted.fulfill({ json: basemap });
@@ -24,6 +25,11 @@ async function setup(page: Page, metadata: 'valid' | 'missing' | 'invalid' = 'va
       calls++;
       return intercepted.fulfill({ json: url.pathname.endsWith('/interpret') ? interpretation : {
         ...candidates, candidates: empty ? [] : [{ ...candidates.candidates[0], route: selected }, candidates.candidates[1]],
+        ...(empty ? {
+          excludedCandidates: [{ seed: 1, distanceMeters: 40000, estimatedDurationSeconds: 4500,
+            assessment: { ...candidates.candidates[0].assessment!, targetsMatched: false }, reasons: ['targets_not_met'] }],
+          warnings: ['no_candidate_meets_requirements', 'candidates_excluded'],
+        } : {}),
       } });
     }
     if (url.hostname === '127.0.0.1') return intercepted.continue();
@@ -105,7 +111,41 @@ for (const locale of ['en','ru','he'] as const) test(`track patterns, gap taps a
   await expect(page.locator('.segment-detail')).toHaveCount(0);
   network.clear();
   await page.getByRole('button', { name: labels[1], exact: true }).click();
+  await expect(page.getByText(t(locale, 'noMatches'), { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(page.locator('.segment-controls')).toHaveCount(0);
+});
+
+for (const mode of ['Surface', 'Road type'] as const) test(`dense intervals retain gaps in ${mode}`, async ({ page }) => {
+  const count = 200;
+  const fixture: GeneratedRoute = { ...annotated,
+    geometry: [
+      ...Array.from({ length: count }, (_, i) => ({ longitude: 34.78 + .06 * i / count, latitude: 32.11, elevationMeters: null })),
+      ...annotated.geometry.slice(1),
+    ],
+    segments: [
+      ...Array.from({ length: count }, (_, i): RouteSegment => ({ fromPointIndex: i, toPointIndex: i + 1,
+        surface: mode === 'Surface' ? 'unpaved' : i % 2 ? 'asphalt' : 'paved',
+        wayType: mode === 'Road type' ? 'cycleway' : i % 2 ? 'road' : 'track',
+      })),
+      ...annotated.segments.slice(1).map(s => ({ ...s, fromPointIndex: s.fromPointIndex + count - 1, toPointIndex: s.toPointIndex + count - 1 })),
+    ],
+  };
+  await setup(page, 'valid', fixture);
+  await page.getByRole('radio', { name: mode, exact: true }).check();
+  const canvas = page.locator('canvas');
+  await expect(async () => {
+    const png = PNG.sync.read(await canvas.screenshot()); const stroke = topStroke(png);
+    let whites = 0;
+    for (let x = stroke.left + 12; x < stroke.right - 12; x++) {
+      const i = (stroke.y * png.width + x) * 4;
+      if (png.data[i] > 240 && png.data[i + 1] > 240 && png.data[i + 2] > 240) whites++;
+    }
+    expect(whites).toBeGreaterThan(5);
+  }).toPass({ timeout: 5000 });
+  await page.getByText('Track segments', { exact: true }).click();
+  await page.getByRole('combobox', { name: 'Segment', exact: true }).selectOption('99');
+  await expect(page.getByRole('region', { name: 'Segment details' })).toContainText(mode === 'Surface' ? 'Road' : 'Asphalt');
 });
 
 for (const metadata of ['missing','invalid'] as const) test(`legacy or malformed segment data keeps GPX usable (${metadata})`, async ({ page }) => {

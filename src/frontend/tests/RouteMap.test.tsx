@@ -28,6 +28,8 @@ const click = { point: { x: 1, y: 1 }, lngLat: { lat: 32, wrap: () => ({ lng: 34
 it('switches modes without refitting and restores layers on retry', async () => {
   const props = routeProps(); render(<RouteMap {...props} />);
   const map = state.maps[0]; await act(() => map.events.load());
+  expect(map.getLayer('segment-hit').source).toBe('track-segment-hits');
+  expect(map.getSource('track-segment-hits').data.features[0].properties.segmentIndex).toBe(0);
   expect(map.resize).toHaveBeenCalled();
   expect(map.resize.mock.invocationCallOrder[0]).toBeLessThan(map.fitBounds.mock.invocationCallOrder[0]);
   const fits = map.fitBounds.mock.calls.length; const layerCount = map.layers.size;

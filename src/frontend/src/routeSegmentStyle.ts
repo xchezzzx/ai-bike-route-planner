@@ -1,5 +1,6 @@
 import type { LineLayerSpecification } from 'maplibre-gl';
-import type { RouteSegment } from './types';
+import type { FeatureCollection, LineString } from 'geojson';
+import type { GeneratedRoute, RouteSegment } from './types';
 
 export type SegmentDisplayMode = 'surface' | 'wayType';
 export interface SegmentPattern { dashArray: readonly number[] | null; centerStripe: boolean; caution: boolean }
@@ -20,6 +21,22 @@ export function segmentPatternKey(segment: RouteSegment, mode: SegmentDisplayMod
 }
 export function segmentPattern(segment: RouteSegment, mode: SegmentDisplayMode): SegmentPattern { return patterns[segmentPatternKey(segment, mode)]; }
 
+export function patternFeatures(route: GeneratedRoute, segments: RouteSegment[], mode: SegmentDisplayMode, color: string): FeatureCollection<LineString> {
+  const runs: { from: number; to: number; pattern: string }[] = [];
+  // Keep the dash phase across boundaries that do not change the visible pattern.
+  // Exact evidence intervals live in a separate source for hit-testing/details.
+  for (const segment of segments) {
+    const pattern = segmentPatternKey(segment, mode);
+    const last = runs.at(-1);
+    if (last && last.to === segment.fromPointIndex && last.pattern === pattern) last.to = segment.toPointIndex;
+    else runs.push({ from: segment.fromPointIndex, to: segment.toPointIndex, pattern });
+  }
+  return { type: 'FeatureCollection', features: runs.map(run => ({
+    type: 'Feature', properties: { color, pattern: run.pattern },
+    geometry: { type: 'LineString', coordinates: route.geometry.slice(run.from, run.to + 1).map(p => [p.longitude, p.latitude]) },
+  })) };
+}
+
 export function segmentLayers(): LineLayerSpecification[] {
   const base = { type: 'line' as const, source: 'track-segments', layout: { 'line-cap': 'butt' as const, 'line-join': 'round' as const } };
   return [
@@ -32,6 +49,6 @@ export function segmentLayers(): LineLayerSpecification[] {
     })),
     { ...base, id: 'segment-stripe', filter: ['==', ['get', 'pattern'], 'striped'], paint: { 'line-color': '#ffffff', 'line-width': 1.2 } },
     { ...base, id: 'segment-caution-stripe', filter: ['==', ['get', 'pattern'], 'caution'], paint: { 'line-color': '#e29d22', 'line-width': 2 } },
-    { ...base, id: 'segment-hit', paint: { 'line-color': '#000000', 'line-width': 16, 'line-opacity': 0.01 } },
+    { ...base, id: 'segment-hit', source: 'track-segment-hits', paint: { 'line-color': '#000000', 'line-width': 16, 'line-opacity': 0.01 } },
   ];
 }
