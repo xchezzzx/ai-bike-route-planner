@@ -17,7 +17,7 @@ public class RouteRefinementQualificationTests
 	[InlineData("before")] [InlineData("pacing")] [InlineData("call")]
 	public async Task InterruptedQualificationKeepsEveryCase(string stage)
 	{
-		using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(System.IO.Path.Combine(AppContext.BaseDirectory, "route-refinement-v1.json"), TestContext.Current.CancellationToken));
+		using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(System.IO.Path.Combine(AppContext.BaseDirectory, "route-refinement-v2.json"), TestContext.Current.CancellationToken));
 		var cases = JsonSerializer.Deserialize<AdvisorCase[]>(corpus.RootElement.GetProperty("advisorCases"), Json)!;
 		using var caller = new CancellationTokenSource();
 		if (stage == "before") caller.Cancel();
@@ -46,16 +46,63 @@ public class RouteRefinementQualificationTests
 	}
 
 	[Fact]
+	public async Task PartialBudgetNeverCountsAsFullQualification()
+	{
+		AdvisorCase[] cases = [new("first", GeminiRouteSearchAdvisorTests.Context), new("second", GeminiRouteSearchAdvisorTests.Context)];
+		var calls = 0;
+		var advisor = new StubAdvisor((_, _) =>
+		{
+			calls++;
+			return Task.FromResult(new RouteSearchAdvice(RouteSearchAction.Stop, null, null, RouteSearchReason.Stop));
+		});
+		string? saved = null;
+		Assert.False(await RunCasesAsync(cases, advisor, json => { saved = json; return Task.CompletedTask; },
+			_ => Task.CompletedTask, TestContext.Current.CancellationToken, maxCalls: 1));
+		Assert.Equal(1, calls);
+		using var report = JsonDocument.Parse(saved!);
+		Assert.Equal("failed", report.RootElement.GetProperty("status").GetString());
+		Assert.Equal("passed", report.RootElement.GetProperty("results")[0].GetProperty("status").GetString());
+		Assert.Equal("unrun", report.RootElement.GetProperty("results")[1].GetProperty("status").GetString());
+		Assert.Equal("route-search-v2", report.RootElement.GetProperty("contractVersion").GetString());
+		Assert.Equal(1, report.RootElement.GetProperty("maxCalls").GetInt32());
+	}
+
+	[Fact]
+	public async Task FailedQualificationStopsAndPersistsSanitizedDiagnostics()
+	{
+		AdvisorCase[] cases = [new("first", GeminiRouteSearchAdvisorTests.Context), new("second", GeminiRouteSearchAdvisorTests.Context)];
+		var calls = 0;
+		var advisor = new StubAdvisor((_, _) =>
+		{
+			calls++;
+			throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse, RouteSearchAdvisorDiagnostic.OutputTokenLimit);
+		});
+		string? saved = null;
+		Assert.False(await RunCasesAsync(cases, advisor, json => { saved = json; return Task.CompletedTask; },
+			_ => Task.CompletedTask, TestContext.Current.CancellationToken));
+		Assert.Equal(1, calls);
+		using var report = JsonDocument.Parse(saved!);
+		Assert.Equal("failed", report.RootElement.GetProperty("status").GetString());
+		var results = report.RootElement.GetProperty("results");
+		Assert.Equal("outputTokenLimit", results[0].GetProperty("diagnostic").GetString());
+		Assert.Equal("unrun", results[1].GetProperty("status").GetString());
+	}
+
+	[Fact]
 	public async Task CorpusIsValidAndLiveAdvisorRunsOnlyWithExplicitOptIn()
 	{
-		using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(System.IO.Path.Combine(AppContext.BaseDirectory, "route-refinement-v1.json"), TestContext.Current.CancellationToken));
-		Assert.Equal("route-search-v1", corpus.RootElement.GetProperty("contractVersion").GetString());
+		using var corpus = JsonDocument.Parse(await File.ReadAllTextAsync(System.IO.Path.Combine(AppContext.BaseDirectory, "route-refinement-v2.json"), TestContext.Current.CancellationToken));
+		Assert.Equal("route-search-v2", corpus.RootElement.GetProperty("contractVersion").GetString());
+		Assert.Equal(2, corpus.RootElement.GetProperty("version").GetInt32());
 		var cases = JsonSerializer.Deserialize<AdvisorCase[]>(corpus.RootElement.GetProperty("advisorCases"), Json)!;
 		Assert.Equal(6, cases.Length);
 		Assert.Equal(6, cases.Select(x => x.Id).Distinct().Count());
 		Assert.All(cases, c => { Assert.InRange(c.Context.InitialLengthMeters, 1000, 100000); Assert.InRange(c.Context.Observations.Count, 1, 2); });
 		if (Environment.GetEnvironmentVariable("CYCLING_LIVE_ADVISOR") != "1") return;
 		Assert.NotEqual("true", Environment.GetEnvironmentVariable("CI"));
+		var budgetSetting = Environment.GetEnvironmentVariable("CYCLING_LIVE_ADVISOR_MAX_CALLS");
+		var budget = budgetSetting is null ? cases.Length : int.Parse(budgetSetting, System.Globalization.CultureInfo.InvariantCulture);
+		Assert.InRange(budget, 1, cases.Length);
 		using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseEnvironment("Development"));
 		var advisor = app.Services.GetRequiredService<IRouteSearchAdvisor>();
 		var directory = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "../../../../../../artifacts"));
@@ -64,7 +111,7 @@ public class RouteRefinementQualificationTests
 		TestContext.Current.TestOutputHelper!.WriteLine($"Advisor qualification report: {output}");
 		var passed = await RunCasesAsync(cases, advisor,
 			json => File.WriteAllTextAsync(output, json, CancellationToken.None),
-			ct => Task.Delay(5000, ct), TestContext.Current.CancellationToken);
+			ct => Task.Delay(5000, ct), TestContext.Current.CancellationToken, budget);
 		Assert.True(passed, "Live advisor qualification failed; see sanitized report. No automatic retries.");
 	}
 
@@ -75,18 +122,20 @@ public class RouteRefinementQualificationTests
 		public long? LatencyMs { get; set; }
 		public RouteSearchAdvice? Advice { get; set; }
 		public RouteSearchAdvisorFailure? Failure { get; set; }
+		public RouteSearchAdvisorDiagnostic? Diagnostic { get; set; }
+		public int? HttpStatusCode { get; set; }
 	}
 
 	private static async Task<bool> RunCasesAsync(AdvisorCase[] cases, IRouteSearchAdvisor advisor,
-		Func<string, Task> persist, Func<CancellationToken, Task> pace, CancellationToken cancellationToken)
+		Func<string, Task> persist, Func<CancellationToken, Task> pace, CancellationToken cancellationToken, int maxCalls = 6)
 	{
 		var results = cases.Select(c => new CaseResult(c.Id)).ToArray();
 		var status = "running";
-		Task Save() => persist(JsonSerializer.Serialize(new { contractVersion = "route-search-v1", status, results }, Json));
+		Task Save() => persist(JsonSerializer.Serialize(new { contractVersion = "route-search-v2", maxCalls, status, results }, Json));
 		try
 		{
 			await Save();
-			for (var i = 0; i < cases.Length; i++)
+			for (var i = 0; i < Math.Min(cases.Length, maxCalls); i++)
 			{
 				cancellationToken.ThrowIfCancellationRequested();
 				if (i > 0) await pace(cancellationToken);
@@ -100,13 +149,16 @@ public class RouteRefinementQualificationTests
 					cancellationToken.ThrowIfCancellationRequested();
 					entry.Advice = advice;
 					entry.Status = RouteSearchProposalPolicy.IsValid(advice, cases[i].Context) ? "passed" : "invalid";
+					stop = entry.Status != "passed";
 				}
 				catch (OperationCanceledException) { entry.Status = "interrupted"; throw; }
 				catch (RouteSearchAdvisorException error)
 				{
 					entry.Status = "error";
 					entry.Failure = error.Failure;
-					stop = error.Failure is RouteSearchAdvisorFailure.Quota or RouteSearchAdvisorFailure.Authentication or RouteSearchAdvisorFailure.NotConfigured;
+					entry.Diagnostic = error.Diagnostic;
+					entry.HttpStatusCode = error.HttpStatusCode;
+					stop = true;
 				}
 				catch { entry.Status = "error"; throw; }
 				finally { entry.LatencyMs = timer.ElapsedMilliseconds; }

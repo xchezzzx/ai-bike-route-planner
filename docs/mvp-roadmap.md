@@ -56,6 +56,10 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    corrected with regression tests. Live qualification failed (1/6 advisor cases;
    mixed four-city comparison), so Task 6 delivery/merge remains incomplete.
    See [evidence and next checks](evaluation/route-refinement-2026-09-29.md).
+   A later six-call Gemini-only diagnosis identified contradictory stop fields
+   and truncated responses. The user approved the local `route-search-v2`
+   correction; live v2 qualification and the corrected comparison remain pending.
+   See [diagnosis and correction](evaluation/route-refinement-diagnostics-2026-09-29.md).
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
    Implemented and merged through PR #10, with manual input as a

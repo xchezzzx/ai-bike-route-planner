@@ -1,0 +1,220 @@
+{
+  "version": 2,
+  "contractVersion": "route-search-v2",
+  "advisorCases": [
+    {
+      "id": "matching-targets",
+      "context": {
+        "preferences": {
+          "shape": "loop",
+          "profile": "road",
+          "elevation": "balanced",
+          "targetDistanceMeters": 20000,
+          "targetDurationSeconds": null
+        },
+        "initialLengthMeters": 20000,
+        "observations": [
+          {
+            "seed": 1,
+            "requestedLengthMeters": 20000,
+            "outcome": "accepted",
+            "distanceMeters": 20100,
+            "durationSeconds": 3600,
+            "ascentMeters": 100,
+            "distanceDeltaMeters": 100,
+            "durationDeltaSeconds": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "too-long",
+      "context": {
+        "preferences": {
+          "shape": "loop",
+          "profile": "road",
+          "elevation": "balanced",
+          "targetDistanceMeters": 20000,
+          "targetDurationSeconds": null
+        },
+        "initialLengthMeters": 20000,
+        "observations": [
+          {
+            "seed": 1,
+            "requestedLengthMeters": 20000,
+            "outcome": "accepted",
+            "distanceMeters": 28000,
+            "durationSeconds": 5000,
+            "ascentMeters": 100,
+            "distanceDeltaMeters": 8000,
+            "durationDeltaSeconds": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "too-short",
+      "context": {
+        "preferences": {
+          "shape": "loop",
+          "profile": "road",
+          "elevation": "balanced",
+          "targetDistanceMeters": 20000,
+          "targetDurationSeconds": null
+        },
+        "initialLengthMeters": 20000,
+        "observations": [
+          {
+            "seed": 1,
+            "requestedLengthMeters": 20000,
+            "outcome": "accepted",
+            "distanceMeters": 12000,
+            "durationSeconds": 2200,
+            "ascentMeters": 100,
+            "distanceDeltaMeters": -8000,
+            "durationDeltaSeconds": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "duration-only",
+      "context": {
+        "preferences": {
+          "shape": "loop",
+          "profile": "road",
+          "elevation": "balanced",
+          "targetDistanceMeters": null,
+          "targetDurationSeconds": 3600
+        },
+        "initialLengthMeters": 20000,
+        "observations": [
+          {
+            "seed": 1,
+            "requestedLengthMeters": 20000,
+            "outcome": "accepted",
+            "distanceMeters": 22000,
+            "durationSeconds": 5000,
+            "ascentMeters": 100,
+            "distanceDeltaMeters": null,
+            "durationDeltaSeconds": 1400
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-ascent",
+      "context": {
+        "preferences": {
+          "shape": "loop",
+          "profile": "road",
+          "elevation": "minimize",
+          "targetDistanceMeters": 20000,
+          "targetDurationSeconds": null
+        },
+        "initialLengthMeters": 20000,
+        "observations": [
+          {
+            "seed": 1,
+            "requestedLengthMeters": 20000,
+            "outcome": "accepted",
+            "distanceMeters": 20000,
+            "durationSeconds": 3600,
+            "ascentMeters": null,
+            "distanceDeltaMeters": 0,
+            "durationDeltaSeconds": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "conflicting-extreme-observations",
+      "context": {
+        "preferences": {
+          "shape": "loop",
+          "profile": "road",
+          "elevation": "balanced",
+          "targetDistanceMeters": 20000,
+          "targetDurationSeconds": 600
+        },
+        "initialLengthMeters": 20000,
+        "observations": [
+          {
+            "seed": 1,
+            "requestedLengthMeters": 20000,
+            "outcome": "accepted",
+            "distanceMeters": 1000,
+            "durationSeconds": 10000,
+            "ascentMeters": null,
+            "distanceDeltaMeters": -19000,
+            "durationDeltaSeconds": 9400
+          },
+          {
+            "seed": 2,
+            "requestedLengthMeters": 20000,
+            "outcome": "noRoute",
+            "distanceMeters": null,
+            "durationSeconds": null,
+            "ascentMeters": null,
+            "distanceDeltaMeters": null,
+            "durationDeltaSeconds": null
+          }
+        ]
+      }
+    }
+  ],
+  "routeCases": [
+    {
+      "id": "tel-aviv",
+      "request": {
+        "start": {
+          "latitude": 32.0853,
+          "longitude": 34.7818
+        },
+        "shape": "loop",
+        "profile": "road",
+        "elevation": "minimize",
+        "targetDistanceMeters": 20000
+      }
+    },
+    {
+      "id": "haifa",
+      "request": {
+        "start": {
+          "latitude": 32.8191,
+          "longitude": 34.9984
+        },
+        "shape": "loop",
+        "profile": "road",
+        "elevation": "minimize",
+        "targetDistanceMeters": 20000
+      }
+    },
+    {
+      "id": "jerusalem",
+      "request": {
+        "start": {
+          "latitude": 31.7839,
+          "longitude": 35.2183
+        },
+        "shape": "loop",
+        "profile": "road",
+        "elevation": "seekClimbs",
+        "targetDistanceMeters": 20000
+      }
+    },
+    {
+      "id": "beersheba",
+      "request": {
+        "start": {
+          "latitude": 31.252,
+          "longitude": 34.7915
+        },
+        "shape": "loop",
+        "profile": "road",
+        "elevation": "balanced",
+        "targetDurationSeconds": 3600
+      }
+    }
+  ]
+}

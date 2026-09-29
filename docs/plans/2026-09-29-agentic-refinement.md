@@ -12,6 +12,13 @@
 
 **Status:** Tasks 1-5 implemented; Task 6 offline checks/review fixes complete, live gate failed and merge withheld. User approved autonomous implementation on 2026-09-29. Paths below are repository-relative. Backend commands run at repository root; npm commands run in `src/frontend`.
 
+**Provider correction:** the user subsequently approved a local-only internal
+`route-search-v2` correction (`nextSearch: null | object`). This supersedes the
+Task 3 v1 wire shape and Task 6 active corpus path with `route-refinement-v2.json`.
+The original v1 corpus/report remain unchanged. See the
+[diagnostic record](../evaluation/route-refinement-diagnostics-2026-09-29.md).
+No new live calls or merge-gate waiver were approved; Task 6 remains incomplete.
+
 ## Global Constraints
 
 - Opt-in road loops only; deterministic search remains the default. No gravel, A-B refinement, via points, persistence, authentication or deployment changes.

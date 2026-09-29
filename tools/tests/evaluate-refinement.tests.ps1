@@ -5,6 +5,14 @@ $runner = Join-Path $PSScriptRoot '../evaluate-refinement.ps1'
 function Assert-True($value, $message) { if (-not $value) { throw $message } }
 & pwsh -NoProfile -File $runner
 Assert-True ($LASTEXITCODE -eq 0) 'Offline refinement validation failed.'
+$oldCorpusPath = Join-Path $PSScriptRoot '../../docs/evaluation/route-refinement-v1.json'
+& pwsh -NoProfile -File $runner -CorpusPath $oldCorpusPath
+Assert-True ($LASTEXITCODE -eq 1) 'Legacy advisor corpus must not qualify the v2 contract.'
+$oldCorpus = Get-Content $oldCorpusPath -Raw | ConvertFrom-Json
+$newCorpus = Get-Content (Join-Path $PSScriptRoot '../../docs/evaluation/route-refinement-v2.json') -Raw | ConvertFrom-Json
+foreach ($field in @('advisorCases', 'routeCases')) {
+    Assert-True (($oldCorpus.$field | ConvertTo-Json -Depth 20 -Compress) -ceq ($newCorpus.$field | ConvertTo-Json -Depth 20 -Compress)) 'Qualification scenarios changed during the contract correction.'
+}
 $root = Join-Path ([IO.Path]::GetTempPath()) ('refinement-test-' + [guid]::NewGuid())
 [IO.Directory]::CreateDirectory($root) | Out-Null
 try {

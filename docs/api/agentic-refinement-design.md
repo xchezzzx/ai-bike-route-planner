@@ -104,3 +104,19 @@ owned, not model prose or claims about legal access, fitness, safety or surfaces
   deployment and account changes are outside this spec.
 
 Next: finish bounded live qualification, independent review and CI gates.
+
+## Approved provider-contract correction
+
+On 2026-09-29 the user approved a local-only correction after a bounded diagnostic
+run identified `stop` with a non-null requested length. The internal Gemini
+contract is now `route-search-v2`: one required `nextSearch` field, either null
+(stop) or a closed object containing required seed, requestedLengthMeters and
+reason (search). This removes contradictory action/search fields. Mapping to
+application advice and the public HTTP contract remain unchanged, as do all
+proposal bounds, deadlines, no-retry rules and fallback behavior.
+
+Qualification uses `route-refinement-v2.json`; the v1 corpus and negative reports
+remain historical evidence. The user authorized only six additional Gemini
+calls and no ORS calls; all six were used on v1 diagnosis. No live calls are
+authorized for v2 in this change. The v2 corpus and corrected four-city comparison
+remain required before merge; offline success cannot replace them.

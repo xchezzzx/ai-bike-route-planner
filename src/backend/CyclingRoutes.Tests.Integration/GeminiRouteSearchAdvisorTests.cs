@@ -11,8 +11,8 @@ namespace CyclingRoutes.Tests.Integration;
 
 public class GeminiRouteSearchAdvisorTests
 {
-	public const string Search = """{"action":"search","seed":7,"requestedLengthMeters":16000,"reason":"distance"}""";
-	public const string Stop = """{"action":"stop","seed":null,"requestedLengthMeters":null,"reason":"stop"}""";
+	public const string Search = """{"nextSearch":{"seed":7,"requestedLengthMeters":16000,"reason":"distance"}}""";
+	public const string Stop = """{"nextSearch":null}""";
 	public static RouteSearchContext Context => new(new(RouteShape.Loop, CyclingProfile.Road, ElevationPreference.Balanced, 20000, null),
 		20000, [new(1, 20000, RouteSearchOutcome.Accepted, 28000, 5000, 100, 8000, null), new(2, 20000, RouteSearchOutcome.NoRoute, null, null, null, null, null)]);
 	private static GeminiOptions Options => new() { ApiKey = "private-test-key", Model = "test-model" };
@@ -36,7 +36,7 @@ public class GeminiRouteSearchAdvisorTests
 			using var json = JsonDocument.Parse(body);
 			var root = json.RootElement;
 			Assert.Equal(new[] { "systemInstruction", "contents", "generationConfig" }, root.EnumerateObject().Select(x => x.Name));
-			Assert.Contains("route-search-v1", root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
+			Assert.Contains("route-search-v2", root.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
 			using var input = JsonDocument.Parse(root.GetProperty("contents")[0].GetProperty("parts")[0].GetProperty("text").GetString()!);
 			Assert.Equal(new[] { "preferences", "initialLengthMeters", "observations" }, input.RootElement.EnumerateObject().Select(x => x.Name));
 			Assert.Equal(new[] { "shape", "profile", "elevation", "targetDistanceMeters", "targetDurationSeconds" }, input.RootElement.GetProperty("preferences").EnumerateObject().Select(x => x.Name));
@@ -45,10 +45,23 @@ public class GeminiRouteSearchAdvisorTests
 			Assert.Equal(new[] { "seed", "requestedLengthMeters", "outcome", "distanceMeters", "durationSeconds", "ascentMeters", "distanceDeltaMeters", "durationDeltaSeconds" }, input.RootElement.GetProperty("observations")[0].EnumerateObject().Select(x => x.Name));
 			var config = root.GetProperty("generationConfig");
 			Assert.Equal(1, config.GetProperty("candidateCount").GetInt32());
-			Assert.Equal(1024, config.GetProperty("maxOutputTokens").GetInt32());
+			Assert.Equal(4096, config.GetProperty("maxOutputTokens").GetInt32());
 			Assert.Equal("application/json", config.GetProperty("responseMimeType").GetString());
-			Assert.False(config.GetProperty("responseJsonSchema").GetProperty("additionalProperties").GetBoolean());
-			Assert.Equal(4, config.GetProperty("responseJsonSchema").GetProperty("required").GetArrayLength());
+			var schema = config.GetProperty("responseJsonSchema");
+			Assert.False(schema.TryGetProperty("anyOf", out _));
+			Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
+			Assert.Equal("nextSearch", Assert.Single(schema.GetProperty("required").EnumerateArray()).GetString());
+			var next = schema.GetProperty("properties").GetProperty("nextSearch");
+			Assert.Equal(new[] { "object", "null" }, next.GetProperty("type").EnumerateArray().Select(x => x.GetString()));
+			Assert.False(next.GetProperty("additionalProperties").GetBoolean());
+			Assert.Equal(new[] { "seed", "requestedLengthMeters", "reason" }, next.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+			var properties = next.GetProperty("properties");
+			Assert.Equal(3, properties.EnumerateObject().Count());
+			Assert.Equal("integer", properties.GetProperty("seed").GetProperty("type").GetString());
+			Assert.Equal("number", properties.GetProperty("requestedLengthMeters").GetProperty("type").GetString());
+			Assert.Equal(new[] { "distance", "duration", "elevation", "explore" }, properties.GetProperty("reason").GetProperty("enum").EnumerateArray().Select(x => x.GetString()));
+			Assert.Equal(10000, properties.GetProperty("requestedLengthMeters").GetProperty("minimum").GetDouble());
+			Assert.Equal(30000, properties.GetProperty("requestedLengthMeters").GetProperty("maximum").GetDouble());
 			return Response(Envelope(Search));
 		}));
 		var result = await new GeminiRouteSearchAdvisor(client, Options, TimeProvider.System).AdviseAsync(Context, TestContext.Current.CancellationToken);
@@ -56,19 +69,125 @@ public class GeminiRouteSearchAdvisorTests
 		Assert.Equal(1, calls);
 	}
 
+	[Theory]
+	[InlineData(1000, 1000, 1500)]
+	[InlineData(20000, 10000, 30000)]
+	[InlineData(100000, 50000, 100000)]
+	public async Task RequestSchemaConstrainsFreshSeedsAndIntersectedLengthBounds(double initial, double minimum, double maximum)
+	{
+		var context = Context with { InitialLengthMeters = initial, Observations = [Context.Observations[0] with { Seed = 7 }] };
+		using var client = new HttpClient(new Handler(async (request, ct) =>
+		{
+			using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+			var properties = json.RootElement.GetProperty("generationConfig").GetProperty("responseJsonSchema")
+				.GetProperty("properties").GetProperty("nextSearch").GetProperty("properties");
+			Assert.Equal(Enumerable.Range(3, 14).Where(x => x != 7),
+				properties.GetProperty("seed").GetProperty("enum").EnumerateArray().Select(x => x.GetInt32()));
+			Assert.Equal(minimum, properties.GetProperty("requestedLengthMeters").GetProperty("minimum").GetDouble());
+			Assert.Equal(maximum, properties.GetProperty("requestedLengthMeters").GetProperty("maximum").GetDouble());
+			return Response(Envelope(Stop));
+		}));
+		await new GeminiRouteSearchAdvisor(client, Options, TimeProvider.System).AdviseAsync(context, TestContext.Current.CancellationToken);
+	}
+
 	[Fact]
 	public async Task AcceptsStrictStop() => Assert.Equal(new(RouteSearchAction.Stop, null, null, RouteSearchReason.Stop), await Call(Envelope(Stop)));
+
+	[Theory]
+	[InlineData("MAX_TOKENS", "OutputTokenLimit")]
+	[InlineData("SAFETY", "IncompleteCandidate")]
+	[InlineData("private-provider-text", "IncompleteCandidate")]
+	public async Task FailureDiagnosticsAllowlistFinishReasons(string finish, string expected)
+	{
+		var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => Call(Envelope(Search, finish)));
+		Assert.Equal(expected, error.Diagnostic?.ToString());
+		Assert.DoesNotContain("private-provider-text", JsonSerializer.Serialize(new { error.Diagnostic, error.HttpStatusCode, error.Failure }));
+	}
+
+	[Theory]
+	[InlineData("{}", "MalformedEnvelope")]
+	[InlineData("{\"promptFeedback\":{\"blockReason\":\"private-provider-text\"}}", "PromptBlocked")]
+	public async Task FailureDiagnosticsIdentifyEnvelopeStage(string body, string expected)
+	{
+		var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => Call(body));
+		Assert.Equal(expected, error.Diagnostic?.ToString());
+		Assert.DoesNotContain("private-provider-text", error.ToString());
+	}
+
+	[Theory]
+	[InlineData("{}", "MissingAdviceFields")]
+	[InlineData("null", "InvalidAdviceFields")]
+	[InlineData("not-json", "InvalidAdviceJson")]
+	[InlineData("{\"nextSearch\":{\"seed\":7,\"requestedLengthMeters\":20000,\"reason\":\"private-text\"}}", "InvalidAdviceReason")]
+	[InlineData("{\"nextSearch\":{\"seed\":\"private-text\",\"requestedLengthMeters\":20000,\"reason\":\"distance\"}}", "InvalidAdviceSeed")]
+	[InlineData("{\"nextSearch\":{\"seed\":7,\"requestedLengthMeters\":\"private-text\",\"reason\":\"distance\"}}", "InvalidAdviceLength")]
+	[InlineData("{\"nextSearch\":{\"seed\":7,\"requestedLengthMeters\":999,\"reason\":\"distance\"}}", "SearchLengthInvalid")]
+	public async Task FailureDiagnosticsSeparateSchemaFromProposal(string advice, string expected)
+	{
+		var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => Call(Envelope(advice)));
+		Assert.Equal(expected, error.Diagnostic?.ToString());
+		Assert.DoesNotContain("private-text", error.ToString());
+	}
+
+	[Theory]
+	[InlineData("{\"nextSearch\":{\"seed\":2,\"requestedLengthMeters\":10000,\"reason\":\"distance\"}}", "SearchSeedInvalid")]
+	[InlineData("{\"nextSearch\":{\"seed\":null,\"requestedLengthMeters\":10000,\"reason\":\"distance\"}}", "InvalidAdviceSeed")]
+	public async Task ProposalDiagnosticIdentifiesRejectedRule(string advice, string expected)
+	{
+		var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => Call(Envelope(advice)));
+		Assert.Equal(RouteSearchAdvisorFailure.InvalidResponse, error.Failure);
+		Assert.Equal(expected, error.Diagnostic?.ToString());
+	}
+
+	[Theory]
+	[InlineData("{\"candidates\":[{\"finishReason\":\"STOP\",\"content\":{\"parts\":[]}}]}")]
+	[InlineData("{\"candidates\":[{\"finishReason\":\"STOP\",\"content\":{\"parts\":[{\"thought\":true,\"text\":\"private-text\"}]}}]}")]
+	public async Task InvalidPartsHaveSanitizedDiagnostic(string body)
+	{
+		var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => Call(body));
+		Assert.Equal(RouteSearchAdvisorDiagnostic.InvalidParts, error.Diagnostic);
+		Assert.DoesNotContain("private-text", error.ToString());
+	}
+
+	[Theory]
+	[InlineData(false)] [InlineData(true)]
+	public async Task TransportErrorsKeepNoProviderMessage(bool io)
+	{
+		using var client = new HttpClient(new Handler((_, _) => throw (io
+			? new IOException("private-text") : new HttpRequestException("private-text"))));
+		var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() =>
+			new GeminiRouteSearchAdvisor(client, Options, TimeProvider.System).AdviseAsync(Context, TestContext.Current.CancellationToken));
+		Assert.Equal(RouteSearchAdvisorDiagnostic.TransportError, error.Diagnostic);
+		Assert.Null(error.InnerException);
+		Assert.DoesNotContain("private-text", error.ToString());
+	}
+
+	[Fact]
+	public async Task InvalidUtf8HasSanitizedDiagnostic()
+	{
+		using var client = new HttpClient(new Handler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+		{ Content = new ByteArrayContent([0xff]) })));
+		var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() =>
+			new GeminiRouteSearchAdvisor(client, Options, TimeProvider.System).AdviseAsync(Context, TestContext.Current.CancellationToken));
+		Assert.Equal(RouteSearchAdvisorDiagnostic.InvalidUtf8, error.Diagnostic);
+	}
 
 	public static IEnumerable<object[]> InvalidAdvice()
 	{
 		foreach (var text in new[] { "{}", "null", "```json\n" + Search + "\n```", Search.Replace("7", "\"7\""),
 			Search.Replace("16000", "1e999"), Search.Replace("16000", "999"), Search.Replace("16000", "31000"),
 			Search.Replace("7", "2"), Search.Replace("7", "17"), Search.Replace("7", "7.5"), Search.Replace("7", "null"),
-			Search.Replace("\"search\"", "\"Search\""), Search.Replace("\"distance\"", "\"stop\""),
+			Search.Replace("nextSearch", "NextSearch"), Search.Replace("\"distance\"", "\"stop\""),
 			Search.Replace("\"distance\"", "\"safe road\""), Search.Replace("\"reason\":\"distance\"", "\"coordinates\":[]"),
 			Search.Replace("\"reason\":\"distance\"", "\"reason\":\"distance\",\"seed\":8"),
-			Stop.Replace("\"seed\":null", "\"seed\":3"), Stop.Replace("\"requestedLengthMeters\":null", "\"requestedLengthMeters\":20000"),
-			Stop.Replace("\"reason\":\"stop\"", "\"reason\":\"explore\"") }) yield return [text];
+			"{\"nextSearch\":null,\"requestedLengthMeters\":20000}", "{\"nextSearch\":null,\"nextSearch\":null}",
+			"{\"nextSearch\":{}}", "{\"nextSearch\":[]}", "{\"nextSearch\":\"null\"}",
+			Search.Replace("16000", "null"),
+			Search.Replace("\"reason\":\"distance\"", "\"reason\":\"distance\",\"coordinates\":[]"),
+			"{\"nextSearch\":null,\"action\":\"search\",\"seed\":7,\"requestedLengthMeters\":16000,\"reason\":\"distance\"}",
+			"{\"action\":\"search\",\"seed\":7,\"requestedLengthMeters\":16000,\"reason\":\"distance\"}",
+			"{\"action\":\"stop\",\"seed\":null,\"requestedLengthMeters\":20000,\"reason\":\"stop\"}",
+			"{\"action\":\"stop\",\"seed\":null,\"requestedLengthMeters\":null,\"reason\":\"stop\"}" }) yield return [text];
 	}
 	[Theory, MemberData(nameof(InvalidAdvice))]
 	public async Task RejectsAmbiguousOrUnboundedAdvice(string text) => Assert.Equal(RouteSearchAdvisorFailure.InvalidResponse,
@@ -97,6 +216,8 @@ public class GeminiRouteSearchAdvisorTests
 		using var client = new HttpClient(new Handler((_, _) => { calls++; return Task.FromResult(Response("private provider detail", status)); }));
 		var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => new GeminiRouteSearchAdvisor(client, Options, TimeProvider.System).AdviseAsync(Context, TestContext.Current.CancellationToken));
 		Assert.Equal(failure, error.Failure); Assert.Null(error.InnerException); Assert.DoesNotContain("private", error.ToString()); Assert.Equal(1, calls);
+		Assert.Equal(RouteSearchAdvisorDiagnostic.HttpError, error.Diagnostic);
+		Assert.Equal(status, error.HttpStatusCode);
 	}
 
 	[Theory]
@@ -117,7 +238,12 @@ public class GeminiRouteSearchAdvisorTests
 		{ Content = known ? new StringContent(body) : new StreamContent(new UnseekableStream(Encoding.UTF8.GetBytes(body))) })));
 		var service = new GeminiRouteSearchAdvisor(client, Options, TimeProvider.System);
 		if (size == 262144) Assert.Equal(7, (await service.AdviseAsync(Context, TestContext.Current.CancellationToken)).Seed);
-		else Assert.Equal(RouteSearchAdvisorFailure.InvalidResponse, (await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => service.AdviseAsync(Context, TestContext.Current.CancellationToken))).Failure);
+		else
+		{
+			var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => service.AdviseAsync(Context, TestContext.Current.CancellationToken));
+			Assert.Equal(RouteSearchAdvisorFailure.InvalidResponse, error.Failure);
+			Assert.Equal(RouteSearchAdvisorDiagnostic.ResponseTooLarge, error.Diagnostic);
+		}
 	}
 
 	[Theory]
@@ -134,7 +260,12 @@ public class GeminiRouteSearchAdvisorTests
 		})) { Timeout = Timeout.InfiniteTimeSpan };
 		var task = new GeminiRouteSearchAdvisor(client, Options, clock).AdviseAsync(Context, caller.Token);
 		if (cancelCaller) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
-		else Assert.Equal(RouteSearchAdvisorFailure.Timeout, (await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => task)).Failure);
+		else
+		{
+			var error = await Assert.ThrowsAsync<RouteSearchAdvisorException>(() => task);
+			Assert.Equal(RouteSearchAdvisorFailure.Timeout, error.Failure);
+			Assert.Equal(RouteSearchAdvisorDiagnostic.Deadline, error.Diagnostic);
+		}
 	}
 
 	private class UnseekableStream(byte[] bytes) : MemoryStream(bytes) { public override bool CanSeek => false; }

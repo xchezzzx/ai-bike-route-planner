@@ -33,7 +33,7 @@
 
   <ItemGroup>
     <None Include="..\..\..\docs\evaluation\prompt-interpretation-v1.json" Link="prompt-interpretation-v1.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\..\docs\evaluation\route-refinement-v1.json" Link="route-refinement-v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\docs\evaluation\route-refinement-v2.json" Link="route-refinement-v2.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

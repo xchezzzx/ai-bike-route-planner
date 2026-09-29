@@ -39,11 +39,22 @@ results with existing partial-result warnings. No usable geometry returns the
 existing routing ProblemDetails. This never fabricates a route or changes targets.
 
 Gemini uses the existing `Ai:Gemini:ApiKey` and `Ai:Gemini:Model` settings and a
-separate `route-search-v1` structured contract. It receives only preferences,
+separate `route-search-v2` structured contract. It receives only preferences,
 attempted seeds/lengths, distance/duration/ascent and deviations. Coordinates,
 raw prompts, GPX, history and keys are excluded from its input. ORS receives the
 start coordinate. No free model prose is returned. Structured-output reference:
 [Google API documentation](https://ai.google.dev/gemini-api/docs/structured-output).
+
+The provider response is `{ "nextSearch": null }` for stop, or
+`{ "nextSearch": { "seed": 3, "requestedLengthMeters": 15000, "reason": "distance" } }`
+for search. There is no separate action flag to contradict the search fields.
+Both object levels are closed; all search fields are required and non-null.
+The schema includes context-specific length bounds and unused seeds. The adapter
+maps this into the existing application advice; server policy still validates
+every proposal. Legacy flat responses are rejected, not silently repaired.
+The output cap is 4096 tokens, with the same 30-second deadline and 256 KiB body
+limit. Truncated responses remain failures. Qualification diagnostics contain
+only fixed codes and numeric HTTP status, never raw model output or secrets.
 
 The EN/RU/HE UI exposes an unchecked-by-default AI refinement checkbox for ready
 road loops and a bounded application-owned attempt trace. `/plan` gets a
@@ -54,6 +65,8 @@ Not a safety/access/traffic guarantee; not support for gravel, stops, exclusions
 or geographic reasoning. Offline tests and review fixes pass, but the first
 [live qualification](../evaluation/route-refinement-2026-09-29.md) failed. Keep
 the PR unmerged and the feature experimental; do not claim quality improvement.
+The [v2 correction](../evaluation/route-refinement-diagnostics-2026-09-29.md)
+is locally tested only; it has not received any live provider calls.
 
 ## Road quality integration (road-v1)
 

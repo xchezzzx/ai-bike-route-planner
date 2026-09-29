@@ -30,17 +30,18 @@ public sealed class GeminiRouteSearchAdvisor(HttpClient client, GeminiOptions op
 		{
 			systemInstruction = new { parts = new[] { new { text = GeminiRouteSearchContract.SystemInstruction } } },
 			contents = new[] { new { role = "user", parts = new[] { new { text = JsonSerializer.Serialize(context, InputJson) } } } },
-			generationConfig = new { candidateCount = 1, maxOutputTokens = 1024, responseMimeType = "application/json", responseJsonSchema = GeminiRouteSearchContract.Schema }
+			generationConfig = new { candidateCount = 1, maxOutputTokens = 4096, responseMimeType = "application/json", responseJsonSchema = GeminiRouteSearchContract.CreateSchema(context) }
 		});
 		try
 		{
 			linked.Token.ThrowIfCancellationRequested();
 			using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linked.Token);
 			linked.Token.ThrowIfCancellationRequested();
-			if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.Authentication);
-			if (response.StatusCode == HttpStatusCode.TooManyRequests) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.Quota);
-			if ((int)response.StatusCode >= 500) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.Unavailable);
-			if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > ResponseLimit) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse);
+			if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) throw HttpFailure(RouteSearchAdvisorFailure.Authentication, response);
+			if (response.StatusCode == HttpStatusCode.TooManyRequests) throw HttpFailure(RouteSearchAdvisorFailure.Quota, response);
+			if ((int)response.StatusCode >= 500) throw HttpFailure(RouteSearchAdvisorFailure.Unavailable, response);
+			if (!response.IsSuccessStatusCode) throw HttpFailure(RouteSearchAdvisorFailure.InvalidResponse, response);
+			if (response.Content.Headers.ContentLength > ResponseLimit) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse, RouteSearchAdvisorDiagnostic.ResponseTooLarge);
 			await using var stream = await response.Content.ReadAsStreamAsync(linked.Token);
 			using var buffer = new MemoryStream();
 			var chunk = new byte[8192];
@@ -50,17 +51,28 @@ public sealed class GeminiRouteSearchAdvisor(HttpClient client, GeminiOptions op
 				var count = await stream.ReadAsync(chunk.AsMemory(0, Math.Min(chunk.Length, ResponseLimit + 1 - (int)buffer.Length)), linked.Token);
 				if (count == 0) break;
 				buffer.Write(chunk, 0, count);
-				if (buffer.Length > ResponseLimit) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse);
+				if (buffer.Length > ResponseLimit) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse, RouteSearchAdvisorDiagnostic.ResponseTooLarge);
 			}
 			linked.Token.ThrowIfCancellationRequested();
 			var advice = GeminiRouteSearchParser.Parse(new UTF8Encoding(false, true).GetString(buffer.GetBuffer(), 0, (int)buffer.Length));
-			if (!RouteSearchProposalPolicy.IsValid(advice, context)) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse);
+			if (!RouteSearchProposalPolicy.IsValid(advice, context)) throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse, ProposalDiagnostic(advice, context));
 			linked.Token.ThrowIfCancellationRequested();
 			return advice;
 		}
 		catch (Exception) when (cancellationToken.IsCancellationRequested) { cancellationToken.ThrowIfCancellationRequested(); throw; }
-		catch (OperationCanceledException) { throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.Timeout); }
-		catch (Exception error) when (error is HttpRequestException or IOException) { throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.Unavailable); }
-		catch (DecoderFallbackException) { throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse); }
+		catch (OperationCanceledException) { throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.Timeout, RouteSearchAdvisorDiagnostic.Deadline); }
+		catch (Exception error) when (error is HttpRequestException or IOException) { throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.Unavailable, RouteSearchAdvisorDiagnostic.TransportError); }
+		catch (DecoderFallbackException) { throw new RouteSearchAdvisorException(RouteSearchAdvisorFailure.InvalidResponse, RouteSearchAdvisorDiagnostic.InvalidUtf8); }
+	}
+
+	private static RouteSearchAdvisorException HttpFailure(RouteSearchAdvisorFailure failure, HttpResponseMessage response)
+		=> new(failure, RouteSearchAdvisorDiagnostic.HttpError, (int)response.StatusCode);
+
+	// Classify only after the application policy rejects; diagnostics cannot authorize a proposal.
+	private static RouteSearchAdvisorDiagnostic ProposalDiagnostic(RouteSearchAdvice advice, RouteSearchContext context)
+	{
+		if (advice.Seed is not (>= 3 and <= 16) || context.Observations.Any(x => x.Seed == advice.Seed))
+			return RouteSearchAdvisorDiagnostic.SearchSeedInvalid;
+		return RouteSearchAdvisorDiagnostic.SearchLengthInvalid;
 	}
 }
