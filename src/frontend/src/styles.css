@@ -110,3 +110,4 @@ dd { margin: 0; text-align: end; overflow-wrap: anywhere; }
   .route-option b { margin-inline-start: auto; }
   .comparison { grid-template-columns: 1fr; gap: 6px; }
 }
+.generation-state { margin: 0 0 8px; font-size: 13px; color: #765019; }

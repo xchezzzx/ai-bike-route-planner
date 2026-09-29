@@ -19,6 +19,7 @@ const messages = {
   interpret: ['Interpret request', 'Разобрать запрос', 'פירוש הבקשה'],
   validate: ['Validate preferences', 'Проверить параметры', 'בדיקת העדפות'],
   generate: ['Generate routes', 'Построить маршруты', 'יצירת מסלולים'],
+  notValidated: ['Request not validated', 'Запрос не проверен', 'הבקשה לא אומתה'],
   interpreting: ['Interpreting request…', 'Разбираем запрос…', 'מפענח בקשה…'],
   validating: ['Validating preferences…', 'Проверяем параметры…', 'בודק העדפות…'],
   generating: ['Generating routes…', 'Строим маршруты…', 'יוצר מסלולים…'],

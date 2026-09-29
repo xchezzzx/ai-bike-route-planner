@@ -79,6 +79,22 @@ it('validates manual A-B and sends the backend canonical intent to generation', 
   expect(posts[1]).toMatchObject({ path: '/api/routes/generate', body: replies.validate });
 });
 
+it('validates and generates manual A-B without distance or duration', async () => {
+  replies.validate = { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 }, targetDistanceMeters: null, targetDurationSeconds: null };
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('radio', { name: 'Manual' }));
+  await user.selectOptions(screen.getByLabelText('Route shape'), 'pointToPoint');
+  await user.type(screen.getByLabelText('Destination latitude'), '32.1');
+  await user.type(screen.getByLabelText('Destination longitude'), '34.8');
+  await user.click(screen.getByRole('button', { name: 'Validate preferences' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Generate routes' })).toBeEnabled());
+  expect(posts[0].body).not.toHaveProperty('targetDistanceMeters');
+  expect(posts[0].body).not.toHaveProperty('targetDurationSeconds');
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('region', { name: 'Routes' });
+  expect(posts[1]).toMatchObject({ path: '/api/routes/generate', body: replies.validate });
+});
+
 it('blocks unsupported canonical manual preferences after validation', async () => {
   replies.validate = { ...intent, profile: 'gravel' };
   const user = await setupPrompt();
@@ -89,6 +105,31 @@ it('blocks unsupported canonical manual preferences after validation', async () 
   expect(await screen.findByText('Gravel routing is not supported.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
   expect(posts).toHaveLength(1);
+});
+
+it('disables unsupported manual options without discarding a previously selected loop preference', async () => {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('radio', { name: 'Manual' }));
+  expect(screen.getByRole('option', { name: 'Gravel' })).toBeDisabled();
+  await user.selectOptions(screen.getByLabelText('Elevation preference'), 'minimize');
+  await user.selectOptions(screen.getByLabelText('Route shape'), 'pointToPoint');
+  expect(screen.getByRole('option', { name: 'Minimize climbs' })).toBeDisabled();
+  expect(screen.getByRole('option', { name: 'Seek climbs' })).toBeDisabled();
+  expect(screen.getByLabelText('Elevation preference')).toHaveValue('minimize');
+  await user.selectOptions(screen.getByLabelText('Elevation preference'), 'balanced');
+  expect(screen.getByLabelText('Elevation preference')).toHaveValue('balanced');
+});
+
+it('connects the disabled Generate button to its current preparation state', async () => {
+  const user = await setupPrompt();
+  const generate = screen.getByRole('button', { name: 'Generate routes' });
+  expect(generate).toHaveAccessibleDescription('Request not validated');
+  replies.interpret = { ...interpretation, status: 'needsClarification', intent: null, clarifications: [{ field: 'profile', code: 'required', message: 'Choose a profile.' }] };
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await waitFor(() => expect(generate).toHaveAccessibleDescription('Clarification needed'));
+  expect(generate).toBeDisabled();
+  await user.selectOptions(screen.getByLabelText('Language'), 'ru');
+  expect(screen.getByRole('button', { name: 'Построить маршруты' })).toHaveAccessibleDescription('Запрос не проверен');
 });
 
 it.each(['prompt', 'mode', 'locale', 'coordinate', 'cancel'])('aborts pending interpretation and discards late responses after %s changes', async change => {
