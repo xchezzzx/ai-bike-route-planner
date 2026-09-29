@@ -170,6 +170,43 @@ public class RoutePlanEndpointTests : IClassFixture<WebApplicationFactory<Progra
 		using var response = await client.PostAsync("/api/routes/plan", content, TestContext.Current.CancellationToken);
 		Assert.Equal(status, (int)response.StatusCode); Assert.Equal(0, provider.Calls); Assert.Equal(0, advisor.Calls);
 	}
+	[Theory]
+	[InlineData("candidates", false)]
+	[InlineData("candidates", true)]
+	[InlineData("plan", false)]
+	[InlineData("plan", true)]
+	public async Task SegmentMetadata_IsConsistentForCandidateEndpoints(string endpoint, bool annotated)
+	{
+		var provider = new Provider((seed, _) =>
+		{
+			var path = Path(seed, 20000);
+			var length = RouteGeometryMetrics.EdgeLengths(path.Points, default).Sum();
+			return Task.FromResult(annotated ? path with { Evidence = new(length, true, true,
+				new(length, 0, 0, 0), new(0, 0, 0, 0, 0, 0, length, 0, 0, 0, 0),
+				[new(0, 3, RouteSurface.Asphalt, RouteWayType.Cycleway)]) } : path);
+		});
+		var advisor = new Advisor((_, _) => throw new InvalidOperationException());
+		using var app = With(provider, advisor);
+		using var client = Client(app);
+		using var response = await client.PostAsync($"/api/routes/{endpoint}", new StringContent(Body, Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
+		response.EnsureSuccessStatusCode();
+		using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+		var search = endpoint == "plan" ? json.RootElement.GetProperty("search") : json.RootElement;
+		Assert.Equal(endpoint == "plan" ? 2 : 3, provider.Calls);
+		Assert.Equal(0, advisor.Calls);
+		foreach (var candidate in search.GetProperty("candidates").EnumerateArray())
+		{
+			var route = candidate.GetProperty("route");
+			Assert.True(route.TryGetProperty("segments", out var segments), "API must expose segment evidence.");
+			Assert.Equal(1, segments.GetArrayLength());
+			Assert.Equal(0, segments[0].GetProperty("fromPointIndex").GetInt32());
+			Assert.Equal(3, segments[0].GetProperty("toPointIndex").GetInt32());
+			Assert.Equal(annotated ? "asphalt" : "unknown", segments[0].GetProperty("surface").GetString());
+			Assert.Equal(annotated ? "cycleway" : "unknown", segments[0].GetProperty("wayType").GetString());
+			Assert.Equal(GpxWriter.Write(Path(candidate.GetProperty("seed").GetInt32(), 20000)), route.GetProperty("gpx").GetString());
+		}
+	}
+
 	private static RoutedPath Path(int seed, double distance = 28000) => new(
 		[new(new(32, 34), 1), new(new(32 + seed * 0.001, 34.01), 2), new(new(32.01, 34.02), 3), new(new(32, 34), 1)], distance, 3600, 100, 100, "test");
 	private sealed class Provider(Func<int, CancellationToken, Task<RoutedPath>> run) : IRoutingProvider
