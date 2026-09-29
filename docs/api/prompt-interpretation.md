@@ -2,7 +2,8 @@
 
 POST `/api/route-intents/interpret` interprets preferences only. It makes at most
 one Gemini call and never calls ORS, generates coordinates/GPX, or saves a prompt.
-Implementation is offline-tested; real model quality is not yet qualified.
+Implementation is offline-tested. The current live corpus passed 34/34 cases on
+2026-09-29; this qualifies that corpus, not production reliability or all prompts.
 
 ## Request and response
 

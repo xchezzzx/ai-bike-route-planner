@@ -36,7 +36,7 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    Offline tests pass. After an initial quota-limited evaluation, a paced live
    run attempted all 25 cases: 15 passed, nine received upstream HTTP 503, and
    one injection case was falsely rejected as unsupported. No 429 in that run.
-   Full live qualification remains open; see the execution evidence.
+   Those initial runs did not complete live qualification; see the later evidence.
    Prompt contract v2 clarified injection handling: EN/RU/HE injection scenarios
    received correct successful responses; the latest original 25-case run had
    11 passes and 14 upstream 503 failures. No mismatches among those 11 responses.
@@ -50,8 +50,9 @@ service area: Israel. Languages: English, Hebrew (RTL), and Russian.
    Stage 6b remains future work:
    AI guides candidate construction/refinement through routing tools; graph-based
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
-   A [bounded refinement design](api/agentic-refinement-design.md) is proposed
-   for review; it is not implemented or an approved execution plan.
+   The [bounded refinement design](api/agentic-refinement-design.md) was approved
+   on 2026-09-29. Its [implementation plan](plans/2026-09-29-agentic-refinement.md)
+   awaits review; product implementation has not started.
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
    Implemented and merged through PR #10, with manual input as a

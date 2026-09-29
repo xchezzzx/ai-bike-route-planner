@@ -1,6 +1,7 @@
 # Stage 6b: Bounded AI Route Refinement
 
-Status: proposed design for review, not implemented or an approved execution plan.
+Status: design approved by the user on 2026-09-29; not implemented.
+The [implementation plan](../plans/2026-09-29-agentic-refinement.md) awaits review.
 The user wants AI involvement in route generation, not only prompt parsing,
 within the existing .NET modular monolith, React UI and free-service constraints.
 
@@ -101,5 +102,5 @@ owned, not model prose or claims about legal access, fitness, safety or surfaces
 - Field/access checks and Garmin/Wahoo import remain human acceptance. Public
   deployment and account changes are outside this spec.
 
-Next: review this written design, then write and review the task-by-task
-implementation plan before coding the new orchestration module.
+Next: review the task-by-task implementation plan before coding the new
+orchestration module. Preserve the agreed autonomous execution and CI gates.
