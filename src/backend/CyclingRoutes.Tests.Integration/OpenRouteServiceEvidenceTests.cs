@@ -110,9 +110,78 @@ public class OpenRouteServiceEvidenceTests
 		Assert.Equal(20000, route.DistanceMeters);
 	}
 
-	internal static async Task<RoutedPath> Read(string extras)
+	[Fact]
+	public async Task Segments_PreserveIndependentBoundariesAndZeroLengthEdges()
 	{
-		var body = $$$$"""{"type":"FeatureCollection","features":[{"geometry":{"type":"LineString","coordinates":[[0,0],[1,0],[2,0]]},"properties":{"summary":{"distance":20000,"duration":3600},"extras":{{{{extras}}}}}}]}""";
+		var route = await Read("""{"surface":{"values":[[0,2,3],[2,3,10]]},"waytype":{"values":[[0,1,6],[1,3,2]]}}""", "[[0,0],[1,0],[1,0],[2,0]]");
+		var segments = SegmentJson(route);
+		Assert.Equal(3, segments.GetArrayLength());
+		AssertSegment(segments[0], 0, 1, "Asphalt", "Cycleway");
+		AssertSegment(segments[1], 1, 2, "Asphalt", "Road");
+		AssertSegment(segments[2], 2, 3, "Unpaved", "Road");
+		Assert.InRange(route.Evidence!.Surface.PavedMeters, 111195, 111196);
+		Assert.InRange(route.Evidence.Surface.NonRoadMeters, 111195, 111196);
+	}
+
+	[Theory]
+	[InlineData(0, "Unknown")]
+	[InlineData(1, "Paved")]
+	[InlineData(2, "Unpaved")]
+	[InlineData(3, "Asphalt")]
+	[InlineData(4, "Paved")]
+	[InlineData(5, "Other")]
+	[InlineData(6, "Other")]
+	[InlineData(7, "Other")]
+	[InlineData(8, "Unpaved")]
+	[InlineData(9, "Unpaved")]
+	[InlineData(10, "Unpaved")]
+	[InlineData(11, "Unpaved")]
+	[InlineData(12, "Unpaved")]
+	[InlineData(13, "Unpaved")]
+	[InlineData(14, "Other")]
+	[InlineData(15, "Unpaved")]
+	[InlineData(16, "Unpaved")]
+	[InlineData(17, "Unpaved")]
+	[InlineData(18, "Unpaved")]
+	[InlineData(999, "Unknown")]
+	public async Task Segments_CoalesceNormalizedPairs(int code, string expected)
+	{
+		var route = await Read($$$"""{"surface":{"values":[[0,1,{{{code}}}],[1,2,{{{code}}}]]}}""");
+		var segments = SegmentJson(route);
+		Assert.Equal(1, segments.GetArrayLength());
+		AssertSegment(segments[0], 0, 2, expected, "Unknown");
+	}
+
+	[Fact]
+	public async Task Segments_FillGapsWithoutInferringSurfaceFromWayType()
+	{
+		var route = await Read("""{"surface":{"values":[[1,2,4]]},"waytype":{"values":[[0,2,6]]}}""");
+		var segments = SegmentJson(route);
+		AssertSegment(segments[0], 0, 1, "Unknown", "Cycleway");
+		AssertSegment(segments[1], 1, 2, "Paved", "Cycleway");
+		AssertSegment(SegmentJson(await Read("null"))[0], 0, 2, "Unknown", "Unknown");
+	}
+
+	private static JsonElement SegmentJson(RoutedPath route)
+	{
+		var options = new JsonSerializerOptions();
+		options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+		var evidence = JsonSerializer.SerializeToElement(route.Evidence, options);
+		Assert.True(evidence.TryGetProperty("Segments", out var segments), "Segment evidence must survive parsing.");
+		return segments;
+	}
+
+	private static void AssertSegment(JsonElement segment, int from, int to, string surface, string way)
+	{
+		Assert.Equal(from, segment.GetProperty("FromPointIndex").GetInt32());
+		Assert.Equal(to, segment.GetProperty("ToPointIndex").GetInt32());
+		Assert.Equal(surface, segment.GetProperty("Surface").GetString());
+		Assert.Equal(way, segment.GetProperty("WayType").GetString());
+	}
+
+	internal static async Task<RoutedPath> Read(string extras, string coordinates = "[[0,0],[1,0],[2,0]]")
+	{
+		var body = $$$$"""{"type":"FeatureCollection","features":[{"geometry":{"type":"LineString","coordinates":{{{{coordinates}}}}},"properties":{"summary":{"distance":20000,"duration":3600},"extras":{{{{extras}}}}}}]}""";
 		using var client = new HttpClient(new OpenRouteServiceProviderTests.StubHandler((_, _) => Task.FromResult(OpenRouteServiceProviderTests.Response(200, body))));
 		return await new OpenRouteServiceProvider(client, new() { ApiKey = "test" }).GetRoadLoopAsync(new(0, 0), 20000, 1, TestContext.Current.CancellationToken);
 	}

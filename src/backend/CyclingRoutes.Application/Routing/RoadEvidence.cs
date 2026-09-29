@@ -7,4 +7,4 @@ public sealed record WayBreakdown(double UnknownMeters, double StateRoadMeters, 
 	double FerryMeters, double ConstructionMeters);
 
 public sealed record RoadEvidence(double GeometryLengthMeters, bool SurfaceSupplied, bool WaytypeSupplied,
-	SurfaceBreakdown Surface, WayBreakdown Ways);
+	SurfaceBreakdown Surface, WayBreakdown Ways, IReadOnlyList<RouteSegment>? Segments = null);
