@@ -173,9 +173,11 @@ before persistence, without requiring an LLM to invent place names.
   rounding, unavailable place names, filename sanitization and consistency
   across UI/GPX/downloads are covered by tests.
 
-## Planned addition: current location as start
+## Implemented addition: current location as start
 
-Requested on 2026-09-29; not implemented. Small frontend usability task using
+Requested on 2026-09-29; implemented on `oleg/start-geolocation`, pending CI/merge.
+See the [implementation and verification record](plans/2026-09-29-start-geolocation.md).
+Small frontend usability task using
 the existing coordinate-selection/invalidation flow; no new backend endpoint,
 paid service, API key, native app or location history required.
 
