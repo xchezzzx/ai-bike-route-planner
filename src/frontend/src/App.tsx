@@ -17,6 +17,8 @@ export default function App() {
   const [health, setHealth] = useState<MessageKey>('apiChecking');
   const healthRequest = useRef<AbortController | null>(null);
   const chosen = results?.candidates[selected];
+  const isLoop = inputs.manual.shape === 'loop';
+  const activePick = isLoop ? 'start' : pick;
 
   async function checkHealth() {
     healthRequest.current?.abort();
@@ -67,13 +69,14 @@ export default function App() {
       <aside className="controls" aria-label={text('request')}>
         <section className="control-section">
           <h2><MapPin size={17} />{text('coordinates')}</h2>
-          <fieldset className="segmented"><legend className="sr-only">{text('pickPoint')}</legend>{(['start', 'destination'] as const).map(field => <label key={field}><input type="radio" name="pick" checked={pick === field} onChange={() => setPick(field)} /><span>{text(field)}</span></label>)}</fieldset>
-          {coordinates('start')}{coordinates('destination')}
+          <fieldset className="segmented"><legend className="sr-only">{text('shape')}</legend>{(['loop', 'pointToPoint'] as const).map(shape => <label key={shape}><input type="radio" name="shape" checked={inputs.manual.shape === shape} onChange={() => { setPick('start'); update({ manual: { ...inputs.manual, shape } }); }} /><span>{codeText(locale, shape)}</span></label>)}</fieldset>
+          {!isLoop && <fieldset className="segmented"><legend className="sr-only">{text('pickPoint')}</legend>{(['start', 'destination'] as const).map(field => <label key={field}><input type="radio" name="pick" checked={activePick === field} onChange={() => setPick(field)} /><span>{text(field)}</span></label>)}</fieldset>}
+          {coordinates('start')}{!isLoop && coordinates('destination')}
         </section>
         <section className="control-section">
           <fieldset className="segmented"><legend className="sr-only">{text('inputMode')}</legend>{(['prompt', 'manual'] as const).map(mode => <label key={mode}><input type="radio" name="mode" checked={inputs.mode === mode} onChange={() => update({ mode })} /><span>{text(mode === 'prompt' ? 'promptMode' : 'manualMode')}</span></label>)}</fieldset>
           {inputs.mode === 'prompt' ? <label className="prompt-label">{text('prompt')}<textarea rows={4} maxLength={4000} value={inputs.prompt} onChange={event => update({ prompt: event.target.value })} /></label> : <div className="manual-fields">
-            {(['shape', 'profile', 'elevation'] as const).map(key => <label key={key}>{text(key)}<select aria-label={text(key)} value={inputs.manual[key]} onChange={event => update({ manual: { ...inputs.manual, [key]: event.target.value } })}>{(key === 'shape' ? ['loop', 'pointToPoint'] : key === 'profile' ? ['road', 'gravel'] : ['balanced', 'minimize', 'seekClimbs']).map(value => <option key={value} value={value} disabled={value === 'gravel' || key === 'elevation' && inputs.manual.shape === 'pointToPoint' && value !== 'balanced'}>{codeText(locale, value)}</option>)}</select></label>)}
+            {(['profile', 'elevation'] as const).map(key => <label key={key}>{text(key)}<select aria-label={text(key)} value={inputs.manual[key]} onChange={event => update({ manual: { ...inputs.manual, [key]: event.target.value } })}>{(key === 'profile' ? ['road', 'gravel'] : ['balanced', 'minimize', 'seekClimbs']).map(value => <option key={value} value={value} disabled={value === 'gravel' || key === 'elevation' && !isLoop && value !== 'balanced'}>{codeText(locale, value)}</option>)}</select></label>)}
             <div className="target-fields">{(['distance', 'duration'] as const).map(key => <label key={key}>{text(key === 'distance' ? 'distanceInput' : 'durationInput')}<input dir="ltr" inputMode="decimal" value={inputs.manual[key]} onChange={event => update({ manual: { ...inputs.manual, [key]: event.target.value } })} /></label>)}</div>
           </div>}
           <button className="secondary wide" type="button" disabled={!!pending} onClick={() => void planner.prepare()}><Search size={17} />{text(inputs.mode === 'prompt' ? 'interpret' : 'validate')}</button>
@@ -94,7 +97,7 @@ export default function App() {
         </div>
       </aside>
       <div className="map-and-results">
-        <RouteMap locale={locale} start={point('start')} destination={point('destination')} pick={pick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => update({ [pick]: { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) } })} />
+        <RouteMap locale={locale} start={point('start')} destination={isLoop ? undefined : point('destination')} pick={activePick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => update({ [activePick]: { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) } })} />
         {results ? <section className="results" aria-label={text('routes')}>
           <div className="results-heading"><h2>{text('routes')} <span className="count">{results.candidates.length}</span></h2>{chosen && <button type="button" className="icon-button download" title={text('download')} aria-label={text('download')} onClick={download}><Download size={20} /><span dir="ltr">GPX</span></button>}</div>
           {chosen ? <>

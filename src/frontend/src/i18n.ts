@@ -118,6 +118,7 @@ const messages = {
   must_be_positive: ['Use a value greater than zero.', 'Укажите значение больше нуля.', 'נא לציין ערך גדול מאפס.'],
   out_of_range: ['Use a value within the supported range.', 'Укажите значение в допустимом диапазоне.', 'נא לציין ערך בטווח המותר.'],
   destination_not_allowed: ['Remove the destination for a loop.', 'Для кольцевого маршрута уберите финиш.', 'במסלול מעגלי יש להסיר את היעד.'],
+  route_shape_conflict: ['The request describes a different route shape. Change the selected mode or edit the request.', 'В запросе указан другой тип маршрута. Переключите режим или измените запрос.', 'הבקשה מתארת סוג מסלול אחר. יש לשנות את המצב שנבחר או לערוך את הבקשה.'],
   must_differ_from_start: ['Choose a destination different from the start.', 'Выберите финиш, отличный от старта.', 'נא לבחור יעד שונה מנקודת ההתחלה.'],
   ambiguous: ['Clarify which value you want.', 'Уточните желаемое значение.', 'נא להבהיר מהו הערך הרצוי.'],
   location_requires_map_selection: ['Select coordinates and remove the location text from the request.', 'Выберите координаты и уберите описание места из запроса.', 'בחרו קואורדינטות והסירו את תיאור המיקום מהבקשה.'],

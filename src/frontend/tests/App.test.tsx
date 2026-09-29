@@ -42,6 +42,69 @@ async function prepareRefinement() {
   return user;
 }
 
+it('uses one shape control and restores the inactive destination when returning to A-B', async () => {
+  const user = await setupPrompt();
+  expect(screen.getByRole('radio', { name: 'Loop' })).toBeChecked();
+  expect(screen.queryByLabelText('Destination latitude')).not.toBeInTheDocument();
+  expect(screen.queryByRole('radio', { name: 'Destination' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  await user.type(screen.getByLabelText('Destination latitude'), '32.1');
+  await user.type(screen.getByLabelText('Destination longitude'), '34.8');
+  await user.click(screen.getByRole('radio', { name: 'Destination' }));
+  await user.click(screen.getByRole('radio', { name: 'Loop' }));
+  expect(screen.queryByLabelText('Destination latitude')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('radio', { name: 'Manual' }));
+  expect(screen.queryByRole('combobox', { name: 'Route shape' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  expect(screen.getByLabelText('Destination latitude')).toHaveValue('32.1');
+  expect(screen.getByLabelText('Destination longitude')).toHaveValue('34.8');
+  expect(screen.getByRole('radio', { name: 'Start' })).toBeChecked();
+});
+
+it.each(['Prompt', 'Manual'])('omits even malformed hidden destination in %s mode', async mode => {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  await user.type(screen.getByLabelText('Destination latitude'), 'bad');
+  await user.click(screen.getByRole('radio', { name: 'Loop' }));
+  if (mode === 'Manual') {
+    await user.click(screen.getByRole('radio', { name: 'Manual' }));
+    await user.type(screen.getByLabelText('Distance (km)'), '25');
+  }
+  await user.click(screen.getByRole('button', { name: mode === 'Manual' ? 'Validate preferences' : 'Interpret request' }));
+  await screen.findByText('Ready to generate');
+  expect(posts).toHaveLength(1);
+  expect(posts[0].body).not.toHaveProperty('destination');
+});
+
+it.each([false, true])('requires clarification when prompt shape contradicts selection (A-B=%s)', async ab => {
+  const user = await setupPrompt();
+  if (ab) await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  const conflicting = ab ? intent : { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 } };
+  replies.interpret = { ...interpretation, draft: conflicting, intent: conflicting };
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  expect(await screen.findByText('The request describes a different route shape. Change the selected mode or edit the request.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+  expect(screen.queryByText('Ready to generate')).not.toBeInTheDocument();
+});
+
+it('switching shape clears results and fences late preparation', async () => {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('button', { name: 'Download GPX' });
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
+  let resolve!: (response: Response) => void;
+  delay = new Promise(done => { resolve = done; });
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  const pendingRequest = posts.at(-1)!;
+  await user.click(screen.getByRole('radio', { name: 'Loop' }));
+  expect(pendingRequest.signal.aborted).toBe(true);
+  await act(async () => { resolve(new Response(JSON.stringify(interpretation))); });
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+  expect(screen.queryByText('Ready to generate')).not.toBeInTheDocument();
+});
+
 it.each([false, true])('shows explained no-match results after a successful result (AI=%s)', async advised => {
   const user = advised ? await prepareRefinement() : await setupPrompt();
   if (!advised) await user.click(screen.getByRole('button', { name: 'Interpret request' }));
@@ -147,6 +210,7 @@ it.each([false, true])('refinement waits beyond 60 seconds and enforces 100-seco
 
 it('ignores previous refinement preference for an A-B intent', async () => {
   const user = await prepareRefinement();
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
   replies.interpret = { ...interpretation, intent: { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 } } };
   await user.type(screen.getByLabelText('Ride request'), ' to destination');
   await user.click(screen.getByRole('button', { name: 'Interpret request' }));
@@ -194,7 +258,7 @@ it('validates manual A-B and sends the backend canonical intent to generation', 
   replies.validate = { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 }, targetDistanceMeters: 25123 };
   const user = await setupPrompt();
   await user.click(screen.getByRole('radio', { name: 'Manual' }));
-  await user.selectOptions(screen.getByLabelText('Route shape'), 'pointToPoint');
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
   await user.type(screen.getByLabelText('Destination latitude'), '32.1');
   await user.type(screen.getByLabelText('Destination longitude'), '34.8');
   await user.type(screen.getByLabelText('Distance (km)'), '25');
@@ -210,7 +274,7 @@ it('validates and generates manual A-B without distance or duration', async () =
   replies.validate = { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 }, targetDistanceMeters: null, targetDurationSeconds: null };
   const user = await setupPrompt();
   await user.click(screen.getByRole('radio', { name: 'Manual' }));
-  await user.selectOptions(screen.getByLabelText('Route shape'), 'pointToPoint');
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
   await user.type(screen.getByLabelText('Destination latitude'), '32.1');
   await user.type(screen.getByLabelText('Destination longitude'), '34.8');
   await user.click(screen.getByRole('button', { name: 'Validate preferences' }));
@@ -239,7 +303,7 @@ it('disables unsupported manual options without discarding a previously selected
   await user.click(screen.getByRole('radio', { name: 'Manual' }));
   expect(screen.getByRole('option', { name: 'Gravel' })).toBeDisabled();
   await user.selectOptions(screen.getByLabelText('Elevation preference'), 'minimize');
-  await user.selectOptions(screen.getByLabelText('Route shape'), 'pointToPoint');
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
   expect(screen.getByRole('option', { name: 'Minimize climbs' })).toBeDisabled();
   expect(screen.getByRole('option', { name: 'Seek climbs' })).toBeDisabled();
   expect(screen.getByLabelText('Elevation preference')).toHaveValue('minimize');

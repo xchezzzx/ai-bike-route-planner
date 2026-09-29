@@ -36,6 +36,44 @@ async function generate(page: Page) {
   await expect(page.getByRole('region', { name: 'Routes', exact: true })).toBeVisible();
 }
 
+for (const locale of ['en', 'ru', 'he'] as const) test(`shape selector hides inactive destination and resets map picking (${locale})`, async ({ page }, testInfo) => {
+  const posts = await mockNetwork(page);
+  await page.goto('/');
+  await page.getByLabel('Start latitude', { exact: true }).fill('32.08');
+  await page.getByLabel('Start longitude', { exact: true }).fill('34.78');
+  await page.getByLabel('Ride request', { exact: true }).fill('A 25 km road loop');
+  await page.getByLabel('Language', { exact: true }).selectOption(locale);
+  const labels = {
+    en: { loop: 'Loop', ab: 'A to B', destination: 'Destination', latitude: 'Destination latitude', longitude: 'Destination longitude', start: 'Start', startLatitude: 'Start latitude', prepare: 'Interpret request' },
+    ru: { loop: 'Кольцевой', ab: 'Из А в Б', destination: 'Финиш', latitude: 'Широта финиша', longitude: 'Долгота финиша', start: 'Старт', startLatitude: 'Широта старта', prepare: 'Разобрать запрос' },
+    he: { loop: 'מעגלי', ab: 'מנקודה לנקודה', destination: 'יעד', latitude: 'קו רוחב של יעד', longitude: 'קו אורך של יעד', start: 'התחלה', startLatitude: 'קו רוחב של התחלה', prepare: 'פירוש הבקשה' },
+  }[locale];
+  await expect(page.getByLabel(labels.latitude, { exact: true })).toHaveCount(0);
+  await page.getByRole('radio', { name: labels.ab, exact: true }).focus();
+  await page.keyboard.press('Space');
+  await page.getByLabel(labels.latitude, { exact: true }).fill('32.1');
+  await page.getByLabel(labels.longitude, { exact: true }).fill('34.8');
+  await expect(page.locator('.map-point.destination')).toHaveCount(1);
+  await page.getByRole('radio', { name: labels.destination, exact: true }).check();
+  await page.screenshot({ path: testInfo.outputPath(`shape-ab-${locale}.png`), fullPage: true });
+  await page.getByRole('radio', { name: labels.loop, exact: true }).check();
+  await expect(page.locator('.map-point.destination')).toHaveCount(0);
+  await expect(page.getByLabel(labels.latitude, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: labels.destination, exact: true })).toHaveCount(0);
+  await page.locator('canvas').click({ position: { x: 160, y: 100 } });
+  await expect(page.getByLabel(labels.startLatitude, { exact: true })).not.toHaveValue('32.08');
+  await page.getByRole('button', { name: labels.prepare, exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0].body).not.toHaveProperty('destination');
+  await page.screenshot({ path: testInfo.outputPath(`shape-loop-${locale}.png`), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('radio', { name: labels.ab, exact: true }).check();
+  await expect(page.getByLabel(labels.latitude, { exact: true })).toHaveValue('32.1');
+  await expect(page.getByLabel(labels.longitude, { exact: true })).toHaveValue('34.8');
+  await expect(page.getByRole('radio', { name: labels.start, exact: true })).toBeChecked();
+  await expect(page.locator('.map-point.destination')).toHaveCount(1);
+});
+
 for (const locale of ['en', 'ru', 'he'] as const) test(`quality selection and cleared no-match map (${locale})`, async ({ page }, testInfo) => {
   await mockNetwork(page);
   let empty = false;
@@ -184,7 +222,7 @@ for (const hasTarget of [false, true]) test(`manual A-B (target=${hasTarget}) va
   await page.goto('/');
   await expect(page.getByText('Map unavailable. Coordinates and GPX remain available.')).toBeVisible();
   await page.getByRole('radio', { name: 'Manual', exact: true }).check();
-  await page.getByLabel('Route shape', { exact: true }).selectOption('pointToPoint');
+  await page.getByRole('radio', { name: 'A to B', exact: true }).check();
   await expect(page.getByRole('option', { name: 'Gravel', exact: true })).toHaveJSProperty('disabled', true);
   await expect(page.getByRole('option', { name: 'Minimize climbs', exact: true })).toHaveJSProperty('disabled', true);
   await page.getByLabel('Cycling profile', { exact: true }).press('End');

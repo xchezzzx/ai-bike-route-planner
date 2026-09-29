@@ -179,11 +179,11 @@ paid service, API key, native app or location history required.
 
 Reference: [Browser Geolocation API](https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurrentPosition).
 
-## Planned addition: Loop / A-B segmented control
+## Implemented addition: Loop / A-B segmented control
 
-Requested on 2026-09-29; not implemented. Use one accessible route-shape
-selector above the coordinate fields in both prompt and manual modes. Replace
-the manual shape dropdown rather than creating a second independent selection.
+Requested and implemented on 2026-09-29 on the feature branch, not merged.
+One accessible route-shape selector above the coordinate fields serves prompt
+and manual modes. The manual shape dropdown is removed.
 
 - Loop: show only start coordinates, hide the destination marker and destination
   pick action, and make map clicks select start. Omit destination from requests;
@@ -193,17 +193,24 @@ the manual shape dropdown rather than creating a second independent selection.
 - Preserve the previous destination only in transient form state for returning
   to A-B; it is inactive in Loop. Switching shape invalidates prepared intent,
   route results and downloads, cancels active work and fences late responses.
-- Prompt and toggle must not silently contradict each other. An explicit user
-  shape choice is a constraint; contradictory prompt intent requires clarification
-  before generation. Define unset/default versus explicit selection and any
-  interpretation-contract changes during design, including corpus requalification
-  if prompt/schema semantics change. Never rewrite a validated intent client-side
-  just to match the visible toggle.
-- Coordinate selection and current-location action share the same start update
-  flow. Labels, keyboard operation and RTL work in EN/RU/HE.
+- The visible selection is a constraint, including the initial Loop default;
+  there is no hidden automatic/unset mode. A conflicting interpreted shape
+  produces a local clarification and no ready intent. Change the toggle or
+  prompt and prepare again. Canonical API intents are never rewritten.
+  Gemini prompts, schemas and API contracts are unchanged; this is a UI
+  consistency check, not a fresh live interpretation qualification.
+- Coordinate selection uses the existing input invalidation flow; the planned
+  current-location action will reuse it. Labels, keyboard operation and RTL
+  work in EN/RU/HE.
 - Tests cover both directions of switching, hidden destination omission/marker
   removal, retained draft destination, map pick reset, conflicting prompt,
   cancelled/stale responses and desktop/mobile layout.
+
+Verification: six new component cases first failed before implementation;
+116 frontend tests, production build and all 34 EN/RU/HE desktop/mobile browser
+cases passed, including six new selector cases. Screenshots inspected in desktop and
+mobile LTR/RTL; independent scoped review found no actionable defects. No live
+ORS/Gemini calls, backend changes or geolocation implementation in this step.
 
 ## Previously proposed service shortlist
 

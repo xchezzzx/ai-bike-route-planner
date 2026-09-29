@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, request } from './api';
+import { codeText } from './i18n';
 import { buildManual, limitations, readCoordinate } from './request';
 import type { Candidate, Candidates, GeneratedRoute, Inputs, Intent, Interpretation, RoutePlan } from './types';
 import { validPlan } from './routePlan';
@@ -54,18 +55,28 @@ export function usePlanner() {
   function prepare() {
     return run(inputs.mode === 'prompt' ? 'interpreting' : 'validating', async signal => {
       const start = readCoordinate(inputs.start, 'start');
-      const destination = readCoordinate(inputs.destination, 'destination');
+      const destination = inputs.manual.shape === 'pointToPoint' ? readCoordinate(inputs.destination, 'destination') : undefined;
       if (inputs.mode === 'prompt') {
         if (!inputs.prompt.trim() || inputs.prompt.length > 4000) throw new ApiError('validation_failed', { prompt: [inputs.prompt.trim() ? 'too_long' : 'required'] });
         const response = await request<Interpretation>('/api/route-intents/interpret', { prompt: inputs.prompt, locale: inputs.locale, ...(start ? { start } : {}), ...(destination ? { destination } : {}) }, signal);
         if (!response.draft || !Array.isArray(response.clarifications) || !Array.isArray(response.limitations) || !Array.isArray(response.assumptions) || !['ready', 'unsupported', 'needsClarification'].includes(response.status)) throw new ApiError('invalid_response');
         if (response.intent && !validIntent(response.intent)) throw new ApiError('invalid_response');
+        const interpretedShape = response.intent?.shape ?? response.draft.shape;
+        if (interpretedShape && interpretedShape !== inputs.manual.shape) {
+          return () => {
+            setInterpretation({ ...response, status: 'needsClarification', intent: null, clarifications: [
+              ...response.clarifications,
+              { field: 'shape', code: 'route_shape_conflict', message: codeText(inputs.locale, 'route_shape_conflict') },
+            ] });
+            setIntent(null);
+          };
+        }
         const ready = response.status === 'ready' && response.intent && !response.limitations.length && !response.clarifications.length && !limitations(response.intent).length;
         return () => { setInterpretation(response); setIntent(ready ? response.intent : null); };
       }
       const body = buildManual(inputs.manual, start, destination);
       const canonical = await request<Intent>('/api/route-intents/validate', body, signal);
-      if (!validIntent(canonical)) throw new ApiError('invalid_response');
+      if (!validIntent(canonical) || canonical.shape !== inputs.manual.shape) throw new ApiError('invalid_response');
       const blocked = limitations(canonical);
       return () => {
         setInterpretation({ status: blocked.length ? 'unsupported' : 'ready', draft: canonical, intent: canonical, assumptions: [], clarifications: [], limitations: blocked });
