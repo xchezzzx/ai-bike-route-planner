@@ -41,6 +41,13 @@ export interface Candidates {
   warnings: string[];
   candidates: Candidate[];
 }
+export interface RoutePlan {
+  search: Candidates;
+  advisorCallCount: number;
+  advisorStatus: 'notNeeded' | 'skippedNoCandidates' | 'skippedRoutingFailure' | 'searched' | 'stopped' | 'failed';
+  advisorFailure: 'notConfigured' | 'authentication' | 'quota' | 'unavailable' | 'timeout' | 'invalidResponse' | null;
+  attempts: { seed: number; requestedLengthMeters: number; outcome: 'accepted' | 'duplicate' | 'noRoute' | 'failed'; reason: 'distance' | 'duration' | 'elevation' | 'explore' | 'stop'; failure: string | null }[];
+}
 export interface ManualInput { shape: string; profile: string; elevation: string; distance: string; duration: string }
 export interface Inputs {
   locale: Locale;

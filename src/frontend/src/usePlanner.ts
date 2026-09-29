@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, request } from './api';
 import { buildManual, limitations, readCoordinate } from './request';
-import type { Candidate, Candidates, GeneratedRoute, Inputs, Intent, Interpretation } from './types';
+import type { Candidate, Candidates, GeneratedRoute, Inputs, Intent, Interpretation, RoutePlan } from './types';
+import { validPlan } from './routePlan';
 
 const initial: Inputs = { locale: 'en', mode: 'prompt', prompt: '', start: { latitude: '', longitude: '' }, destination: { latitude: '', longitude: '' }, manual: { shape: 'loop', profile: 'road', elevation: 'balanced', distance: '', duration: '' } };
 type Pending = 'interpreting' | 'validating' | 'generating' | null;
@@ -10,6 +11,8 @@ export function usePlanner() {
   const [interpretation, setInterpretation] = useState<Interpretation | null>(null);
   const [intent, setIntent] = useState<Intent | null>(null);
   const [results, setResults] = useState<Candidates | null>(null);
+  const [refine, setRefineValue] = useState(false);
+  const [planning, setPlanning] = useState<RoutePlan | null>(null);
   const [selected, setSelected] = useState(0);
   const [pending, setPending] = useState<Pending>(null);
   const [error, setError] = useState<ApiError | null>(null);
@@ -20,7 +23,12 @@ export function usePlanner() {
     revision.current++;
     active.current?.abort();
     active.current = null;
-    setPending(null); setError(null); setIntent(null); setInterpretation(null); setResults(null); setSelected(0);
+    setPending(null); setError(null); setIntent(null); setInterpretation(null); setResults(null); setPlanning(null); setSelected(0);
+  }
+  function setRefine(value: boolean) {
+    revision.current++;
+    active.current?.abort(); active.current = null;
+    setPending(null); setError(null); setResults(null); setPlanning(null); setSelected(0); setRefineValue(value);
   }
   function update(patch: Partial<Inputs>) { invalidate(); setInputs(current => ({ ...current, ...patch })); }
   useEffect(() => () => { revision.current++; active.current?.abort(); }, []);
@@ -30,7 +38,7 @@ export function usePlanner() {
     const version = ++revision.current;
     const controller = new AbortController();
     active.current = controller;
-    setPending(kind); setError(null); setResults(null); setSelected(0);
+    setPending(kind); setError(null); setResults(null); setPlanning(null); setSelected(0);
     if (kind !== 'generating') { setIntent(null); setInterpretation(null); }
     try {
       const commit = await operation(controller.signal);
@@ -68,17 +76,22 @@ export function usePlanner() {
     if (!intent) return;
     return run('generating', async signal => {
       let response: Candidates;
-      if (intent.shape === 'loop') response = await request<Candidates>('/api/routes/candidates', intent, signal);
+      let plan: RoutePlan | null = null;
+      if (intent.shape === 'loop' && intent.profile === 'road' && refine) {
+        plan = await request<RoutePlan>('/api/routes/plan', intent, signal, 100000);
+        if (!validPlan(plan)) throw new ApiError('invalid_response');
+        response = plan.search;
+      } else if (intent.shape === 'loop') response = await request<Candidates>('/api/routes/candidates', intent, signal);
       else {
         const route = await request<GeneratedRoute>('/api/routes/generate', intent, signal);
         response = { requestedLengthMeters: 0, attemptedCount: 1, assumptions: [], warnings: [], candidates: [{ seed: 0, assessment: null, route }] };
       }
       if (!Array.isArray(response.candidates) || !response.candidates.length || !response.candidates.every(validRoute) || !Array.isArray(response.warnings) || !Array.isArray(response.assumptions)) throw new ApiError('invalid_response');
-      return () => setResults(response);
+      return () => { setResults(response); setPlanning(plan); };
     });
   }
   function cancel() { invalidate(); setError(new ApiError('cancelled')); }
-  return { inputs, update, interpretation, intent, results, selected, select: setSelected, pending, error, prepare, generate, cancel };
+  return { inputs, update, interpretation, intent, results, selected, select: setSelected, pending, error, prepare, generate, cancel, refine, setRefine, planning };
 }
 
 function validIntent(intent: Intent): boolean {

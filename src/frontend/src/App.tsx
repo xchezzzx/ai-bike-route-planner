@@ -85,6 +85,7 @@ export default function App() {
           <Notices codes={interpretation.assumptions} locale={locale} title="assumptions" />
         </section>}
         <div className="generate-section">
+          {intent?.shape === 'loop' && intent.profile === 'road' && <label className="refinement-toggle"><input type="checkbox" checked={planner.refine} onChange={event => planner.setRefine(event.target.checked)} />{text('refinement')}</label>}
           {!intent && !pending && <p id="generation-state" className="generation-state" role="status">{text(interpretation?.status ?? 'notValidated')}</p>}
           <button className="primary wide" type="button" aria-describedby={!intent && !pending ? 'generation-state' : undefined} disabled={!intent || !!pending} onClick={() => void planner.generate()}><Route size={18} />{text('generate')}</button>
           {pending && <div className="pending" role="status"><LoaderCircle className="spinner" size={17} /><span>{text(pending)}</span><button type="button" className="icon-button" title={text('cancel')} aria-label={text('cancel')} onClick={planner.cancel}><Square size={16} /></button></div>}
@@ -104,6 +105,20 @@ export default function App() {
           {chosen.assessment && <dl className="comparison"><div><dt>{text('searchDistance')}</dt><dd dir="ltr">{quantity(locale, results.requestedLengthMeters, 'km', 1000)}</dd></div>{chosen.assessment.distanceDeltaMeters != null && <div><dt>{text('distanceDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.distanceDeltaMeters, 'km', 1000)}</dd></div>}{chosen.assessment.durationDeltaSeconds != null && <div><dt>{text('durationDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.durationDeltaSeconds, 'min', 60)}</dd></div>}</dl>}
           <Notices codes={[...results.warnings, ...chosen.route.warnings]} locale={locale} title="warnings" />
           <Notices codes={results.assumptions} locale={locale} title="assumptions" />
+          {planner.planning && <div className="planning-summary">
+            <p role="status">{codeText(locale, `advisor_${planner.planning.advisorStatus}`)}</p>
+            {planner.planning.advisorFailure && <p>{codeText(locale, `advisor_error_${planner.planning.advisorFailure}`)}</p>}
+            <details><summary>{text('searchDetails')}</summary>
+              <p>{text('advisorCalls')}: {planner.planning.advisorCallCount}</p>
+              <ol className="attempt-list">{planner.planning.attempts.map(attempt => <li key={attempt.seed}>
+                <span>{text('seed')} <b dir="ltr">{attempt.seed}</b></span>
+                <span dir="ltr">{quantity(locale, attempt.requestedLengthMeters, 'km', 1000)}</span>
+                <span>{codeText(locale, `search_reason_${attempt.reason}`)}</span>
+                <span>{codeText(locale, `search_outcome_${attempt.outcome}`)}</span>
+                {attempt.failure && <span>{codeText(locale, attempt.failure)}</span>}
+              </li>)}</ol>
+            </details>
+          </div>}
           <p className="safety">{text('safety')}</p><p className="route-attribution" dir="auto">{chosen.route.attribution}</p>
         </section> : <div className="empty-state">{text('empty')}</div>}
       </div>

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
 import { basemap, cyclingBasemap } from './basemap';
-import { candidates, intent, interpretation, route } from '../tests/fixtures';
+import { candidates, intent, interpretation, route, refinement } from '../tests/fixtures';
 
 async function mockNetwork(page: Page, mapFails = false, style = basemap) {
   const posts: { path: string; body: unknown }[] = [];
@@ -35,6 +35,39 @@ async function generate(page: Page) {
   await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Routes', exact: true })).toBeVisible();
 }
+
+for (const fallback of [false, true]) test(`AI refinement trace and selected GPX (fallback=${fallback})`, async ({ page }, testInfo) => {
+  await mockNetwork(page);
+  const calls: unknown[] = [];
+  await page.route('**/api/routes/plan', async intercepted => {
+    calls.push(intercepted.request().postDataJSON());
+    await intercepted.fulfill({ json: fallback ? { ...refinement, advisorStatus: 'failed', advisorFailure: 'quota', search: { ...candidates, warnings: ['advisor_fallback'] } } : refinement });
+  });
+  await page.goto('/');
+  await prompt(page);
+  await expect(page.getByRole('checkbox', { name: 'AI refinement', exact: true })).not.toBeChecked();
+  await page.getByRole('checkbox', { name: 'AI refinement', exact: true }).check();
+  expect(calls).toHaveLength(0);
+  await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
+  await expect(page.getByText(fallback ? 'AI unavailable; ordinary search retained' : 'AI-guided search completed', { exact: true })).toBeVisible();
+  await page.getByText('Search details', { exact: true }).click();
+  await expect(page.getByText('Duplicate route', { exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: /Route 2/ }).check();
+  const downloaded = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download GPX', exact: true }).click();
+  expect(await readFile((await (await downloaded).path())!, 'utf8')).toBe(candidates.candidates[1].route.gpx);
+  expect(calls).toEqual([intent]);
+  await page.screenshot({ path: testInfo.outputPath('refinement-en.png'), fullPage: true });
+  await page.getByLabel('Language', { exact: true }).selectOption('he');
+  await page.getByRole('button', { name: 'פירוש הבקשה', exact: true }).click();
+  await expect(page.getByRole('checkbox', { name: 'עידון באמצעות AI', exact: true })).toBeChecked();
+  await page.getByRole('button', { name: 'יצירת מסלולים', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'מסלולים', exact: true })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await page.getByText('פרטי החיפוש', { exact: true }).click();
+  await expect(page.getByText('מסלול כפול', { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('refinement-he.png'), fullPage: true });
+});
 
 for (const subclass of ['cycleway', 'footway'] as const) test(`map distinguishes ${subclass} even when bicycle=yes`, async ({ page }, testInfo) => {
   await mockNetwork(page, false, cyclingBasemap(subclass));

@@ -26,3 +26,12 @@ export const candidates: Candidates = {
     { seed: 2, assessment: { distanceDeltaMeters: 2500, durationDeltaSeconds: null, targetsMatched: false, score: 0.1 }, route: { ...route, distanceMeters: 27500, ascentMeters: 120, descentMeters: 110, geometry: [route.geometry[0], { latitude: 32.06, longitude: 34.82, elevationMeters: 20 }, { latitude: 32.04, longitude: 34.79, elevationMeters: 30 }, route.geometry[0]], warnings: ['targets_not_met'], gpx: '<?xml version="1.0" encoding="UTF-8"?><gpx><trk><name>Test route 2 שלום</name></trk></gpx>' } },
   ],
 };
+
+export const refinement = {
+  search: candidates, advisorCallCount: 1, advisorStatus: 'searched', advisorFailure: null,
+  attempts: [
+    { seed: 1, requestedLengthMeters: 25000, outcome: 'accepted', reason: 'explore', failure: null },
+    { seed: 2, requestedLengthMeters: 25000, outcome: 'accepted', reason: 'explore', failure: null },
+    { seed: 7, requestedLengthMeters: 22000, outcome: 'duplicate', reason: 'distance', failure: null },
+  ],
+};

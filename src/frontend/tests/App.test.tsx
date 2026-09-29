@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import App from '../src/App';
-import { candidates, intent, interpretation, route } from './fixtures';
+import { candidates, intent, interpretation, route, refinement } from './fixtures';
 
 // jsdom has no WebGL; the browser suite exercises the actual MapLibre canvas.
 vi.mock('../src/RouteMap', () => ({ default: () => <div /> }));
@@ -13,7 +13,7 @@ let delay: Promise<Response> | undefined;
 beforeEach(() => {
   posts = [];
   delay = undefined;
-  replies = { interpret: interpretation, validate: intent, candidates, generate: route };
+  replies = { interpret: interpretation, validate: intent, candidates, generate: route, plan: refinement };
   vi.stubGlobal('fetch', vi.fn((path: string, options: RequestInit) => {
     if (path === '/health') return Promise.resolve(new Response('Healthy'));
     posts.push({ path, body: JSON.parse(String(options.body)), signal: options.signal as AbortSignal });
@@ -29,6 +29,97 @@ async function setupPrompt() {
   await user.type(screen.getByLabelText('Ride request'), 'A 25 km road loop');
   return user;
 }
+
+async function prepareRefinement() {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await screen.findByText('Ready to generate');
+  const toggle = screen.getByRole('checkbox', { name: 'AI refinement' });
+  expect(toggle).not.toBeChecked();
+  await user.click(toggle);
+  expect(posts).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeEnabled();
+  return user;
+}
+
+it('opts into refinement only on Generate and renders application-owned trace', async () => {
+  const user = await prepareRefinement();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('region', { name: 'Routes' });
+  expect(posts[1]).toMatchObject({ path: '/api/routes/plan', body: intent });
+  expect(screen.getByText('AI-guided search completed')).toBeInTheDocument();
+  await user.click(screen.getByText('Search details'));
+  expect(screen.getByText('Duplicate route')).toBeInTheDocument();
+  expect(posts).toHaveLength(2);
+});
+
+it.each([
+  ['failed', 'quota', 'AI unavailable; ordinary search retained'],
+  ['stopped', null, 'Advisor stopped further search'],
+])('renders %s status without model prose', async (advisorStatus, advisorFailure, label) => {
+  replies.plan = { ...refinement, advisorStatus, advisorFailure, ...(advisorStatus === 'stopped' ? { search: { ...candidates, attemptedCount: 2 }, attempts: refinement.attempts.slice(0, 2) } : {}) };
+  const user = await prepareRefinement();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  expect(await screen.findByText(label!)).toBeInTheDocument();
+});
+
+it.each([
+  { advisorStatus: 'model free text' }, { advisorFailure: 'private secret' }, { advisorCallCount: 2 },
+  { attempts: [{ ...refinement.attempts[0], outcome: 'unknown' }] },
+  { attempts: [{ ...refinement.attempts[0], requestedLengthMeters: -1 }, ...refinement.attempts.slice(1)] },
+  { attempts: [{ ...refinement.attempts[0], reason: 'safe road' }, ...refinement.attempts.slice(1)] },
+  { attempts: [{ ...refinement.attempts[0], failure: 'private secret' }, ...refinement.attempts.slice(1)] },
+])('rejects invalid refinement metadata %j', async patch => {
+  replies.plan = { ...refinement, ...patch };
+  const user = await prepareRefinement();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The API returned an unusable response.');
+  expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
+});
+
+it('changing refinement cancels and fences a late result while preserving prepared intent', async () => {
+  const user = await prepareRefinement();
+  let resolve!: (value: Response) => void;
+  delay = new Promise(done => { resolve = done; });
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await user.click(screen.getByRole('checkbox', { name: 'AI refinement' }));
+  expect(posts[1].signal.aborted).toBe(true);
+  await act(async () => { resolve(new Response(JSON.stringify(refinement))); });
+  expect(screen.queryByRole('region', { name: 'Routes' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeEnabled();
+});
+
+it.each([false, true])('refinement waits beyond 60 seconds and enforces 100-second deadline (timeout=%s)', async timesOut => {
+  await prepareRefinement();
+  let resolve!: (value: Response) => void;
+  delay = new Promise(done => { resolve = done; });
+  vi.useFakeTimers();
+  fireEvent.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(65000); });
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(posts[1].signal.aborted).toBe(false);
+  if (timesOut) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(35000); });
+    expect(screen.getByRole('alert')).toHaveTextContent('The request timed out. Retry manually.');
+    expect(posts[1].signal.aborted).toBe(true);
+  } else {
+    await act(async () => { resolve(new Response(JSON.stringify(refinement))); });
+    expect(screen.getByRole('region', { name: 'Routes' })).toBeInTheDocument();
+  }
+  vi.useRealTimers();
+});
+
+it('ignores previous refinement preference for an A-B intent', async () => {
+  const user = await prepareRefinement();
+  replies.interpret = { ...interpretation, intent: { ...intent, shape: 'pointToPoint', destination: { latitude: 32.1, longitude: 34.8 } } };
+  await user.type(screen.getByLabelText('Ride request'), ' to destination');
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await screen.findByText('Ready to generate');
+  expect(screen.queryByRole('checkbox', { name: 'AI refinement' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('region', { name: 'Routes' });
+  expect(posts.at(-1)?.path).toBe('/api/routes/generate');
+});
 
 it('interprets first, requires explicit generation, renders real metrics and downloads selected GPX', async () => {
   const user = await setupPrompt();

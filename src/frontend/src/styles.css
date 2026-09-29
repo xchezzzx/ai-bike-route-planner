@@ -111,3 +111,10 @@ dd { margin: 0; text-align: end; overflow-wrap: anywhere; }
   .comparison { grid-template-columns: 1fr; gap: 6px; }
 }
 .generation-state { margin: 0 0 8px; font-size: 13px; color: #765019; }
+.refinement-toggle { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.refinement-toggle input { width: 17px; height: 17px; min-height: 17px; margin: 0; flex-shrink: 0; accent-color: #23664d; }
+.planning-summary { display: grid; gap: 6px; font-size: 12px; overflow-wrap: anywhere; }
+.planning-summary summary { cursor: pointer; padding-block: 6px; font-weight: 600; }
+.attempt-list { padding-inline-start: 20px; margin-block: 6px 0; }
+.attempt-list li { padding-block: 5px; border-bottom: 1px solid #e3e8e5; }
+.attempt-list span { display: inline-block; margin-inline-end: 12px; }
