@@ -1,6 +1,9 @@
 # Advisor diagnostics and local v2 correction
 
-**Merge gate remains blocked. No live v2 qualification or new ORS comparison.**
+**Latest live result: v2 advisor corpus passed 6/6; four-city route comparison did
+not pass. The user subsequently authorized merging after the local adaptive-search
+fix and green CI even without demonstrated live improvement, for later manual
+testing. This changes release acceptance, not the negative evidence below.**
 
 ## Authorized budget and evidence
 
@@ -109,3 +112,90 @@ Actual use of this new budget: **2 Gemini, 0 ORS**. Remaining allowance is at mo
 No comparison, application-code change, service restart, billing change, or merge
 was performed. PR #15 remains Draft. Both workflows on code revision `8f3831e`
 were green; green CI does not replace the failed/incomplete live gate.
+
+## Second authorized v2 live run: 2026-09-29 19:41 UTC
+
+The user requested another live qualification to merge PRs #15, #16 and #17 for
+deployment. Execution retained the previously agreed ceiling of 10 Gemini and
+24 ORS calls, sequentially, without automatic retries or paid fallback.
+
+The exact PR #15 head `8eb9c09005271cfda80904a6cd7a4210c910ee52` was rebuilt in
+a separate worktree in Release (zero warnings/errors). The existing preview was
+not reused or restarted. The advisor test used the freshly built development
+factory; comparison used a temporary loopback API process on port 61876, stopped
+after completion. Credentials stayed in local user-secrets.
+
+Ignored local reports in the `refinement-qualification` worktree:
+
+- `artifacts/advisor-qualification-20260929T194138-6efdd7499e3d4b2fb7cf5471c17659f1.json`
+- `artifacts/refinement-comparison-20260929T224252-62c41c5b.json`
+  (filename uses local time; report `createdAtUtc` is 19:42:52 UTC).
+
+### Advisor contract
+
+All six cases passed. Matching targets and unknown ascent returned stop. Too
+long, too short, duration-only and conflicting extreme observations returned
+valid advice within the unchanged server bounds. The complete corpus, including
+both stop and search responses, is now live-qualified for this run. This is not
+a guarantee of future model availability or route-quality improvement.
+
+### Four-city comparison
+
+| City | Baseline result / retained | Advised result / retained | Advisor outcome |
+| --- | --- | --- | --- |
+| Tel Aviv | passed / 3 | passed / 2 | stopped after two ORS calls |
+| Haifa | incomplete / 0 | noMatch / 0 | searched successfully |
+| Jerusalem | noMatch / 0 | noMatch / 0 | searched successfully |
+| Beersheba | noMatch / 0 | noMatch / 0 | searched successfully |
+
+Tel Aviv's best relative target error remained 0.319% in both arms, with one
+fewer ORS call in the advised arm. Haifa baseline reported `routing_unavailable`
+for one attempt. All other comparison arms reported no routing failure; all
+four advisor calls succeeded. No quotas or unrun arms were reported.
+
+Routes in the other three cities were excluded for missing the original target;
+some baseline candidates in Haifa and Beersheba also exceeded the non-road-surface
+limit. No matching candidate was available there. The full comparison runner
+correctly exited 1: `noMatch` and incomplete runs are not successful route-quality
+qualification. No thresholds, tests, corpus or runner semantics were relaxed.
+
+Actual total: **10 Gemini (6 corpus + 4 comparison), 23 ORS**, no repeats. The
+advised arm saved one ORS call by stopping in Tel Aviv. There is no demonstrated
+general route-quality improvement. Gemini's earlier 503 was not reproduced in
+this run, which does not establish an ongoing provider recovery guarantee.
+
+The user was asked whether to accept these known limitations for a test release,
+keeping refinement opt-in and making no quality-improvement claim. Until that
+explicit release decision, all three PRs remain Draft/unmerged. Successful CI
+does not convert the failed comparison into a passed gate.
+
+## Adaptive calibration and release decision
+
+After first declining a limited test release, the user approved adaptive length
+calibration and explicitly authorized merging PRs #15-#17 after green CI even if
+quality improvement is not established, to avoid a dependent PR queue and perform
+manual testing later. Refinement remains opt-in/off by default. No new provider
+budget was used for this correction; the live reports above precede it.
+
+Both deterministic search and the advised search's second attempt/fallback now
+use the previous valid response to calibrate requested length. One-target
+calibration is `requested * target / actual`; two-target calibration balances the
+worst relative error under a local linear approximation. Targets within the
+existing inclusive 10% tolerance keep the requested length. Generated search
+lengths stay within 1000..100000 m and 0.5..1.5 of the initial length. NoRoute
+retains the last calibrated length. Existing geometry, surface, ranking,
+cancellation, error handling and call limits remain unchanged; advisor proposals
+are still strictly validated, never clamped or repaired.
+
+Regression tests first reproduced the repeated-length problem (14 failing,
+four already-passing boundary cases), then all 18 service scenarios passed.
+Nine defensive cases cover tolerance boundaries, invalid metrics and extreme
+finite values. Full Release verification: 316 unit and 349 integration tests
+passed, without live provider opt-in. Old fixed-length assertions were updated
+only where the intended behavior changed; rejection/fallback assertions remain.
+
+These synthetic linear-provider tests establish calculation and integration,
+not effectiveness on the real road network. Changing the seed can change the
+length response nonlinearly; no guarantee of a matching loop or improved road
+choice is made. Manual/live quality qualification remains outstanding under
+the user's explicit release acceptance. CI must still pass before merge.

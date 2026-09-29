@@ -33,7 +33,7 @@ public class RoutePlanningServiceTests
 			return Task.FromResult(Advice());
 		});
 		var result = await Service(provider, advisor).PlanAsync(Intent(), TestContext.Current.CancellationToken);
-		Assert.Equal(new[] { (1, 20000d), (2, 20000d), (7, 16000d) }, provider.Calls);
+		Assert.Equal(new[] { (1, 20000d), (2, 20000d / 1.4), (7, 16000d) }.Select(x => (x.Item1, Math.Round(x.Item2, 6))), provider.Calls.Select(x => (x.Item1, Math.Round(x.Item2, 6))));
 		Assert.Equal(20000, result.Search.RequestedLengthMeters);
 		Assert.Equal(new[] { 7 }, result.Search.Candidates.Select(x => x.Seed));
 		Assert.Equal(new[] { 1, 2 }, result.Search.ExcludedCandidates.Select(x => x.Seed));
@@ -63,7 +63,9 @@ public class RoutePlanningServiceTests
 		var provider = new Provider((seed, _) => Task.FromResult(Loop(seed)));
 		var advisor = new Advisor((_, _) => throw new RouteSearchAdvisorException(failure));
 		var result = await Service(provider, advisor).PlanAsync(Intent(), TestContext.Current.CancellationToken);
-		Assert.Equal(new[] { (1, 20000d), (2, 20000d), (3, 20000d) }, provider.Calls);
+		Assert.Equal(new[] { 1, 2, 3 }, provider.Calls.Select(x => x.Item1));
+		Assert.Equal(20000d / 1.4, provider.Calls[1].Item2, 6);
+		Assert.Equal(20000d / 1.4 / 1.4, provider.Calls[2].Item2, 6);
 		Assert.Single(advisor.Calls);
 		Assert.Equal(RouteAdvisorStatus.Failed, result.AdvisorStatus);
 		Assert.Equal(failure, result.AdvisorFailure);
@@ -76,7 +78,8 @@ public class RoutePlanningServiceTests
 		var provider = new Provider((seed, _) => Task.FromResult(Loop(seed)));
 		var result = await Service(provider, new Advisor((_, _) => Task.FromResult(Advice() with { RequestedLengthMeters = 999 })))
 			.PlanAsync(Intent(), TestContext.Current.CancellationToken);
-		Assert.Equal((3, 20000d), provider.Calls[^1]);
+		Assert.Equal(3, provider.Calls[^1].Item1);
+		Assert.Equal(20000d / 1.4 / 1.4, provider.Calls[^1].Item2, 6);
 		Assert.Equal(RouteSearchAdvisorFailure.InvalidResponse, result.AdvisorFailure);
 	}
 
