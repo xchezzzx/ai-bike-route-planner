@@ -10,7 +10,7 @@
 
 **Spec:** [Approved design](../api/agentic-refinement-design.md), approved 2026-09-29.
 
-**Status:** Plan awaiting user review; no stage 6b product code implemented. Paths below are repository-relative. Backend commands run at repository root; npm commands run in `src/frontend`.
+**Status:** User approved autonomous implementation on 2026-09-29; execution in progress. Paths below are repository-relative. Backend commands run at repository root; npm commands run in `src/frontend`.
 
 ## Global Constraints
 
@@ -38,9 +38,9 @@
 
 Enums: action Stop/Search; reason Distance/Duration/Elevation/Explore/Stop; outcome Accepted/Duplicate/NoRoute/Failed. `RouteSearchAdvisorException.Failure` uses new `RouteSearchAdvisorFailure` enum: NotConfigured/Authentication/Quota/Unavailable/Timeout/InvalidResponse. Proposal policy: `bool IsValid(RouteSearchAdvice advice, RouteSearchContext context)`, accepting only defined enums, strict stop fields (null seed/length, Stop reason) or strict search fields (non-Stop reason, fresh bounded seed/length). Lists are copied at the service boundary, not shared mutable work lists.
 
-- [ ] Write `RejectsOutOfBoundsAndReusedSeeds`, `AcceptsInclusiveBounds`, `RejectsMixedStopSearch`, `RejectsNonFiniteLength` table tests. Pin 999/100001 metres, factors 0.49/1.51, seeds 2/17 and NaN/infinities as invalid; 1000/100000, 0.5/1.5 and seeds 3/16 pass when both bounds allow them.
-- [ ] RED: `dotnet test src/backend/CyclingRoutes.Tests.Unit --filter RouteSearchProposalPolicyTests` fails for missing contract/policy; implement the records and pure policy above, without network/DI.
-- [ ] GREEN: rerun the same command; all cases pass. Commit `feat: define bounded route search advice contract`.
+- [x] Table tests cover inclusive bounds, reused seeds, mixed fields and nonfinite length (16 cases).
+- [x] RED: focused unit run failed for the missing RouteSearchContext contract before implementation.
+- [x] GREEN: full unit suite passed 235/235. Commit `feat: define bounded route search advice contract`.
 
 ## Task 2: Bounded Application Orchestration
 
