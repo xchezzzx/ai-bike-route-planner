@@ -48,11 +48,11 @@ Enums: action Stop/Search; reason Distance/Duration/Elevation/Explore/Stop; outc
 
 **Interfaces:** `RoutePlanningService(IRoutingProvider provider, IRouteSearchAdvisor advisor, RouteCandidateRanker ranker, TimeProvider timeProvider)` exposes `Task<RoutePlanningResult> PlanAsync(RouteIntent intent, CancellationToken cancellationToken)`. `RoutePlanningResult(RouteCandidateSearchResult Search, int AdvisorCallCount, RouteAdvisorStatus AdvisorStatus, RouteSearchAdvisorFailure? AdvisorFailure, IReadOnlyList<RoutePlanningAttempt> Attempts)`; status NotNeeded/SkippedNoCandidates/SkippedRoutingFailure/Searched/Stopped/Failed. `RoutePlanningAttempt(int Seed, double RequestedLengthMeters, RouteSearchOutcome Outcome, RouteSearchReason Reason, RoutingFailure? Failure)`. Existing Search.AttemptedCount is the ORS call count, not proposal count. Geometry helper exposes `void Validate(RoutedPath path)` and `bool SameGeometry(RoutedPath left, RoutedPath right)` with unchanged baseline behavior.
 
-- [ ] Write fake-provider/advisor tests for the approved flow: two initial seeds; early return only if a candidate matches all targets AND intent elevation is Balanced; otherwise one advice and at most one extra ORS call. With zero usable initial routes, skip advisor and try seed 3 at initial length. Stop means no third call; advice failure/timeout/invalid proposal means seed-3 fallback if time remains.
-- [ ] Add tests asserting original target values and ranked prior candidates survive advice, forward/reverse/elevation-only duplicates are excluded, trace contains only executed calls (including NoRoute/failures), and initial attempts/fallback carry Explore reason. No-candidate result throws the existing RoutingException; partial results preserve existing warnings/failure policy.
-- [ ] Add deterministic TimeProvider tests for 90-second overall/30-second advisor deadlines, expiry during body/decision handling, cancellation before/after each dependency and before return, simultaneous caller/deadline cancellation, and non-NoRoute provider failure preventing later advice/calls. Count calls immediately before invocation. All dependencies receive linked tokens; no detached continuation.
-- [ ] RED: `dotnet test src/backend/CyclingRoutes.Tests.Unit --filter RoutePlanningServiceTests`. Implement orchestration, proposal policy enforcement and shared geometry extraction; keep baseline search's 45-second budget unchanged. Use initial distance or existing 20 km/h time conversion and existing GPX writer/ranker; advisor receives observation copies only.
-- [ ] GREEN: `dotnet test src/backend/CyclingRoutes.Tests.Unit` passes including baseline regressions. Commit `feat: orchestrate bounded AI road loop refinement`.
+- [x] Write fake-provider/advisor tests for the approved flow: two initial seeds; early return only if a candidate matches all targets AND intent elevation is Balanced; otherwise one advice and at most one extra ORS call. With zero usable initial routes, skip advisor and try seed 3 at initial length. Stop means no third call; advice failure/timeout/invalid proposal means seed-3 fallback if time remains.
+- [x] Add tests asserting original target values and ranked prior candidates survive advice, forward/reverse/elevation-only duplicates are excluded, trace contains only executed calls (including NoRoute/failures), and initial attempts/fallback carry Explore reason. No-candidate result throws the existing RoutingException; partial results preserve existing warnings/failure policy.
+- [x] Add deterministic TimeProvider tests for 90-second overall/30-second advisor deadlines, expiry during body/decision handling, cancellation before/after each dependency and before return, simultaneous caller/deadline cancellation, and non-NoRoute provider failure preventing later advice/calls. Count calls immediately before invocation. All dependencies receive linked tokens; no detached continuation.
+- [x] RED: `dotnet test src/backend/CyclingRoutes.Tests.Unit --filter RoutePlanningServiceTests`. Implement orchestration, proposal policy enforcement and shared geometry extraction; keep baseline search's 45-second budget unchanged. Use initial distance or existing 20 km/h time conversion and existing GPX writer/ranker; advisor receives observation copies only.
+- [x] GREEN: `dotnet test src/backend/CyclingRoutes.Tests.Unit` passes including baseline regressions. Commit `feat: orchestrate bounded AI road loop refinement`.
 
 ## Task 3: Separate Gemini Advisor Adapter
 
@@ -60,10 +60,10 @@ Enums: action Stop/Search; reason Distance/Duration/Elevation/Explore/Stop; outc
 
 **Interfaces:** `GeminiRouteSearchAdvisor(HttpClient client, GeminiOptions options, TimeProvider timeProvider) : IRouteSearchAdvisor`. Internal parser `RouteSearchAdvice Parse(string responseJson)` rejects malformed provider envelopes and strict advice objects. Contract version `route-search-v1`; advice wire keys `action`, `seed`, `requestedLengthMeters`, `reason`, all required, stop uses nulls. String enums are lowercase. Only a single completed, unblocked candidate is accepted.
 
-- [ ] Write serialized-request privacy/schema tests: preferences/observations only, no coordinate/raw prompt/GPX/tool fields, fixed Google endpoint, key only in header, one candidate, JSON schema, bounded output (1024 tokens), version pinned in system instruction. No model prose displayed or logged.
-- [ ] Write parser tests for stop/search, duplicate/extra fields, invalid enums/types, missing values, mixed fields, huge/nonfinite numbers, blocked/truncated/multiple candidates and foreign model text. Write HTTP tests for auth/quota/503, malformed success/error bodies, 256 KiB response cap (known and streaming), slow headers/body and caller cancellation.
-- [ ] RED: `dotnet test src/backend/CyclingRoutes.Tests.Integration --filter GeminiRouteSearchAdvisorTests`. Implement using existing interpreter transport patterns: 30-second linked timeout including reads, ResponseHeadersRead, no redirects/retries, sanitized failure enum. Do not reuse the extraction prompt or refactor its working transport in this task.
-- [ ] GREEN: run the same tests plus `dotnet test src/backend/CyclingRoutes.Tests.Integration --filter GeminiRouteIntentInterpreterTests`. Commit `feat: add guarded Gemini route search advisor`.
+- [x] Write serialized-request privacy/schema tests: preferences/observations only, no coordinate/raw prompt/GPX/tool fields, fixed Google endpoint, key only in header, one candidate, JSON schema, bounded output (1024 tokens), version pinned in system instruction. No model prose displayed or logged.
+- [x] Write parser tests for stop/search, duplicate/extra fields, invalid enums/types, missing values, mixed fields, huge/nonfinite numbers, blocked/truncated/multiple candidates and foreign model text. Write HTTP tests for auth/quota/503, malformed success/error bodies, 256 KiB response cap (known and streaming), slow headers/body and caller cancellation.
+- [x] RED: `dotnet test src/backend/CyclingRoutes.Tests.Integration --filter GeminiRouteSearchAdvisorTests`. Implement using existing interpreter transport patterns: 30-second linked timeout including reads, ResponseHeadersRead, no redirects/retries, sanitized failure enum. Do not reuse the extraction prompt or refactor its working transport in this task.
+- [x] GREEN: run the same tests plus `dotnet test src/backend/CyclingRoutes.Tests.Integration --filter GeminiRouteIntentInterpreterTests`. Commit `feat: add guarded Gemini route search advisor`.
 
 ## Task 4: Opt-In Planning API
 
@@ -71,10 +71,10 @@ Enums: action Stop/Search; reason Distance/Duration/Elevation/Explore/Stop; outc
 
 **Interfaces:** POST `/api/routes/plan` consumes existing `RouteIntentRequest`. `RoutePlanResponse(RouteCandidatesResponse Search, int AdvisorCallCount, string AdvisorStatus, string? AdvisorFailure, IReadOnlyList<RoutePlanAttemptResponse> Attempts)`; attempt response mirrors Task 2's attempt with application-owned lowercase/camelCase codes, never provider/model prose. `RoutePlanRequestReader.ReadAsync(HttpRequest request, CancellationToken cancellationToken)` returns `(RouteIntentRequest? Request, int? ErrorStatus)` in a named record. Share candidate mapping through `RouteCandidateResponseMapper.ToResponse(GeneratedRouteCandidate candidate)`; use existing RoutingProblemMapper for no-result failures.
 
-- [ ] Write tests for success, stop, skipped advisor, failure+fallback and partial results; assert candidate metrics/GPX unchanged, accurate counters/trace, bounded enum codes and no secrets/model text. Unsupported shape/profile fails before network.
-- [ ] Write request tests: 64 KiB limit including chunked bodies, 413 oversize, 415 unsupported media/charset, 400 malformed/null/invalid types, strict numeric handling, domain validation, and aborted request before provider work. Mirror interpretation reader conventions without changing old readers/endpoints.
-- [ ] RED: `dotnet test src/backend/CyclingRoutes.Tests.Integration --filter RoutePlanEndpointTests`. Implement reader/endpoint/mapping/DI. Reuse existing Gemini settings; HttpClient infinite outer timeout with adapter deadline, redirects disabled. Do not enable new paid settings.
-- [ ] GREEN: `dotnet test src/backend/CyclingRoutes.slnx`; all old endpoint/provider tests pass. Document actual JSON examples, budgets, failures and privacy. Commit `feat: expose opt-in route planning endpoint`.
+- [x] Write tests for success, stop, skipped advisor, failure+fallback and partial results; assert candidate metrics/GPX unchanged, accurate counters/trace, bounded enum codes and no secrets/model text. Unsupported shape/profile fails before network.
+- [x] Write request tests: 64 KiB limit including chunked bodies, 413 oversize, 415 unsupported media/charset, 400 malformed/null/invalid types, strict numeric handling, domain validation, and aborted request before provider work. Mirror interpretation reader conventions without changing old readers/endpoints.
+- [x] RED: `dotnet test src/backend/CyclingRoutes.Tests.Integration --filter RoutePlanEndpointTests`. Implement reader/endpoint/mapping/DI. Reuse existing Gemini settings; HttpClient infinite outer timeout with adapter deadline, redirects disabled. Do not enable new paid settings.
+- [x] GREEN: `dotnet test src/backend/CyclingRoutes.slnx`; all old endpoint/provider tests pass. Document actual JSON examples, budgets, failures and privacy. Commit `feat: expose opt-in route planning endpoint`.
 
 ## Task 5: Minimal Trilingual Refinement UI
 
@@ -82,10 +82,10 @@ Enums: action Stop/Search; reason Distance/Duration/Elevation/Explore/Stop; outc
 
 **Interfaces:** New TS `RoutePlan` mirrors Task 4 response; `usePlanner` returns `refine: boolean`, `setRefine(value: boolean)`, `planning: RoutePlan | null`. Default false. Changing refine aborts/fences active work and clears results but preserves a valid prepared intent. Only ready road loops may request `/api/routes/plan`; other modes ignore refinement and clear planning metadata. Store `response.search` through existing Candidates pipeline and retain trace separately.
 
-- [ ] Write component tests: unchecked default still calls /candidates, checked supported loop calls /plan once only on Generate, A-B never calls /plan, fallback and advisor-stop have localized status, unknown status/failure/trace is rejected, selected GPX bytes equal the chosen candidate's GPX.
-- [ ] Add fake-timer/network tests: `/plan` uses existing request helper with 100000 ms timeout; valid 65-second result succeeds, 100-second deadline aborts, ordinary requests still use 60000 ms. Mode/toggle/coordinate changes and cancellation prevent stale results independently of transport abort.
-- [ ] RED: `npm test -- --run tests/App.test.tsx tests/api.test.ts`. Add labeled checkbox, localized concise status/warnings and bounded attempt list in existing unframed results. No explanatory marketing copy, safety claims or model-generated prose. Keep EN/RU/HE and RTL, and do not alter route/map selection behavior.
-- [ ] GREEN: `npm test`, `npm run build`, `npm run test:e2e`. Add desktop/mobile cases for advised search, deterministic fallback, Hebrew RTL and GPX download. Inspect screenshots for nonblank map and no overlapping controls. Commit `feat: add optional AI refinement to planner UI`.
+- [x] Write component tests: unchecked default still calls /candidates, checked supported loop calls /plan once only on Generate, A-B never calls /plan, fallback and advisor-stop have localized status, unknown status/failure/trace is rejected, selected GPX bytes equal the chosen candidate's GPX.
+- [x] Add fake-timer/network tests: `/plan` uses existing request helper with 100000 ms timeout; valid 65-second result succeeds, 100-second deadline aborts, ordinary requests still use 60000 ms. Mode/toggle/coordinate changes and cancellation prevent stale results independently of transport abort.
+- [x] RED: `npm test -- --run tests/App.test.tsx tests/api.test.ts`. Add labeled checkbox, localized concise status/warnings and bounded attempt list in existing unframed results. No explanatory marketing copy, safety claims or model-generated prose. Keep EN/RU/HE and RTL, and do not alter route/map selection behavior.
+- [x] GREEN: `npm test`, `npm run build`, `npm run test:e2e`. Add desktop/mobile cases for advised search, deterministic fallback, Hebrew RTL and GPX download. Inspect screenshots for nonblank map and no overlapping controls. Commit `feat: add optional AI refinement to planner UI`.
 
 ## Task 6: Bounded Qualification and Delivery
 
@@ -102,6 +102,14 @@ Enums: action Stop/Search; reason Distance/Duration/Elevation/Explore/Stop; outc
 
 ## Handoff and Subsequent Work
 
-Self-review: design flow, limits, privacy, parser, API, UI, evaluation and merge gates each map to Tasks 1-6; old APIs/baseline remain independently tested. The five Review Focus items have explicit regression steps. User design approval is recorded; implementation-plan review is still pending.
+Self-review: design flow, limits, privacy, parser, API, UI, evaluation and merge gates each map to Tasks 1-6; old APIs/baseline remain independently tested. The five Review Focus items have explicit regression steps. User approved the implementation plan on 2026-09-29.
+
+Execution evidence so far: baseline 219 unit + 188 integration tests. Tasks 1-4
+were committed separately; latest backend suite has 268 unit + 256 integration
+tests. Task 5 passed 88 frontend tests, production build and 22 desktop/mobile
+browser cases including refined/fallback search, selected GPX and Hebrew RTL.
+Task 6 offline harness passes success, partial/duplicate routes, quota, malformed
+responses, disconnect, unrun reporting and five-second pacing. Live results,
+independent review and CI gates are not yet complete.
 
 After this slice: automatic settlement/profile/distance track naming, route-quality/device acceptance, then public-deployment prerequisites, in that order. They remain separate deliveries, not implied by completing this plan. The advisor may fail to improve quality; document that outcome instead of adding unapproved tools or widening budgets.

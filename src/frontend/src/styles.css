@@ -116,5 +116,5 @@ dd { margin: 0; text-align: end; overflow-wrap: anywhere; }
 .planning-summary { display: grid; gap: 6px; font-size: 12px; overflow-wrap: anywhere; }
 .planning-summary summary { cursor: pointer; padding-block: 6px; font-weight: 600; }
 .attempt-list { padding-inline-start: 20px; margin-block: 6px 0; }
-.attempt-list li { padding-block: 5px; border-bottom: 1px solid #e3e8e5; }
-.attempt-list span { display: inline-block; margin-inline-end: 12px; }
+.attempt-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 14px; padding-block: 5px; border-bottom: 1px solid #e3e8e5; }
+.attempt-list span { display: inline-block; }

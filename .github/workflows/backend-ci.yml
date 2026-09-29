@@ -17,6 +17,8 @@ jobs:
     name: Build and test backend
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      CYCLING_LIVE_ADVISOR: ""
 
     steps:
     - name: Checkout
@@ -39,6 +41,10 @@ jobs:
     - name: Verify evaluation runner without provider calls
       shell: pwsh
       run: ./tools/tests/evaluate-prompts.tests.ps1
+
+    - name: Verify refinement evaluation without provider calls
+      shell: pwsh
+      run: ./tools/tests/evaluate-refinement.tests.ps1
 
     - name: Build and smoke-test API container without keys
       shell: bash
