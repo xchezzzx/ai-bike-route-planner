@@ -6,6 +6,29 @@ namespace CyclingRoutes.Tests.Integration;
 
 public class PromptEvaluationCorpusTests
 {
+	[Theory]
+	[InlineData("en")]
+	[InlineData("ru")]
+	[InlineData("he")]
+	public void Corpus_CoversSelectedPointsAndTargetlessPointToPoint(string locale)
+	{
+		using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));
+		var cases = json.RootElement.GetProperty("cases").EnumerateArray().ToArray();
+		foreach (var suffix in new[] { "selected-points", "point-to-point-no-target" })
+		{
+			var item = Assert.Single(cases, x => x.GetProperty("id").GetString() == $"{locale}-{suffix}");
+			Assert.Equal("ready", item.GetProperty("expectedStatus").GetString());
+			Assert.Empty(item.GetProperty("expectedClarifications").EnumerateArray());
+			Assert.Equal("pointToPoint", item.GetProperty("expectedFields").GetProperty("intent.shape").GetString());
+			Assert.Equal("road", item.GetProperty("expectedFields").GetProperty("intent.profile").GetString());
+			if (suffix == "point-to-point-no-target")
+			{
+				Assert.Equal(JsonValueKind.Null, item.GetProperty("expectedFields").GetProperty("intent.targetDistanceMeters").ValueKind);
+				Assert.Equal(JsonValueKind.Null, item.GetProperty("expectedFields").GetProperty("intent.targetDurationSeconds").ValueKind);
+			}
+		}
+	}
+
 	[Fact]
 	public void Corpus_CoversMixedAndStandaloneInjection()
 	{
@@ -24,7 +47,7 @@ public class PromptEvaluationCorpusTests
 	{
 		using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));
 		var root = json.RootElement;
-		Assert.Equal("prompt-interpretation-v2", root.GetProperty("contractVersion").GetString());
+		Assert.Equal("prompt-interpretation-v3", root.GetProperty("contractVersion").GetString());
 		var cases = root.GetProperty("cases").EnumerateArray().ToArray();
 		Assert.True(cases.Length >= 25);
 		Assert.Equal(cases.Length, cases.Select(x => x.GetProperty("id").GetString()).Distinct().Count());

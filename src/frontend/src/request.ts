@@ -38,7 +38,7 @@ export function buildManual(form: ManualInput, start?: Coordinate, destination?:
   };
   const distance = target(form.distance, 1000, 'targetDistanceMeters');
   const duration = target(form.duration, 60, 'targetDurationSeconds');
-  if (distance === undefined && duration === undefined) return invalid('targetDistanceMeters', 'target_required');
+  if (form.shape === 'loop' && distance === undefined && duration === undefined) return invalid('targetDistanceMeters', 'target_required');
   return {
     start, ...(destination ? { destination } : {}),
     shape: form.shape as Intent['shape'], profile: form.profile as Intent['profile'], elevation: form.elevation as Intent['elevation'],

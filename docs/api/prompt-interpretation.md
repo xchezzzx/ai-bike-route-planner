@@ -37,7 +37,8 @@ Show the draft, assumptions, and limitations before generating a route.
 Use a separate call to `/api/routes/candidates` for road loops or
 `/api/routes/generate` for supported road A-B requests after confirmation.
 
-Missing shape/profile/targets cause questions, not invented defaults. An ambiguous
+Missing shape/profile cause questions, not invented defaults. Missing targets
+cause a question for loops, but are valid for A-B. An ambiguous
 value can remain visible in draft but cannot produce a confirmed intent.
 Missing elevation alone defaults to balanced. A valid gravel intent returns
 unsupported with `gravel_not_supported`; it is never changed to road.
@@ -45,6 +46,8 @@ unsupported with `gravel_not_supported`; it is never changed to road.
 There is no conversation memory. Resubmit a full revised prompt and current map
 selections, not a bare reply like `30`. Named locations or coordinates in text
 require map selection; remove the unresolved location wording when resubmitting.
+References to already selected points/markers are not named places and must not
+create a location clarification; missing map coordinates are checked by the app.
 This version cannot verify that a point matches a place name. Cafe stops, exact
 ascent, safety guarantees and other unsupported requirements are not silently
 accepted. Recognition of these requirements still depends on model quality.
@@ -118,7 +121,9 @@ HTTP-only development launch, choose an unused port and explicitly set
 `ASPNETCORE_URLS` to `http://127.0.0.1:<port>` with `--no-launch-profile` instead.
 The runner rejects non-loopback addresses and redirects; it never receives a key.
 
-There are 27 synthetic cases, including 18 core EN/HE/RU cases. The runner makes
+There are 34 synthetic cases, including 18 core EN/HE/RU cases. Contract v3 adds
+selected-point and targetless A-B regressions in all three languages, plus a
+named-destination guard that must still require clarification. The runner makes
 at most one sequential request per case, stops on configuration/auth/quota failure,
 and records unrun cases explicitly. It waits 5000 ms between completed requests
 by default, keeping this runner below the project's observed 15 RPM limit.
@@ -177,6 +182,17 @@ process-local smoke request to `gemini-3.5-flash-lite`, after checking its free
 tier and structured-output support, timed out at the 30-second application limit.
 No further calls to that model were made; saved model configuration was not changed.
 
+Contract v3 qualification on 2026-09-29 expanded the corpus to 34 cases.
+The initial run passed 27, with four availability errors and three mismatches.
+After clarifying Russian abstract endpoint labels and signed-target validation,
+the second run passed 32/34. `en-missing` returned `ai_unavailable`;
+`ru-point-to-point-no-target` still incorrectly emitted location clarifications
+despite an explicit matching example in the system instruction. Other selected
+point cases and the named-destination conflict passed. Report:
+`artifacts/prompt-evaluation-20260929T113106-3459e791.json` (ignored).
+This run used 5000 ms pacing and no retries; exit code 1 is intentional.
+
 Live qualification remains pending until the corpus completes successfully.
-Do not call fixture or fake-provider test results a multilingual model pass rate. Stage 6b, agentic
-route refinement, the React UI, and manual road/device checks are separate work.
+Do not call fixture or fake-provider test results a multilingual model pass rate.
+The delivered React UI supports manual input without Gemini. Stage 6b agentic
+refinement and manual road/device checks remain separate, outstanding work.

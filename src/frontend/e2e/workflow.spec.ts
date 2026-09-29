@@ -79,21 +79,28 @@ test('prompt confirmation, real canvas, route selection, fit and selected GPX', 
   await page.screenshot({ path: testInfo.outputPath('results-full.png'), fullPage: true });
 });
 
-test('manual A-B validates before generating and remains usable without map tiles', async ({ page }, testInfo) => {
+for (const hasTarget of [false, true]) test(`manual A-B (target=${hasTarget}) validates before generating and remains usable without map tiles`, async ({ page }, testInfo) => {
   const posts = await mockNetwork(page, true);
   await page.goto('/');
   await expect(page.getByText('Map unavailable. Coordinates and GPX remain available.')).toBeVisible();
   await page.getByRole('radio', { name: 'Manual', exact: true }).check();
   await page.getByLabel('Route shape', { exact: true }).selectOption('pointToPoint');
+  await expect(page.getByRole('option', { name: 'Gravel', exact: true })).toHaveJSProperty('disabled', true);
+  await expect(page.getByRole('option', { name: 'Minimize climbs', exact: true })).toHaveJSProperty('disabled', true);
+  await page.getByLabel('Cycling profile', { exact: true }).press('End');
+  await expect(page.getByLabel('Cycling profile', { exact: true })).toHaveValue('road');
+  await expect(page.getByRole('button', { name: 'Generate routes', exact: true })).toHaveAccessibleDescription('Request not validated');
   await page.getByLabel('Start latitude', { exact: true }).fill('32.08');
   await page.getByLabel('Start longitude', { exact: true }).fill('34.78');
   await page.getByLabel('Destination latitude', { exact: true }).fill('32.1');
   await page.getByLabel('Destination longitude', { exact: true }).fill('34.8');
-  await page.getByLabel('Duration (min)', { exact: true }).fill('90');
+  if (hasTarget) await page.getByLabel('Duration (min)', { exact: true }).fill('90');
   await page.getByRole('button', { name: 'Validate preferences', exact: true }).click();
   await expect(page.getByText('Ready to generate')).toBeVisible();
   expect(posts).toHaveLength(1);
-  expect(posts[0].body).toMatchObject({ shape: 'pointToPoint', targetDurationSeconds: 5400 });
+  expect(posts[0].body).toMatchObject({ shape: 'pointToPoint' });
+  if (hasTarget) expect(posts[0].body).toHaveProperty('targetDurationSeconds', 5400);
+  else expect(posts[0].body).not.toHaveProperty('targetDurationSeconds');
   expect(posts[0].body).not.toHaveProperty('targetDistanceMeters');
   await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Download GPX', exact: true })).toBeEnabled();

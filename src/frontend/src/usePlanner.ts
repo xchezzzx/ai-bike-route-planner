@@ -88,7 +88,7 @@ function validIntent(intent: Intent): boolean {
     && (intent.shape === 'loop' ? intent.destination == null : coordinate(intent.destination))
     && (intent.targetDistanceMeters == null || Number.isFinite(intent.targetDistanceMeters) && intent.targetDistanceMeters > 0)
     && (intent.targetDurationSeconds == null || Number.isSafeInteger(intent.targetDurationSeconds) && intent.targetDurationSeconds > 0)
-    && (intent.targetDistanceMeters != null || intent.targetDurationSeconds != null);
+    && (intent.shape === 'pointToPoint' || intent.targetDistanceMeters != null || intent.targetDurationSeconds != null);
 }
 
 function validRoute(candidate: Candidate): boolean {

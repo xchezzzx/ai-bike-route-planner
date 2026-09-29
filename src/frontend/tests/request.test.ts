@@ -5,6 +5,12 @@ const form = { shape: 'loop', profile: 'road', elevation: 'balanced', distance: 
 const start = { latitude: 32.08, longitude: 34.78 };
 
 describe('request boundary', () => {
+  it('allows targetless A-B while keeping targets mandatory for loops', () => {
+    const empty = { ...form, distance: '', duration: '' };
+    expect(buildManual({ ...empty, shape: 'pointToPoint' }, start, { latitude: 32.1, longitude: 34.8 })).not.toHaveProperty('targetDistanceMeters');
+    expect(() => buildManual(empty, start)).toThrow();
+    expect(() => buildManual({ ...empty, shape: 'pointToPoint', duration: '0' }, start, { latitude: 32.1, longitude: 34.8 })).toThrow();
+  });
   it('converts km and minutes exactly once and omits an empty destination', () => {
     expect(buildManual(form, start)).toEqual({ start, shape: 'loop', profile: 'road', elevation: 'balanced', targetDistanceMeters: 25500, targetDurationSeconds: 5430 });
   });

@@ -306,3 +306,13 @@ Pin OpenAPI request-body/response metadata for the manually read endpoint.
   The React testing UI adds a manual route path so Gemini availability does not
   block routing/GPX acceptance. A separate free-tier model smoke timed out; no
   persistent model, billing or account settings were changed.
+- Follow-up on 2026-09-29: contract v3 and 34 cases cover selected map points
+  and A-B without a target. First live run: 27 passes, four availability errors,
+  three mismatches. After additional instructions for Russian abstract A/B
+  labels and signed targets, the second run returned 32 passes, one
+  ai_unavailable (en-missing), and one false location clarification
+  (ru-point-to-point-no-target). Report:
+  artifacts/prompt-evaluation-20260929T113106-3459e791.json, code ebca699.
+  Full Task 4.5 qualification remains open. No expectations were weakened or
+  application-level location issues suppressed. See the separate
+  [usability delivery record](2026-09-29-route-request-usability.md).

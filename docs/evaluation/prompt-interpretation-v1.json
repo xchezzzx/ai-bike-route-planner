@@ -1,7 +1,56 @@
 {
   "version": 1,
-  "contractVersion": "prompt-interpretation-v2",
+  "contractVersion": "prompt-interpretation-v3",
   "cases": [
+    {
+      "id": "en-selected-points", "core": false,
+      "request": { "prompt": "A-to-B road route between the selected points, target duration 6 hours.", "locale": "en", "start": { "latitude": 32, "longitude": 34 }, "destination": { "latitude": 32.8, "longitude": 35 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "pointToPoint", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": 21600, "intent.start.latitude": 32, "intent.start.longitude": 34, "intent.destination.latitude": 32.8, "intent.destination.longitude": 35 },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
+    {
+      "id": "ru-selected-points", "core": false,
+      "request": { "prompt": "Шоссейный маршрут из А в Б между выбранными точками, желаемая длительность 6 часов.", "locale": "ru", "start": { "latitude": 32, "longitude": 34 }, "destination": { "latitude": 32.8, "longitude": 35 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "pointToPoint", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": 21600, "intent.start.latitude": 32, "intent.start.longitude": 34, "intent.destination.latitude": 32.8, "intent.destination.longitude": 35 },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
+    {
+      "id": "he-selected-points", "core": false,
+      "request": { "prompt": "מסלול רכיבת כביש מנקודה לנקודה בין הנקודות שנבחרו, משך רצוי 6 שעות.", "locale": "he", "start": { "latitude": 32, "longitude": 34 }, "destination": { "latitude": 32.8, "longitude": 35 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "pointToPoint", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": 21600, "intent.start.latitude": 32, "intent.start.longitude": 34, "intent.destination.latitude": 32.8, "intent.destination.longitude": 35 },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
+    {
+      "id": "en-point-to-point-no-target", "core": false,
+      "request": { "prompt": "A-to-B road route between the map markers.", "locale": "en", "start": { "latitude": 32, "longitude": 34 }, "destination": { "latitude": 32.8, "longitude": 35 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "pointToPoint", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": null },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
+    {
+      "id": "ru-point-to-point-no-target", "core": false,
+      "request": { "prompt": "Шоссейный маршрут из А в Б между точками на карте.", "locale": "ru", "start": { "latitude": 32, "longitude": 34 }, "destination": { "latitude": 32.8, "longitude": 35 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "pointToPoint", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": null },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
+    {
+      "id": "he-point-to-point-no-target", "core": false,
+      "request": { "prompt": "מסלול רכיבת כביש מנקודה לנקודה בין הנקודות במפה.", "locale": "he", "start": { "latitude": 32, "longitude": 34 }, "destination": { "latitude": 32.8, "longitude": 35 } },
+      "expectedStatus": "ready",
+      "expectedFields": { "intent.shape": "pointToPoint", "intent.profile": "road", "intent.elevation": "balanced", "intent.targetDistanceMeters": null, "intent.targetDurationSeconds": null },
+      "expectedClarifications": [], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
+    {
+      "id": "en-selected-points-named-destination", "core": false,
+      "request": { "prompt": "A-to-B road route between the selected points, from the start marker to Haifa.", "locale": "en", "start": { "latitude": 32, "longitude": 34 }, "destination": { "latitude": 32.8, "longitude": 35 } },
+      "expectedStatus": "needsClarification",
+      "expectedFields": { "intent": null, "draft.shape": "pointToPoint", "draft.profile": "road", "draft.targetDistanceMeters": null, "draft.targetDurationSeconds": null },
+      "expectedClarifications": [{ "field": "destination", "code": "location_requires_map_selection" }], "expectedLimitations": [], "expectedAssumptions": ["elevation_balanced"]
+    },
     {
       "id": "en-complete",
       "core": true,

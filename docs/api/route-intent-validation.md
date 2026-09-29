@@ -25,7 +25,8 @@ POST /api/route-intents/validate accepts application/json:
 - targetDistanceMeters is a finite positive number when supplied.
 - targetDurationSeconds is a positive whole number, at most 922337203685
   (the largest whole-second duration representable by TimeSpan).
-- At least one target is required. Both are allowed as preferences.
+- Loops require at least one target. For pointToPoint both targets are optional.
+  Both are allowed as preferences; supplied invalid values are still rejected.
 - destination uses the same coordinate object. It is prohibited for loop,
   required for pointToPoint, and must differ from start by coordinate value.
 - No service-area, feasible-length, road-access, or route-safety guarantee is made.
@@ -39,7 +40,8 @@ There is no ID, Location header, geometry, or GPX at this stage.
 JSON field paths (for example start.latitude). Error arrays contain stable codes:
 required, invalid_value, out_of_range, must_be_positive, target_required,
 destination_not_allowed, must_differ_from_start. A missing pair of targets is
-reported on both target fields. The future UI translates codes into RU/EN/HE.
+reported on both target fields for loops (also when shape is unresolved).
+The UI translates codes into RU/EN/HE.
 
 Malformed JSON, wrong JSON types, unknown properties, and missing/null body return
 generic 400 ProblemDetails, not field-level semantic codes. Unsupported content

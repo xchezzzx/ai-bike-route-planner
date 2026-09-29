@@ -61,6 +61,19 @@ public class RouteIntentEndpointTests : IClassFixture<WebApplicationFactory<Prog
 		Assert.Equal(JsonValueKind.Null, body.RootElement.GetProperty("targetDistanceMeters").ValueKind);
 	}
 
+	[Fact]
+	public async Task ValidatePointToPoint_WithoutTargetsReturnsNullTargets()
+	{
+		using var client = CreateClient();
+		using var response = await Post(client, """
+			{"start":{"latitude":32.0853,"longitude":34.7818},"destination":{"latitude":32.1,"longitude":34.9},"shape":"pointToPoint","profile":"road"}
+			""");
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		using var body = await ReadBody(response);
+		Assert.Equal(JsonValueKind.Null, body.RootElement.GetProperty("targetDistanceMeters").ValueKind);
+		Assert.Equal(JsonValueKind.Null, body.RootElement.GetProperty("targetDurationSeconds").ValueKind);
+	}
+
 	[Theory]
 	[InlineData("start", "null", "start", "required")]
 	[InlineData("start", "{}", "start.latitude", "required")]

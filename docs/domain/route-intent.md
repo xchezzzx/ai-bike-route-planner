@@ -34,10 +34,11 @@ RouteIntent is a sealed class with get-only properties:
 | Profile | CyclingProfile | Defined value |
 | Elevation | ElevationPreference | Defined value; Balanced by default |
 | Destination | GeoCoordinate? | Absent for Loop; required for PointToPoint and unequal to Start by value |
-| TargetDistance | Distance? | Optional if TargetDuration is supplied |
+| TargetDistance | Distance? | Optional for PointToPoint; for Loop optional if TargetDuration is supplied |
 | TargetDuration | TimeSpan? | Strictly positive when supplied |
 
-At least one of TargetDistance and TargetDuration is required. Both may be
+For Loop, at least one of TargetDistance and TargetDuration is required.
+For PointToPoint both are optional: distinct endpoints define the trip. Both may be
 provided. They are preferences for candidate ranking, not guaranteed output
 length/time or a calculated rider speed. Conflicting preferences will be
 handled by the application and ranking stages.

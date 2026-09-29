@@ -85,6 +85,18 @@ public class InterpretationServiceTests
 	}
 
 	[Fact]
+	public async Task SelectedPointToPointWithoutTargets_ReturnsReady()
+	{
+		var result = (await Run(Complete with { Shape = "pointToPoint", TargetDistanceMeters = null },
+			Request() with { Destination = new() { Latitude = 32.2, Longitude = 34.8 } })).Response!;
+		Assert.Equal("ready", result.Status);
+		Assert.Empty(result.Clarifications);
+		Assert.NotNull(result.Intent);
+		Assert.Null(result.Intent.TargetDistanceMeters);
+		Assert.Null(result.Intent.TargetDurationSeconds);
+	}
+
+	[Fact]
 	public async Task MissingTargets_ProducesOneQuestion()
 	{
 		var result = (await Run(Complete with { TargetDistanceMeters = null })).Response!;
