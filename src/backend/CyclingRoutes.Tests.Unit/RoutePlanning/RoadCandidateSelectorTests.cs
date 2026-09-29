@@ -11,7 +11,7 @@ public class RoadCandidateSelectorTests
 	public void SurfaceLimit_IsInclusiveAndUsesGeometry(double above, bool retained)
 	{
 		var path = RoadQualityAssessorTests.Path((0, 0), (0, 1), (1, 0), (0, 0));
-		var length = RouteGeometryMetrics.EdgeLengths(path.Points, default).Sum();
+		var length = RouteGeometryMetrics.EdgeLengths(path.Points, TestContext.Current.CancellationToken).Sum();
 		path = WithSurface(path, length * 0.005 + above);
 		var result = Select(path);
 		Assert.Equal(retained ? 1 : 0, result.Retained.Count);

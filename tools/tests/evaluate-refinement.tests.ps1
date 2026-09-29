@@ -1,3 +1,4 @@
+param([string[]]$Scenarios = @('missingQuality', 'badQualityTotal', 'badQualityState', 'unjustifiedExclusion', 'falseTargetMatch', 'noMatch', 'emptyPartial', 'badExclusion', 'duplicateSeed', 'degenerate', 'partial', 'pass', 'duplicate', 'quota', 'invalid', 'disconnect'))
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $runner = Join-Path $PSScriptRoot '../evaluate-refinement.ps1'
@@ -7,19 +8,32 @@ Assert-True ($LASTEXITCODE -eq 0) 'Offline refinement validation failed.'
 $root = Join-Path ([IO.Path]::GetTempPath()) ('refinement-test-' + [guid]::NewGuid())
 [IO.Directory]::CreateDirectory($root) | Out-Null
 try {
-    foreach ($scenario in @('noMatch', 'emptyPartial', 'badExclusion', 'duplicateSeed', 'degenerate', 'partial', 'pass', 'duplicate', 'quota', 'invalid', 'disconnect')) {
+    foreach ($scenario in $Scenarios) {
         $requestCount = if ($scenario -in @('quota', 'disconnect')) { 1 } else { 2 }
         $geometry = @(@{latitude=32;longitude=34}, @{latitude=32.01;longitude=34.01}, @{latitude=32.02;longitude=34.01}, @{latitude=32;longitude=34})
         if ($scenario -eq 'degenerate') { $geometry = @($geometry[0], $geometry[0], $geometry[0], $geometry[0]) }
-        $candidate = @{ seed=1; assessment=@{targetsMatched=$true}; route=@{geometry=$geometry;distanceMeters=20000;estimatedDurationSeconds=3600;ascentMeters=100;gpx='<gpx/>'} }
+        $quality = @{
+            policyVersion='road-v1'; geometryLengthMeters=10000; surfaceEvidenceState='unavailable'; waytypeSupplied=$false
+            surface=@{pavedMeters=0;nonRoadMeters=0;otherKnownMeters=0;unknownMeters=10000}
+            ways=@{unknownMeters=10000;stateRoadMeters=0;roadMeters=0;streetMeters=0;pathMeters=0;trackMeters=0;cyclewayMeters=0;footwayMeters=0;stepsMeters=0;ferryMeters=0;constructionMeters=0}
+            repeatedMeters=0;sharedStemMeters=0;remainingRepeatedMeters=0
+        }
+        $assessment = @{targetsMatched=$true;score=0;distanceDeltaMeters=0;durationDeltaSeconds=$null;quality=$quality}
+        $candidate = @{ seed=1; assessment=$assessment; route=@{geometry=$geometry;distanceMeters=20000;estimatedDurationSeconds=3600;ascentMeters=100;gpx='<gpx/>'} }
         $search = @{requestedLengthMeters=20000; attemptedCount=2; assumptions=@(); warnings=@(); candidates=@($candidate); excludedCandidates=@()}
-        $excluded = @{seed=2; distanceMeters=30000; estimatedDurationSeconds=3600; assessment=@{targetsMatched=$false}; reasons=@('targets_not_met')}
-        if ($scenario -in @('noMatch', 'emptyPartial', 'badExclusion')) {
+        $excludedAssessment=$assessment.Clone(); $excludedAssessment.targetsMatched=$false; $excludedAssessment.distanceDeltaMeters=10000
+        $excluded = @{seed=2; distanceMeters=30000; estimatedDurationSeconds=3600; assessment=$excludedAssessment; reasons=@('targets_not_met')}
+        if ($scenario -in @('noMatch', 'emptyPartial', 'badExclusion', 'unjustifiedExclusion')) {
             $search.candidates=@(); $search.excludedCandidates=@($excluded)
             $search.warnings=@('no_candidate_meets_requirements','candidates_excluded')
         }
         if ($scenario -eq 'emptyPartial') { $search.warnings += @('candidate_generation_incomplete','routing_timeout') }
         if ($scenario -eq 'badExclusion') { $excluded.reasons=@('secret') }
+        if ($scenario -eq 'missingQuality') { [void]$assessment.Remove('quality') }
+        if ($scenario -eq 'badQualityTotal') { $quality.surface.unknownMeters=1 }
+        if ($scenario -eq 'badQualityState') { $quality.surfaceEvidenceState=@('complete') }
+        if ($scenario -eq 'unjustifiedExclusion') { $excluded.reasons=@('road_surface_limit_exceeded') }
+        if ($scenario -eq 'falseTargetMatch') { $candidate.route.distanceMeters=30000 }
         if ($scenario -eq 'duplicateSeed') { $excluded.seed=1; $search.excludedCandidates=@($excluded) }
         if ($scenario -eq 'partial') { $search.warnings = @('candidate_generation_incomplete', 'routing_timeout', 'secret') }
         if ($scenario -eq 'duplicate') { $second=$candidate.Clone(); $second.seed=2; $search.candidates = @($candidate, $second) }
@@ -74,7 +88,9 @@ try {
                 Assert-True ($report.results[0].usableCount -eq 0 -and $null -eq $report.results[0].bestMeanTargetError) 'Empty result has false metrics'
             }
             if($scenario -eq 'emptyPartial'){ Assert-True ($report.results[0].status -ceq 'incomplete') 'Partial failure was hidden' }
-            if($scenario -in @('badExclusion','duplicateSeed')){ Assert-True ($report.results[0].status -ceq 'error') 'Invalid exclusions accepted' }
+            if($scenario -in @('badExclusion','duplicateSeed','missingQuality','badQualityTotal','badQualityState','unjustifiedExclusion','falseTargetMatch')){
+                Assert-True (@($report.results | Where-Object { $_.status -cne 'error' -or $_.error -cne 'invalid_response' }).Count -eq 0) "Malformed result accepted: $scenario"
+            }
         } finally { $listener.Stop(); Stop-Job $job -ErrorAction SilentlyContinue; Remove-Job $job -Force }
     }
     Write-Output 'Refinement harness passed: offline, pass, partial, duplicate, quota, malformed response, disconnect, pacing, no retries.'

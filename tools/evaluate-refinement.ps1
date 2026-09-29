@@ -10,6 +10,57 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 function Is-Number($n) { return $null -ne $n -and $n -is [ValueType] -and $n -isnot [bool] -and [double]::IsFinite([double]$n) }
+function Assert-RoadAssessment($candidate, $intent, [bool]$excluded) {
+    $a=$candidate.assessment
+    if($a -isnot [Collections.IDictionary] -or $a.targetsMatched -isnot [bool] -or -not (Is-Number $a.score) -or $a.score -lt 0){throw 'Invalid assessment'}
+    $q=$a.quality
+    if($q -isnot [Collections.IDictionary] -or $q.policyVersion -cne 'road-v1' -or -not (Is-Number $q.geometryLengthMeters) -or $q.geometryLengthMeters -le 0 -or
+        $q.surfaceEvidenceState -isnot [string] -or $q.surfaceEvidenceState -cnotin @('unavailable','partial','complete') -or $q.waytypeSupplied -isnot [bool]){throw 'Invalid quality'}
+    $length=[double]$q.geometryLengthMeters; $epsilon=$length*1e-8
+    $partitions=@{
+        surface=@('pavedMeters','nonRoadMeters','otherKnownMeters','unknownMeters')
+        ways=@('unknownMeters','stateRoadMeters','roadMeters','streetMeters','pathMeters','trackMeters','cyclewayMeters','footwayMeters','stepsMeters','ferryMeters','constructionMeters')
+    }
+    foreach($name in $partitions.Keys){
+        $part=$q[$name]; $sum=0.0
+        if($part -isnot [Collections.IDictionary]){throw 'Invalid partition'}
+        foreach($key in $partitions[$name]){
+            if(-not (Is-Number $part[$key]) -or $part[$key] -lt 0){throw 'Invalid category'}
+            $sum += $part[$key]
+        }
+        if([Math]::Abs($sum-$length) -gt $epsilon){throw 'Inconsistent partition'}
+    }
+    if(($q.surfaceEvidenceState -ceq 'complete' -and $q.surface.unknownMeters -ne 0) -or
+        ($q.surfaceEvidenceState -ceq 'partial' -and $q.surface.unknownMeters -le 0) -or
+        ($q.surfaceEvidenceState -ceq 'unavailable' -and [Math]::Abs($q.surface.unknownMeters-$length) -gt $epsilon) -or
+        (-not $q.waytypeSupplied -and [Math]::Abs($q.ways.unknownMeters-$length) -gt $epsilon)){throw 'Inconsistent evidence state'}
+    foreach($key in @('repeatedMeters','sharedStemMeters','remainingRepeatedMeters')){
+        if(-not (Is-Number $q[$key]) -or $q[$key] -lt 0){throw 'Invalid retracing'}
+    }
+    if($q.repeatedMeters -gt $length+$epsilon -or $q.sharedStemMeters -gt $q.repeatedMeters -or
+        [Math]::Abs($q.repeatedMeters-$q.sharedStemMeters-$q.remainingRepeatedMeters) -gt $epsilon){throw 'Inconsistent retracing'}
+    $route=if($excluded){$candidate}else{$candidate.route}
+    if($route -isnot [Collections.IDictionary]){throw 'Invalid route metrics'}
+    $matched=$true
+    foreach($target in @(@('targetDistanceMeters','distanceMeters','distanceDeltaMeters'),@('targetDurationSeconds','estimatedDurationSeconds','durationDeltaSeconds'))){
+        $metric=$route[$target[1]]; $delta=$a[$target[2]]
+        if(-not (Is-Number $metric) -or $metric -le 0 -or -not $a.Contains($target[2])){throw 'Invalid target metric'}
+        if($intent.Contains($target[0]) -and $null -ne $intent[$target[0]]){
+            $requested=$intent[$target[0]]; $expected=$metric-$requested
+            if(-not (Is-Number $delta) -or [Math]::Abs($delta-$expected) -gt $requested*1e-8){throw 'Inconsistent target delta'}
+            if([Math]::Abs($expected)/$requested -gt 0.1000000001){$matched=$false}
+        }elseif($null -ne $delta){throw 'Unexpected target delta'}
+    }
+    if($a.targetsMatched -ne $matched){throw 'Inconsistent target match'}
+    $reasons=[Collections.Generic.List[string]]::new()
+    if(-not $matched){$reasons.Add('targets_not_met')}
+    if($q.surface.nonRoadMeters -gt [Math]::Max(100,0.005*$length)){$reasons.Add('road_surface_limit_exceeded')}
+    if($q.ways.stepsMeters -gt 0 -or $q.ways.ferryMeters -gt 0 -or $q.ways.constructionMeters -gt 0){$reasons.Add('road_waytype_excluded')}
+    if($excluded){
+        if($candidate.reasons -isnot [array] -or $reasons.Count -eq 0 -or $candidate.reasons.Count -ne $reasons.Count){throw 'Invalid reasons'}
+        foreach($reason in $reasons){if($reason -cnotin $candidate.reasons){throw 'Inconsistent reasons'}}
+    }elseif($reasons.Count -gt 0){throw 'Ineligible retained route'}
+}
 function Measure-Search($body, $intent, [bool]$advised) {
     $search = if($advised){$body.search}else{$body}
     if ($search -isnot [Collections.IDictionary] -or $search.candidates -isnot [array] -or $search.excludedCandidates -isnot [array] -or
@@ -20,6 +71,8 @@ function Measure-Search($body, $intent, [bool]$advised) {
     foreach($candidate in @($search.candidates) + @($search.excludedCandidates)){
         if(-not (Is-Number $candidate.seed) -or $candidate.seed -lt 1 -or $candidate.seed -gt 16 -or [Math]::Truncate($candidate.seed) -ne $candidate.seed -or -not $seeds.Add([int]$candidate.seed)){throw 'Invalid seed'}
     }
+    foreach($candidate in $search.candidates){Assert-RoadAssessment $candidate $intent $false}
+    foreach($candidate in $search.excludedCandidates){Assert-RoadAssessment $candidate $intent $true}
     $exclusions = @($search.excludedCandidates | ForEach-Object {
         if(-not (Is-Number $_.distanceMeters) -or $_.distanceMeters -le 0 -or -not (Is-Number $_.estimatedDurationSeconds) -or $_.estimatedDurationSeconds -le 0 -or
             $_.reasons -isnot [array] -or $_.reasons.Count -lt 1 -or $_.reasons.Count -gt 3 -or
