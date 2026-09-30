@@ -23,6 +23,7 @@ export interface Interpretation {
   assumptions: string[];
 }
 export interface GeneratedRoute {
+	name?: string | null;
 	segments?: RouteSegment[] | null;
   geometry: (Coordinate & { elevationMeters: number | null })[];
   distanceMeters: number;

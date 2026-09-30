@@ -170,7 +170,7 @@ public class RouteCandidateServiceTests
 			Assert.Equal(failure, result.IncompleteFailure);
 			Assert.Contains("candidate_generation_incomplete", result.Warnings);
 			Assert.Equal(2, result.AttemptedCount);
-			Assert.Equal(GpxWriter.Write(path), Assert.Single(result.Candidates).Route.Gpx);
+			Assert.Equal(GpxWriter.Write(path, "Route-loop-road-20"), Assert.Single(result.Candidates).Route.Gpx);
 		}
 		else
 		{
@@ -196,7 +196,7 @@ public class RouteCandidateServiceTests
 			await Task.Delay(Timeout.Infinite, ct);
 			return Loop(seed);
 		});
-		var service = new RouteCandidateService(provider, new(new(), new()), clock);
+		var service = new RouteCandidateService(provider, new(new(), new()), clock, RouteNamingFixture.NeutralNames);
 		if (partial)
 		{
 			var result = await service.GenerateAsync(Intent(), TestContext.Current.CancellationToken);
@@ -230,7 +230,7 @@ public class RouteCandidateServiceTests
 			return Task.FromResult(Loop(seed));
 		});
 		if (scenario == "before") caller.Cancel();
-		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new RouteCandidateService(provider, new(new(), new()), clock).GenerateAsync(Intent(), caller.Token));
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new RouteCandidateService(provider, new(new(), new()), clock, RouteNamingFixture.NeutralNames).GenerateAsync(Intent(), caller.Token));
 		Assert.Equal(scenario == "before" ? 0 : 2, provider.Calls.Count);
 	}
 
@@ -244,7 +244,7 @@ public class RouteCandidateServiceTests
 		Assert.Contains("no_candidate_meets_requirements", result.Warnings);
 	}
 
-	private static RouteCandidateService Service(IRoutingProvider provider) => new(provider, new(new(), new()), TimeProvider.System);
+	private static RouteCandidateService Service(IRoutingProvider provider) => new(provider, new(new(), new()), TimeProvider.System, RouteNamingFixture.NeutralNames);
 	private static RouteIntent Intent(double? distance = 20000, double? seconds = null, ElevationPreference elevation = ElevationPreference.Balanced) =>
 		new(new(32, 34), RouteShape.Loop, CyclingProfile.Road, distance is { } d ? new Distance(d) : null,
 			seconds is { } s ? TimeSpan.FromSeconds(s) : null, elevation: elevation);

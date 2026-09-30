@@ -5,6 +5,7 @@ using CyclingRoutes.Api.RoutePlanning;
 using CyclingRoutes.Application.RoutePlanning;
 using CyclingRoutes.Application.Routing;
 using CyclingRoutes.Infrastructure.Routing;
+using CyclingRoutes.Infrastructure.Naming;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,8 @@ builder.Services.AddHttpClient<IRoutingProvider, OpenRouteServiceProvider>(clien
 	client.MaxResponseContentBufferSize = 8 * 1024 * 1024;
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddTransient<RouteGenerationService>();
+builder.Services.AddSingleton<ISettlementLookup>(_ => GeoNamesSettlementLookup.LoadEmbedded());
+builder.Services.AddSingleton<RouteNameResolver>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(new GeminiOptions
 {

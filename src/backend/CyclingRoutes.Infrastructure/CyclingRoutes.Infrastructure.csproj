@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Naming\Data\settlements.json" LogicalName="CyclingRoutes.GeoNames.IL.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CyclingRoutes.Application\CyclingRoutes.Application.csproj" />
     <ProjectReference Include="..\CyclingRoutes.Domain\CyclingRoutes.Domain.csproj" />
   </ItemGroup>

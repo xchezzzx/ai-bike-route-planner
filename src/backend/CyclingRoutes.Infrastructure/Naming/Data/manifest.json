@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "importerVersion": 1,
+  "sourceUrl": "https://download.geonames.org/export/dump/IL.zip",
+  "sourceReadme": "https://download.geonames.org/export/dump/readme.txt",
+  "sourceArchiveSha256": "fd0e8659b303cd14ccd37353cde2def17e165d617e3bf7ff72f131fa67636443",
+  "sourceEntry": "IL.txt",
+  "sourceEntrySha256": "5746135e2c735f211951f6e3b4135a4c579a72813b60e5b9ea0f502028fe5658",
+  "sourceEntryTimestamp": "2026-09-29T03:53:42",
+  "filters": {
+    "countryCode": "IL",
+    "featureClass": "P",
+    "featureCodes": [
+      "PPL",
+      "PPLA",
+      "PPLA2",
+      "PPLA3",
+      "PPLA4",
+      "PPLA5",
+      "PPLC",
+      "PPLG"
+    ],
+    "nameColumn": "asciiname",
+    "populationThreshold": null
+  },
+  "sort": "geonameid ascending (numeric)",
+  "settlementCount": 1224,
+  "outputSha256": "6847f4eb16c5f1089c50549824378e0ec257872397086b5124cce10c2b00b4e5",
+  "attribution": "Settlement names derived from GeoNames (https://www.geonames.org/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); filtered IL extract."
+}

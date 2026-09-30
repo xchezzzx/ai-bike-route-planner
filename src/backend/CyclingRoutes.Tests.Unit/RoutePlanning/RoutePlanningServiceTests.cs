@@ -203,7 +203,7 @@ public class RoutePlanningServiceTests
 		Assert.All(result.Search.ExcludedCandidates, c => { Assert.Equal(1400, c.Assessment.DurationDeltaSeconds); Assert.Null(c.Assessment.DistanceDeltaMeters); });
 	}
 
-	private static RoutePlanningService Service(Provider p, Advisor a, TimeProvider? clock = null) => new(p, a, new(new(), new()), clock ?? TimeProvider.System);
+	private static RoutePlanningService Service(Provider p, Advisor a, TimeProvider? clock = null) => new(p, a, new(new(), new()), clock ?? TimeProvider.System, RouteNamingFixture.NeutralNames);
 	private static RouteIntent Intent(ElevationPreference elevation = ElevationPreference.Balanced) => new(new(32, 34), RouteShape.Loop, CyclingProfile.Road, new(20000), elevation: elevation);
 	private static RouteSearchAdvice Advice() => new(RouteSearchAction.Search, 7, 16000, RouteSearchReason.Distance);
 	private static RoutedPath Loop(int seed, double distance = 28000) => new(

@@ -11,4 +11,5 @@ public sealed record GeneratedRouteResponse(
 	string Attribution,
 	IReadOnlyList<string> Warnings,
 	string Gpx,
+	string Name,
 	IReadOnlyList<RouteSegmentResponse>? Segments = null);

@@ -3,7 +3,7 @@ using CyclingRoutes.Domain.RoutePlanning;
 namespace CyclingRoutes.Application.Routing;
 
 public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearchAdvisor advisor,
-	RoadCandidateSelector selector, TimeProvider timeProvider)
+	RoadCandidateSelector selector, TimeProvider timeProvider, RouteNameResolver names)
 {
 	public async Task<RoutePlanningResult> PlanAsync(RouteIntent intent, CancellationToken cancellationToken)
 	{
@@ -128,7 +128,7 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 			generated.Add(new(item.Candidate.Seed, item.Assessment,
-				new(item.Candidate.Path, GpxWriter.Write(item.Candidate.Path), item.Warnings)));
+				GeneratedRoute.Create(item.Candidate.Path, intent, item.Warnings, names)));
 		}
 		CanContinue();
 		var warnings = new List<string> { "candidate_search_limited" };

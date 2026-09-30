@@ -123,6 +123,24 @@ it.each([
   expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
 });
 
+it('displays and downloads the selected canonical route name', async () => {
+  const response = structuredClone(candidates);
+  response.candidates[0].route = { ...response.candidates[0].route, name: 'Tel-Aviv-loop-road-25' };
+  response.candidates[1].route = { ...response.candidates[1].route, name: 'Tel-Aviv-loop-road-28' };
+  replies.candidates = response;
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByText('Tel-Aviv-loop-road-25');
+  await user.click(screen.getByRole('radio', { name: /Tel-Aviv-loop-road-28/ }));
+  vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL: vi.fn(() => 'blob:route'), revokeObjectURL: vi.fn() }));
+  let filename = '';
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { filename = this.download; });
+  await user.click(screen.getByRole('button', { name: 'Download GPX' }));
+  expect(filename).toBe('Tel-Aviv-loop-road-28.gpx');
+  click.mockRestore();
+});
+
 async function prepareRefinement() {
   const user = await setupPrompt();
   await user.click(screen.getByRole('button', { name: 'Interpret request' }));
