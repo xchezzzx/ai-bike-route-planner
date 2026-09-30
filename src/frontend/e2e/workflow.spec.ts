@@ -1,3 +1,4 @@
+import { fillField } from "./fields";
 import { expect, test, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
@@ -25,9 +26,9 @@ async function mockNetwork(page: Page, mapFails = false, style = basemap) {
   return posts;
 }
 async function prompt(page: Page) {
-  await page.getByLabel('Start latitude', { exact: true }).fill('32.08');
-  await page.getByLabel('Start longitude', { exact: true }).fill('34.78');
-  await page.getByLabel('Ride request', { exact: true }).fill('A 25 km road loop');
+  await fillField(page, 'Start latitude', '32.08');
+  await fillField(page, 'Start longitude', '34.78');
+  await fillField(page, 'Ride request', 'A 25 km road loop');
   await page.getByRole('button', { name: 'Interpret request', exact: true }).click();
   await expect(page.getByText('Ready to generate', { exact: true })).toBeVisible();
 }
@@ -42,8 +43,8 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`manual ranges retain bot
   await page.goto('/');
   await page.getByLabel('Language', { exact: true }).selectOption(locale);
   await page.getByRole('radio', { name: t(locale, 'manualMode'), exact: true }).check();
-  await page.getByLabel(t(locale, 'startLatitude'), { exact: true }).fill('32.08');
-  await page.getByLabel(t(locale, 'startLongitude'), { exact: true }).fill('34.78');
+  await fillField(page, t(locale, 'startLatitude'), '32.08');
+  await fillField(page, t(locale, 'startLongitude'), '34.78');
   for (const [metric, min, max] of [['distanceInput', '35', '45'], ['durationInput', '90', '150']] as const) {
     const group = page.getByRole('group', { name: t(locale, metric), exact: true });
     await group.getByRole('radio', { name: t(locale, 'rangeMode'), exact: true }).check();
@@ -82,8 +83,8 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`range sliders accept poi
   await page.getByLabel('Language', { exact: true }).selectOption(locale);
   await page.getByRole('combobox', { name: t(locale, 'theme'), exact: true }).selectOption('dark');
   await page.getByRole('radio', { name: t(locale, 'manualMode'), exact: true }).check();
-  await page.getByLabel(t(locale, 'startLatitude'), { exact: true }).fill('32.08');
-  await page.getByLabel(t(locale, 'startLongitude'), { exact: true }).fill('34.78');
+  await fillField(page, t(locale, 'startLatitude'), '32.08');
+  await fillField(page, t(locale, 'startLongitude'), '34.78');
   const distance = page.getByRole('group', { name: t(locale, 'distanceInput'), exact: true });
   await distance.getByRole('radio', { name: t(locale, 'rangeMode'), exact: true }).check();
   const track = distance.locator('.range-track');
@@ -120,9 +121,9 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`range sliders accept poi
 for (const locale of ['en', 'ru', 'he'] as const) test(`shape selector hides inactive destination and resets map picking (${locale})`, async ({ page }, testInfo) => {
   const posts = await mockNetwork(page);
   await page.goto('/');
-  await page.getByLabel('Start latitude', { exact: true }).fill('32.08');
-  await page.getByLabel('Start longitude', { exact: true }).fill('34.78');
-  await page.getByLabel('Ride request', { exact: true }).fill('A 25 km road loop');
+  await fillField(page, 'Start latitude', '32.08');
+  await fillField(page, 'Start longitude', '34.78');
+  await fillField(page, 'Ride request', 'A 25 km road loop');
   await page.getByLabel('Language', { exact: true }).selectOption(locale);
   const labels = {
     en: { loop: 'Loop', ab: 'A to B', destination: 'Destination', latitude: 'Destination latitude', longitude: 'Destination longitude', start: 'Start', startLatitude: 'Start latitude', prepare: 'Interpret request' },
@@ -132,8 +133,8 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`shape selector hides ina
   await expect(page.getByLabel(labels.latitude, { exact: true })).toHaveCount(0);
   await page.getByRole('radio', { name: labels.ab, exact: true }).focus();
   await page.keyboard.press('Space');
-  await page.getByLabel(labels.latitude, { exact: true }).fill('32.1');
-  await page.getByLabel(labels.longitude, { exact: true }).fill('34.8');
+  await fillField(page, labels.latitude, '32.1');
+  await fillField(page, labels.longitude, '34.8');
   await expect(page.locator('.map-point.destination')).toHaveCount(1);
   await page.getByRole('radio', { name: labels.destination, exact: true }).check();
   await page.screenshot({ path: testInfo.outputPath(`shape-ab-${locale}.png`), fullPage: true });
@@ -142,6 +143,7 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`shape selector hides ina
   await expect(page.getByLabel(labels.latitude, { exact: true })).toHaveCount(0);
   await expect(page.getByRole('radio', { name: labels.destination, exact: true })).toHaveCount(0);
   await page.locator('canvas').click({ position: { x: 160, y: 100 } });
+  await page.getByRole('menuitem', { name: t(locale, 'fromHere'), exact: true }).click();
   await expect(page.getByLabel(labels.startLatitude, { exact: true })).not.toHaveValue('32.08');
   await page.getByRole('button', { name: labels.prepare, exact: true }).click();
   await expect.poll(() => posts.length).toBe(1);
@@ -312,11 +314,11 @@ for (const hasTarget of [false, true]) test(`manual A-B (target=${hasTarget}) va
   await page.getByLabel('Cycling profile', { exact: true }).press('End');
   await expect(page.getByLabel('Cycling profile', { exact: true })).toHaveValue('road');
   await expect(page.getByRole('button', { name: 'Generate routes', exact: true })).toHaveAccessibleDescription('Request not validated');
-  await page.getByLabel('Start latitude', { exact: true }).fill('32.08');
-  await page.getByLabel('Start longitude', { exact: true }).fill('34.78');
-  await page.getByLabel('Destination latitude', { exact: true }).fill('32.1');
-  await page.getByLabel('Destination longitude', { exact: true }).fill('34.8');
-  if (hasTarget) await page.getByLabel('Duration (min)', { exact: true }).fill('90');
+  await fillField(page, 'Start latitude', '32.08');
+  await fillField(page, 'Start longitude', '34.78');
+  await fillField(page, 'Destination latitude', '32.1');
+  await fillField(page, 'Destination longitude', '34.8');
+  if (hasTarget) await fillField(page, 'Duration (min)', '90');
   await page.getByRole('button', { name: 'Validate preferences', exact: true }).click();
   await expect(page.getByText('Ready to generate')).toBeVisible();
   expect(posts).toHaveLength(1);
@@ -357,7 +359,7 @@ test('changing coordinates while route generation is pending cannot restore stal
   await prompt(page);
   await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
   await started;
-  await page.getByLabel('Start latitude', { exact: true }).fill('32.09');
+  await fillField(page, 'Start latitude', '32.09');
   release();
   await expect(page.getByRole('button', { name: 'Generate routes', exact: true })).toBeDisabled();
   await expect(page.getByRole('region', { name: 'Routes', exact: true })).toHaveCount(0);
@@ -368,9 +370,9 @@ test('Hebrew RTL has usable coordinates, translated warnings and no horizontal o
   await page.goto('/');
   await page.getByLabel('Language', { exact: true }).selectOption('he');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await page.getByLabel('קו רוחב של התחלה', { exact: true }).fill('32.08');
-  await page.getByLabel('קו אורך של התחלה', { exact: true }).fill('34.78');
-  await page.getByLabel('בקשת רכיבה', { exact: true }).fill('מסלול כביש מעגלי של 25 ק״מ');
+  await fillField(page, 'קו רוחב של התחלה', '32.08');
+  await fillField(page, 'קו אורך של התחלה', '34.78');
+  await fillField(page, 'בקשת רכיבה', 'מסלול כביש מעגלי של 25 ק״מ');
   await page.getByRole('button', { name: 'פירוש הבקשה', exact: true }).click();
   await page.getByRole('button', { name: 'יצירת מסלולים', exact: true }).click();
   await expect(page.getByText('נתוני גובה אינם זמינים.')).toBeVisible();
@@ -389,5 +391,7 @@ test('map click selects coordinates and a new selection clears completed routes'
   await generate(page);
   await page.getByRole('button', { name: 'Reset map view', exact: true }).click();
   await page.locator('.maplibregl-canvas').click({ position: { x: 80, y: 60 } });
+  await expect(page.getByRole('button', { name: 'Download GPX', exact: true })).toHaveCount(1);
+  await page.getByRole('menuitem', { name: 'From here', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Download GPX', exact: true })).toHaveCount(0);
 });

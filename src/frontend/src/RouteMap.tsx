@@ -3,7 +3,7 @@ import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as LibreMap } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { FeatureCollection, LineString } from 'geojson';
-import { Map as MapIcon, Maximize, Minus, Plus, RefreshCw } from 'lucide-react';
+import { Map as MapIcon, MapPin, Maximize, Minus, Plus, RefreshCw, X } from 'lucide-react';
 import { t } from './i18n';
 import { highlightCycleways } from './cyclingStyle';
 import { readRouteSegments, segmentFeatures } from './routeSegments';
@@ -18,10 +18,12 @@ interface Props {
   destination?: Coordinate;
   focus?: Coordinate;
   pick: 'start' | 'destination';
+  shape?: 'loop' | 'pointToPoint';
   candidates: Candidate[];
   selected: number;
   onRouteSelect: (index: number) => void;
   onSelect: (coordinate: Coordinate) => void;
+  onEndpointSelect?: (field: 'start' | 'destination', coordinate: Coordinate) => void;
 }
 const colors = ['#15724f', '#ba4661', '#346db5'];
 const center: [number, number] = [34.79, 32.085];
@@ -55,12 +57,29 @@ export default function RouteMap(props: Props) {
   const [attempt, setAttempt] = useState(0);
   const [mode, setMode] = useState<SegmentDisplayMode>('surface');
   const [selectedSegment, setSelectedSegment] = useState<number | null>(null);
+  const [pointMenu, setPointMenu] = useState<{ coordinate: Coordinate; x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const candidate = props.candidates[props.selected];
   const segmentData = useMemo(() => readRouteSegments(candidate?.route.segments, candidate?.route.geometry.length ?? 0), [candidate]);
   const currentSegments = useRef(segmentData);
   currentSegments.current = segmentData;
   const text = (key: Parameters<typeof t>[1]) => t(props.locale, key);
   const styleUrl = `https://tiles.openfreemap.org/styles/${props.theme === 'dark' ? 'dark' : 'liberty'}`;
+  useEffect(() => {
+    setPointMenu(null);
+  }, [props.start?.latitude, props.start?.longitude, props.destination?.latitude, props.destination?.longitude, props.shape, props.pick, props.candidates, props.theme, attempt]);
+  useEffect(() => {
+    if (!pointMenu) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+    const closeOutside = (event: PointerEvent) => { if (!menuRef.current?.contains(event.target as Node)) setPointMenu(null); };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [pointMenu]);
+  function chooseEndpoint(field: 'start' | 'destination') {
+    if (!pointMenu) return;
+    (props.onEndpointSelect ? props.onEndpointSelect(field, pointMenu.coordinate) : props.onSelect(pointMenu.coordinate));
+    setPointMenu(null); mapRef.current?.getCanvas().focus({ preventScroll: true });
+  }
 
   useEffect(() => {
     let map: LibreMap | undefined;
@@ -104,8 +123,19 @@ export default function RouteMap(props: Props) {
         if (features.length) {
           const index = Number(features[0].properties.index);
           if (Number.isInteger(index) && latest.current.candidates[index]) latest.current.onRouteSelect(index);
-        } else latest.current.onSelect({ latitude: event.lngLat.lat, longitude: event.lngLat.wrap().lng });
+        } else {
+          const coordinate = { latitude: event.lngLat.lat, longitude: event.lngLat.wrap().lng };
+          const endpointsSet = latest.current.start && (latest.current.shape !== 'pointToPoint' || latest.current.destination);
+          if (endpointsSet) setPointMenu({ coordinate, x: event.point.x, y: event.point.y });
+          else latest.current.onSelect(coordinate);
+        }
       });
+      map.on('contextmenu', event => {
+        event.originalEvent.preventDefault();
+        if (!readyRef.current) return;
+        setPointMenu({ coordinate: { latitude: event.lngLat.lat, longitude: event.lngLat.wrap().lng }, x: event.point.x, y: event.point.y });
+      });
+      map.on('movestart', event => { if (event.originalEvent) setPointMenu(null); });
       resize = new ResizeObserver(() => { map?.resize(); });
       resize.observe(container.current!);
     } catch { clearTimeout(deadline.current); setFailed(true); }
@@ -199,6 +229,21 @@ export default function RouteMap(props: Props) {
 
   return <><section className="map-panel" aria-label={text('map')} aria-busy={!ready && !failed}>
     <div ref={container} className="map-container" />
+    {pointMenu && ready && !failed && <div ref={menuRef} role="menu" aria-label={text('mapPointActions')} className="map-point-menu"
+      style={{ left: Math.max(8, Math.min(pointMenu.x, (container.current?.clientWidth ?? 200) - 188)), top: Math.max(8, Math.min(pointMenu.y, (container.current?.clientHeight ?? 200) - 140)) }}
+      onKeyDown={event => {
+        if (event.key === 'Escape') { setPointMenu(null); mapRef.current?.getCanvas().focus({ preventScroll: true }); }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault(); const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+          const index = items.indexOf(document.activeElement as HTMLButtonElement);
+          items[(index + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
+        }
+        if (event.key === 'Tab') setPointMenu(null);
+      }}>
+      <button role="menuitem" type="button" onClick={() => chooseEndpoint('start')}><MapPin size={16} />{text('fromHere')}</button>
+      <button role="menuitem" type="button" onClick={() => chooseEndpoint('destination')}><MapPin size={16} />{text('toHere')}</button>
+      <button role="menuitem" type="button" onClick={() => setPointMenu(null)}><X size={16} />{text('closeMenu')}</button>
+    </div>}
     {(!ready || failed) && <div className="map-status" role="status"><p>{text(failed ? 'mapError' : 'mapLoading')}</p>{failed && <button type="button" onClick={() => setAttempt(value => value + 1)}><RefreshCw size={14} />{text('retryMap')}</button>}</div>}
     <div className="map-toolbar">
       <button className="icon-button" type="button" title={text('zoomIn')} aria-label={text('zoomIn')} disabled={!ready} onClick={() => mapRef.current?.zoomIn({ duration: 0 })}><Plus size={19} /></button>

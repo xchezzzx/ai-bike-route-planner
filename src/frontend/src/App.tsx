@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { Bike, Check, Download, LoaderCircle, LocateFixed, MapPin, RefreshCw, Route, Search, Square, X } from 'lucide-react';
+import { Bike, Check, Download, LoaderCircle, LocateFixed, MapPin, RefreshCw, Route, Search, Square } from 'lucide-react';
 import { request } from './api';
 import { codeText, fieldText, quantity, t, type MessageKey } from './i18n';
 import { readCoordinate } from './request';
 import RouteMap from './RouteMap';
 import ThemeControl from './ThemeControl';
 import StartLocation from './StartLocation';
+import PlaceInput from './PlaceInput';
 import TargetInputs from './TargetInputs';
 import { trackName } from './trackName';
-import type { CoordinateInput, Draft, Locale } from './types';
+import type { Coordinate, CoordinateInput, Draft, Locale } from './types';
 import { usePlanner } from './usePlanner';
 import { ExcludedRoutes, RouteQuality } from './RoadQualityPanel';
 
@@ -25,6 +26,12 @@ export default function App() {
   const chosen = results?.candidates[selected];
   const isLoop = inputs.manual.shape === 'loop';
   const activePick = isLoop ? 'start' : pick;
+  useEffect(() => {
+    if (!isLoop) {
+      if (!point('start')) setPick('start');
+      else if (!point('destination')) setPick('destination');
+    }
+  }, [isLoop, inputs.start.latitude, inputs.start.longitude, inputs.destination.latitude, inputs.destination.longitude]);
 
   async function checkHealth() {
     healthRequest.current?.abort();
@@ -52,16 +59,26 @@ export default function App() {
   function coordinates(field: 'start' | 'destination') {
     const value = inputs[field];
     const labels = field === 'start' ? ['startLatitude', 'startLongitude'] as const : ['destinationLatitude', 'destinationLongitude'] as const;
-    return <fieldset className="coordinate-fields">
-      <legend><span className={`point-dot ${field}`} />{text(field)}</legend>
+    return <details className="exact-coordinates"><summary>{text('exactCoordinates')}</summary><fieldset className="coordinate-fields">
+      <legend className="sr-only">{text(field)}</legend>
       <div className="coordinate-row">
         {(['latitude', 'longitude'] as const).map((key, index) => <label key={key}>
           <span>{text(key)}</span>
           <input dir="ltr" inputMode="decimal" aria-label={text(labels[index])} value={value[key]} placeholder={key === 'latitude' ? '±90' : '±180'} onChange={event => update({ [field]: { ...value, [key]: event.target.value } as CoordinateInput })} />
         </label>)}
-        <button className="icon-button clear-coordinate" type="button" title={text(field === 'start' ? 'clearStart' : 'clearDestination')} aria-label={text(field === 'start' ? 'clearStart' : 'clearDestination')} onClick={() => update({ [field]: { latitude: '', longitude: '' } })}><X size={16} /></button>
       </div>
-    </fieldset>;
+    </fieldset></details>;
+  }
+  function selectPoint(field: 'start' | 'destination', coordinate: Coordinate, center = false) {
+    const value = { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) };
+    update({ [field]: value, ...(field === 'destination' && isLoop ? { manual: { ...inputs.manual, shape: 'pointToPoint' } } : {}) });
+    if (field === 'start') setPick('destination');
+    if (center) planner.centerOn(coordinate);
+  }
+  function locationField(field: 'start' | 'destination') {
+    return <div className="endpoint-field"><PlaceInput field={field} locale={locale} point={point(field)}
+      onChange={() => update({ [field]: { latitude: '', longitude: '' } })}
+      onSelect={coordinate => selectPoint(field, coordinate, true)} />{coordinates(field)}</div>;
   }
   return <>
     <header className="app-header">
@@ -75,11 +92,12 @@ export default function App() {
     <main className="workspace">
       <aside className="controls" aria-label={text('request')}>
         <section className="control-section">
-          <div className="coordinates-heading"><h2><MapPin size={17} />{text('coordinates')}</h2><button type="button" className="icon-button" title={text('useLocation')} aria-label={text('useLocation')} onClick={planner.location.locate}><LocateFixed size={18} /></button></div>
+          <div className="coordinates-heading"><h2><MapPin size={17} />{text('locations')}</h2><button type="button" className="icon-button" title={text('useLocation')} aria-label={text('useLocation')} onClick={planner.location.locate}><LocateFixed size={18} /></button></div>
           <StartLocation locale={locale} location={planner.location} />
           <fieldset className="segmented"><legend className="sr-only">{text('shape')}</legend>{(['loop', 'pointToPoint'] as const).map(shape => <label key={shape}><input type="radio" name="shape" checked={inputs.manual.shape === shape} onChange={() => { setPick('start'); update({ manual: { ...inputs.manual, shape } }); }} /><span>{codeText(locale, shape)}</span></label>)}</fieldset>
           {!isLoop && <fieldset className="segmented"><legend className="sr-only">{text('pickPoint')}</legend>{(['start', 'destination'] as const).map(field => <label key={field}><input type="radio" name="pick" checked={activePick === field} onChange={() => setPick(field)} /><span>{text(field)}</span></label>)}</fieldset>}
-          {coordinates('start')}{!isLoop && coordinates('destination')}
+          {locationField('start')}{!isLoop && locationField('destination')}
+          <small className="place-attribution"><a href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a></small>
         </section>
         <section className="control-section">
           <fieldset className="segmented"><legend className="sr-only">{text('inputMode')}</legend>{(['prompt', 'manual'] as const).map(mode => <label key={mode}><input type="radio" name="mode" checked={inputs.mode === mode} onChange={() => update({ mode })} /><span>{text(mode === 'prompt' ? 'promptMode' : 'manualMode')}</span></label>)}</fieldset>
@@ -105,7 +123,7 @@ export default function App() {
         </div>
       </aside>
       <div className="map-and-results">
-        <RouteMap locale={locale} theme={resolvedTheme === 'dark' ? 'dark' : 'light'} start={point('start')} destination={isLoop ? undefined : point('destination')} focus={planner.locationCenter} pick={activePick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => update({ [activePick]: { latitude: coordinate.latitude.toFixed(6), longitude: coordinate.longitude.toFixed(6) } })} />
+        <RouteMap locale={locale} theme={resolvedTheme === 'dark' ? 'dark' : 'light'} shape={isLoop ? 'loop' : 'pointToPoint'} start={point('start')} destination={isLoop ? undefined : point('destination')} focus={planner.locationCenter} pick={activePick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => selectPoint(activePick, coordinate)} onEndpointSelect={(field, coordinate) => selectPoint(field, coordinate)} />
         {results ? <section className="results" aria-label={text('routes')}>
           <div className="results-heading"><h2>{text('routes')} <span className="count">{results.candidates.length}</span></h2>{chosen && <button type="button" className="icon-button download" title={text('download')} aria-label={text('download')} onClick={download}><Download size={20} /><span dir="ltr">GPX</span></button>}</div>
           {chosen ? <>

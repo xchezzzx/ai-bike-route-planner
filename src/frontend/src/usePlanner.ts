@@ -67,15 +67,17 @@ export function usePlanner() {
       const destination = inputs.manual.shape === 'pointToPoint' ? readCoordinate(inputs.destination, 'destination') : undefined;
       if (inputs.mode === 'prompt') {
         if (!inputs.prompt.trim() || inputs.prompt.length > 4000) throw new ApiError('validation_failed', { prompt: [inputs.prompt.trim() ? 'too_long' : 'required'] });
-        const response = await request<Interpretation>('/api/route-intents/interpret', { prompt: inputs.prompt, locale: inputs.locale, ...(start ? { start } : {}), ...(destination ? { destination } : {}) }, signal);
+        const response = await request<Interpretation>('/api/route-intents/interpret', { prompt: inputs.prompt, locale: inputs.locale, shape: inputs.manual.shape, ...(start ? { start } : {}), ...(destination ? { destination } : {}) }, signal);
         if (!response.draft || !Array.isArray(response.clarifications) || !Array.isArray(response.limitations) || !Array.isArray(response.assumptions) || !['ready', 'unsupported', 'needsClarification'].includes(response.status)) throw new ApiError('invalid_response');
         if (response.intent && !validIntent(response.intent)) throw new ApiError('invalid_response');
         const interpretedShape = response.intent?.shape ?? response.draft.shape;
-        if (interpretedShape && interpretedShape !== inputs.manual.shape) {
+        const unresolvedShape = response.clarifications.some(item => item.field === 'shape');
+        if (interpretedShape && interpretedShape !== inputs.manual.shape && !unresolvedShape) {
           return () => {
             setInterpretation({ ...response, status: 'needsClarification', intent: null, clarifications: [
               ...response.clarifications,
-              { field: 'shape', code: 'route_shape_conflict', message: codeText(inputs.locale, 'route_shape_conflict') },
+              ...(response.clarifications.some(item => item.field === 'shape' && item.code === 'route_shape_conflict') ? [] :
+                [{ field: 'shape', code: 'route_shape_conflict', message: codeText(inputs.locale, 'route_shape_conflict') }]),
             ] });
             setIntent(null);
           };
@@ -112,7 +114,7 @@ export function usePlanner() {
     });
   }
   function cancel() { invalidate(); setError(new ApiError('cancelled')); }
-  return { inputs, update, interpretation, intent, results, selected, select: setSelected, pending, error, prepare, generate, cancel, refine, setRefine, planning, location, locationCenter };
+  return { inputs, update, interpretation, intent, results, selected, select: setSelected, pending, error, prepare, generate, cancel, refine, setRefine, planning, location, locationCenter, centerOn: setLocationCenter };
 }
 
 function validIntent(intent: Intent): boolean {

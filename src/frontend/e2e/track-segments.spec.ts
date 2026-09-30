@@ -1,3 +1,4 @@
+import { fillField } from "./fields";
 import { expect, test, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
@@ -36,9 +37,9 @@ async function setup(page: Page, metadata: 'valid' | 'missing' | 'invalid' = 'va
     throw new Error(`Unexpected external request: ${url.origin}`);
   });
   await page.goto('/');
-  await page.getByLabel('Start latitude', { exact: true }).fill('32.08');
-  await page.getByLabel('Start longitude', { exact: true }).fill('34.78');
-  await page.getByLabel('Ride request', { exact: true }).fill('A 25 km road loop');
+  await fillField(page, 'Start latitude', '32.08');
+  await fillField(page, 'Start longitude', '34.78');
+  await fillField(page, 'Ride request', 'A 25 km road loop');
   await page.getByRole('button', { name: 'Interpret request', exact: true }).click();
   await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Surface', exact: true })).toBeChecked();

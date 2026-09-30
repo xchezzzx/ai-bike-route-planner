@@ -25,11 +25,37 @@ vi.mock('maplibre-gl', () => ({
 }));
 beforeEach(() => { state.maps.length = 0; vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }); });
 const routeProps = () => ({ locale: 'en' as const, pick: 'start' as const, candidates: candidates.candidates, selected: 0, onRouteSelect: vi.fn(), onSelect: vi.fn() });
-const click = { point: { x: 1, y: 1 }, lngLat: { lat: 32, wrap: () => ({ lng: 34 }) } };
+const click = { point: { x: 1, y: 1 }, lngLat: { lat: 32, wrap: () => ({ lng: 34 }) }, originalEvent: { preventDefault: vi.fn() } };
 async function loadMap(map: any) {
   await act(() => map.events['style.load']());
   await act(() => map.events.idle());
 }
+
+it('opens endpoint actions after both points are set instead of moving either', async () => {
+  const props = { ...routeProps(), candidates: [], shape: 'pointToPoint' as const, start: { latitude: 32, longitude: 34 }, destination: { latitude: 32.1, longitude: 34.1 }, onEndpointSelect: vi.fn() };
+  render(<RouteMap {...props} />); const map = state.maps[0]; await loadMap(map);
+  await act(() => map.events.click(click));
+  expect(props.onSelect).not.toHaveBeenCalled();
+  expect(screen.getByRole('menu', { name: 'Choose endpoint' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('menuitem', { name: 'To here' }));
+  expect(props.onEndpointSelect).toHaveBeenCalledWith('destination', { latitude: 32, longitude: 34 });
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+});
+it('right click opens actions even when no endpoints exist, escape cancels', async () => {
+  const props = routeProps(); render(<RouteMap {...props} />); const map = state.maps[0]; await loadMap(map);
+  await act(() => map.events.contextmenu(click));
+  expect(screen.getByRole('menuitem', { name: 'From here' })).toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument(); expect(props.onSelect).not.toHaveBeenCalled();
+});
+it('keeps an endpoint menu during programmatic resize but dismisses it on a user pan', async () => {
+  render(<RouteMap {...routeProps()} />); const map = state.maps[0]; await loadMap(map);
+  await act(() => map.events.contextmenu(click));
+  await act(() => map.events.movestart({}));
+  expect(screen.getByRole('menuitem', { name: 'To here' })).toBeInTheDocument();
+  await act(() => map.events.movestart({ originalEvent: new MouseEvent('mousedown') }));
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+});
 
 it('switches modes without refitting and restores layers on retry', async () => {
   const props = routeProps(); render(<RouteMap {...props} />);

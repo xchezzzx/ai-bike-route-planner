@@ -1,3 +1,4 @@
+import { fillField } from "./fields";
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { basemap } from './basemap';
@@ -22,9 +23,9 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`canonical track names fo
   });
   await page.goto('/');
   await page.getByLabel('Language', { exact: true }).selectOption(locale);
-  await page.getByLabel(t(locale, 'startLatitude'), { exact: true }).fill('32.08');
-  await page.getByLabel(t(locale, 'startLongitude'), { exact: true }).fill('34.78');
-  await page.getByLabel(t(locale, 'prompt'), { exact: true }).fill('A 25 km road loop');
+  await fillField(page, t(locale, 'startLatitude'), '32.08');
+  await fillField(page, t(locale, 'startLongitude'), '34.78');
+  await fillField(page, t(locale, 'prompt'), 'A 25 km road loop');
   await page.getByRole('button', { name: t(locale, 'interpret'), exact: true }).click();
   await page.getByRole('button', { name: t(locale, 'generate'), exact: true }).click();
   for (const [index, name] of names.entries()) {

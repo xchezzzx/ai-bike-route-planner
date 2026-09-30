@@ -14,6 +14,7 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 		if (string.IsNullOrWhiteSpace(request.Prompt)) errors["prompt"] = ["required"];
 		else if (request.Prompt.Length > 4000) errors["prompt"] = ["too_long"];
 		if (request.Locale is not ("en" or "he" or "ru")) errors["locale"] = ["invalid_value"];
+		if (request.Shape is not (null or "loop" or "pointToPoint")) errors["shape"] = ["invalid_value"];
 		ValidateCoordinate(request.Start, "start", errors);
 		ValidateCoordinate(request.Destination, "destination", errors);
 		if (errors.Count > 0) return new(null, errors);
@@ -27,13 +28,16 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 			assumptions.Add("elevation_balanced");
 		var draft = new RouteIntentRequest
 		{
-			Start = request.Start, Destination = request.Destination, Shape = extracted.Shape,
+			Start = request.Start, Destination = request.Destination, Shape = extracted.Shape ?? request.Shape,
 			Profile = extracted.Profile, Elevation = extracted.Elevation ?? (defaultElevation ? "balanced" : null),
 			TargetDistanceMeters = extracted.TargetDistanceMeters, TargetDurationSeconds = extracted.TargetDurationSeconds,
 			TargetDistanceRangeMeters = extracted.TargetDistanceRangeMeters, TargetDurationRangeSeconds = extracted.TargetDurationRangeSeconds
 		};
 		var blocked = issues.Where(x => x.Code != "unsupported_preference").Select(x => x.Field).ToHashSet();
-		// Preserve the user's draft, but validate only unambiguous extracted preferences.
+		var shapeConflict = request.Shape is not null && extracted.Shape is ("loop" or "pointToPoint")
+			&& request.Shape != extracted.Shape && !blocked.Contains("shape");
+		if (shapeConflict) blocked.Add("shape");
+		// Preserve the user's draft, but validate only unambiguous preferences.
 		var candidate = draft with
 		{
 			Shape = blocked.Contains("shape") ? null : draft.Shape,
@@ -46,13 +50,15 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 		};
 		var validation = validator.Validate(candidate, cancellationToken);
 		var questions = issues.Where(x => x.Code != "unsupported_preference").ToList();
+		if (shapeConflict) questions.Add(new("shape", "route_shape_conflict"));
 		foreach (var (field, codes) in validation.Errors)
 		foreach (var code in codes)
 		{
 			if (code == "required" && blocked.Contains(field)) continue;
 			if (code == "target_required")
 			{
-				if (field == "targetDurationSeconds" || blocked.Overlaps(["targetDistanceMeters", "targetDurationSeconds", "targetDistanceRangeMeters", "targetDurationRangeSeconds"])) continue;
+				// Resolve the shape conflict before asking for shape-dependent targets.
+				if (shapeConflict || field == "targetDurationSeconds" || blocked.Overlaps(["targetDistanceMeters", "targetDurationSeconds", "targetDistanceRangeMeters", "targetDurationRangeSeconds"])) continue;
 			}
 			questions.Add(new(field, code));
 		}

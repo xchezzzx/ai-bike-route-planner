@@ -5,7 +5,36 @@ import App from '../src/App';
 import { candidates, intent, interpretation, route, refinement } from './fixtures';
 
 // jsdom has no WebGL; the browser suite exercises the actual MapLibre canvas.
-vi.mock('../src/RouteMap', () => ({ default: ({ focus }: { focus?: unknown }) => <div data-testid="map" data-focus={focus ? 'queued' : 'none'} /> }));
+vi.mock('../src/RouteMap', () => ({ default: ({ focus, onSelect, onEndpointSelect }: { focus?: unknown; onSelect: (point: unknown) => void; onEndpointSelect?: (field: string, point: unknown) => void }) => <div data-testid="map" data-focus={focus ? 'queued' : 'none'}><button onClick={() => onSelect({ latitude: 32.08, longitude: 34.78 })}>Pick map point</button><button onClick={() => onEndpointSelect?.('destination', { latitude: 32.8, longitude: 35 })}>Map to here</button></div> }));
+
+it('passes the explicit AB shape with a minimal prompt and selected points', async () => {
+  const user = userEvent.setup(); render(<App />);
+  fireEvent.change(screen.getByLabelText('Start latitude'), { target: { value: '32.08' } });
+  fireEvent.change(screen.getByLabelText('Start longitude'), { target: { value: '34.78' } });
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  fireEvent.change(screen.getByLabelText('Destination latitude'), { target: { value: '32.8' } });
+  fireEvent.change(screen.getByLabelText('Destination longitude'), { target: { value: '35' } });
+  fireEvent.change(screen.getByLabelText('Ride request'), { target: { value: 'road route' } });
+  const ab = { ...intent, shape: 'pointToPoint', destination: { latitude: 32.8, longitude: 35 }, targetDistanceMeters: null };
+  replies.interpret = { ...interpretation, draft: ab, intent: ab };
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  expect(posts[0].body).toMatchObject({ shape: 'pointToPoint', prompt: 'road route', destination: ab.destination });
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeEnabled();
+});
+it('automatically picks destination after a start and supports to-here from a loop', async () => {
+  const user = userEvent.setup(); render(<App />);
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  await user.click(screen.getByRole('button', { name: 'Pick map point' }));
+  expect(screen.getByRole('radio', { name: 'Destination' })).toBeChecked();
+  await user.click(screen.getByRole('button', { name: 'Pick map point' }));
+  expect(screen.getByLabelText('Start latitude')).toHaveValue('32.080000');
+  expect(screen.getByLabelText('Destination latitude')).toHaveValue('32.080000');
+  await user.click(screen.getByRole('radio', { name: 'Loop' }));
+  await user.click(screen.getByRole('button', { name: 'Map to here' }));
+  expect(screen.getByRole('radio', { name: 'A to B' })).toBeChecked();
+  expect(screen.getByLabelText('Start latitude')).toHaveValue('32.080000');
+  expect(screen.getByLabelText('Destination latitude')).toHaveValue('32.800000');
+});
 
 let posts: { path: string; body: unknown; signal: AbortSignal }[];
 let replies: Record<string, unknown>;
@@ -29,6 +58,30 @@ async function setupPrompt() {
   await user.type(screen.getByLabelText('Ride request'), 'A 25 km road loop');
   return user;
 }
+
+it('picks the missing start after clearing it without replacing destination', async () => {
+  const user = userEvent.setup(); render(<App />);
+  await user.click(screen.getByRole('radio', { name: 'A to B' }));
+  await user.click(screen.getByRole('button', { name: 'Pick map point' }));
+  await user.click(screen.getByRole('button', { name: 'Map to here' }));
+  await user.click(screen.getByRole('button', { name: 'Clear start' }));
+  expect(screen.getByRole('radio', { name: 'Start' })).toBeChecked();
+  await user.click(screen.getByRole('button', { name: 'Pick map point' }));
+  expect(screen.getByLabelText('Start latitude')).toHaveValue('32.080000');
+  expect(screen.getByLabelText('Destination latitude')).toHaveValue('32.800000');
+});
+
+it('preserves an ambiguous shape clarification without asserting a conflict', async () => {
+  replies.interpret = { ...interpretation, status: 'needsClarification', intent: null,
+    assumptions: [],
+    draft: { ...intent, shape: 'pointToPoint' },
+    clarifications: [{ field: 'shape', code: 'ambiguous', message: 'Choose one route shape.' }] };
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  expect(await screen.findByText('Choose one route shape.')).toBeInTheDocument();
+  expect(within(screen.getByRole('region', { name: 'Interpreted preferences' })).getAllByRole('listitem')).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+});
 
 it('applies current location only to start and invalidates completed routes', async () => {
   let success!: PositionCallback;
@@ -202,6 +255,17 @@ it.each([false, true])('requires clarification when prompt shape contradicts sel
   expect(screen.queryByText('Ready to generate')).not.toBeInTheDocument();
 });
 
+it('keeps a server shape conflict without adding a duplicate clarification', async () => {
+  const user = userEvent.setup(); render(<App />);
+  fireEvent.change(screen.getByLabelText('Ride request'), { target: { value: 'road route from A to B' } });
+  replies.interpret = { status: 'needsClarification', draft: { shape: 'pointToPoint', profile: 'road' }, intent: null,
+    clarifications: [{ field: 'shape', code: 'route_shape_conflict', message: 'Server shape conflict' }], limitations: [], assumptions: [] };
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await screen.findByText('Server shape conflict');
+  expect(within(screen.getByRole('region', { name: 'Interpreted preferences' })).getAllByRole('listitem')).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Generate routes' })).toBeDisabled();
+});
+
 it('switching shape clears results and fences late preparation', async () => {
   const user = await setupPrompt();
   await user.click(screen.getByRole('button', { name: 'Interpret request' }));
@@ -343,7 +407,7 @@ it('interprets first, requires explicit generation, renders real metrics and dow
   await user.click(screen.getByRole('button', { name: 'Interpret request' }));
   expect(await screen.findByText('Ready to generate')).toBeInTheDocument();
   expect(posts).toHaveLength(1);
-  expect(posts[0].body).toEqual({ prompt: 'A 25 km road loop', locale: 'en', start: { latitude: 32.08, longitude: 34.78 } });
+  expect(posts[0].body).toEqual({ prompt: 'A 25 km road loop', locale: 'en', shape: 'loop', start: { latitude: 32.08, longitude: 34.78 } });
   await user.click(screen.getByRole('button', { name: 'Generate routes' }));
   const results = await screen.findByRole('region', { name: 'Routes' });
   expect(within(results).getByText('24.5 km')).toBeInTheDocument();

@@ -7,6 +7,7 @@ public sealed record InterpretRouteIntentRequest
 {
 	public string? Prompt { get; init; }
 	public string? Locale { get; init; }
+	public string? Shape { get; init; }
 	public CoordinateRequest? Start { get; init; }
 	public CoordinateRequest? Destination { get; init; }
 }

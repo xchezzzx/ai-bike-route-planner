@@ -12,8 +12,9 @@ requalification; its earlier v2 results are historical only.
 
 ```json
 {
-  "prompt": "A road loop of 20 km with fewer climbs",
+  "prompt": "A road ride of 20 km with fewer climbs",
   "locale": "en",
+  "shape": "loop",
   "start": { "latitude": 32.0853, "longitude": 34.7818 }
 }
 ```
@@ -21,6 +22,9 @@ requalification; its earlier v2 results are historical only.
 Prompt: nonblank, up to 4000 UTF-16 code units. Locale: exactly `en`, `he`, or
 `ru`; it selects the language of application-owned clarification messages, not
 the language the user must write. The entire UTF-8 JSON body is limited to 64 KiB.
+Shape is an optional explicit selection: exactly `loop` or `pointToPoint` when
+supplied; absent/null retains the legacy extraction behavior. Invalid selections
+are rejected before any model call. The prompt need not repeat the selection.
 Start and destination are optional map selections; invalid supplied coordinates
 are rejected before any model call. Unknown JSON properties and numeric strings
 are rejected. Other than absent/UTF-8 charset, content encodings are unsupported.
@@ -41,8 +45,15 @@ Show the draft, assumptions, and limitations before generating a route.
 Use a separate call to `/api/routes/candidates` for road loops or
 `/api/routes/generate` for supported road A-B requests after confirmation.
 
-Missing shape/profile cause questions, not invented defaults. Missing targets
-cause a question for loops, but are valid for A-B. An ambiguous
+The selected shape fills an omitted extraction shape. A clear, differing extracted
+shape produces a localized `shape` / `route_shape_conflict` clarification and no
+intent; the extracted shape remains in the draft. Resolve this conflict before
+asking for missing shape or shape-dependent targets/destination. Other extraction
+issues, unsupported requirements and independent endpoint conflicts remain visible.
+Ambiguous/invalid shape extraction still requires clarification even with a selection.
+
+Missing shape (without a selection)/profile cause questions, not invented defaults.
+Missing targets cause a question for loops, but are valid for A-B. An ambiguous
 value can remain visible in draft but cannot produce a confirmed intent.
 Missing elevation alone defaults to balanced. A valid gravel intent returns
 unsupported with `gravel_not_supported`; it is never changed to road.
@@ -56,9 +67,10 @@ One-sided bounds, conflicting alternatives and fractional seconds still need
 clarification. The seven nullable preference fields and issues are required in
 the v4 provider response; range objects are closed with required numeric bounds.
 
-There is no conversation memory. Resubmit a full revised prompt and current map
-selections, not a bare reply like `30`. Named locations or coordinates in text
-require map selection; remove the unresolved location wording when resubmitting.
+There is no conversation memory. Resubmit a full revised prompt, the current shape
+selection and map selections, not a bare reply like `30`. Named locations or
+coordinates in text require map selection; remove the unresolved location wording
+when resubmitting.
 References to already selected points/markers are not named places and must not
 create a location clarification; missing map coordinates are checked by the app.
 This version cannot verify that a point matches a place name. Cafe stops, exact
