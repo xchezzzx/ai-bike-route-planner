@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "requestEndpoint": "/api/route-intents/validate",
+  "purpose": "Unrun public-city controls; neither verified cycling starts nor acceptance results.",
+  "maxRoutingCallsPerArm": 3,
+  "cases": [
+    { "id": "tel-aviv-distance-20", "request": {
+      "start": { "latitude": 32.0853, "longitude": 34.7818 },
+      "shape": "loop", "profile": "road", "elevation": "minimize", "targetDistanceMeters": 20000
+    } },
+    { "id": "tel-aviv-range-35-45", "request": {
+      "start": { "latitude": 32.0853, "longitude": 34.7818 },
+      "shape": "loop", "profile": "road", "elevation": "balanced",
+      "targetDistanceRangeMeters": { "min": 35000, "max": 45000 }
+    } },
+    { "id": "haifa-distance-20", "request": {
+      "start": { "latitude": 32.8191, "longitude": 34.9984 },
+      "shape": "loop", "profile": "road", "elevation": "minimize", "targetDistanceMeters": 20000
+    } },
+    { "id": "haifa-range-35-45", "request": {
+      "start": { "latitude": 32.8191, "longitude": 34.9984 },
+      "shape": "loop", "profile": "road", "elevation": "balanced",
+      "targetDistanceRangeMeters": { "min": 35000, "max": 45000 }
+    } },
+    { "id": "jerusalem-distance-20", "request": {
+      "start": { "latitude": 31.7839, "longitude": 35.2183 },
+      "shape": "loop", "profile": "road", "elevation": "seekClimbs", "targetDistanceMeters": 20000
+    } },
+    { "id": "jerusalem-duration-60-90", "request": {
+      "start": { "latitude": 31.7839, "longitude": 35.2183 },
+      "shape": "loop", "profile": "road", "elevation": "balanced",
+      "targetDurationRangeSeconds": { "min": 3600, "max": 5400 }
+    } },
+    { "id": "beersheba-duration-60", "request": {
+      "start": { "latitude": 31.252, "longitude": 34.7915 },
+      "shape": "loop", "profile": "road", "elevation": "balanced", "targetDurationSeconds": 3600
+    } },
+    { "id": "beersheba-combined-ranges", "request": {
+      "start": { "latitude": 31.252, "longitude": 34.7915 },
+      "shape": "loop", "profile": "road", "elevation": "balanced",
+      "targetDistanceRangeMeters": { "min": 20000, "max": 30000 },
+      "targetDurationRangeSeconds": { "min": 3600, "max": 7200 }
+    } }
+  ]
+}

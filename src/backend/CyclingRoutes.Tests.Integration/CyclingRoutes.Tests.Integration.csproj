@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CyclingRoutes.Api\CyclingRoutes.Api.csproj" />
     <ProjectReference Include="..\CyclingRoutes.Infrastructure\CyclingRoutes.Infrastructure.csproj" />
+    <ProjectReference Include="..\CyclingRoutes.Evaluation\CyclingRoutes.Evaluation.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,6 +35,7 @@
   <ItemGroup>
     <None Include="..\..\..\docs\evaluation\prompt-interpretation-v1.json" Link="prompt-interpretation-v1.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\..\docs\evaluation\route-refinement-v2.json" Link="route-refinement-v2.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\docs\evaluation\road-loop-control-v1.json" Link="road-loop-control-v1.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

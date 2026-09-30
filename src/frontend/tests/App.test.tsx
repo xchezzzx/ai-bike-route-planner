@@ -231,7 +231,9 @@ it.each([false, true])('shows explained no-match results after a successful resu
   if (advised) replies.plan = { ...refinement, search: empty };
   else replies.candidates = empty;
   await user.click(screen.getByRole('button', { name: 'Generate routes' }));
-  await screen.findByText('No routes meet these requirements.');
+  const status = (await screen.findByText('No matching route was found in this search.')).closest('[role="status"]');
+  expect(status).toHaveTextContent('Search attempts: 3');
+  expect(status).toHaveTextContent('Other routes may exist.');
   expect(screen.queryByRole('button', { name: 'Download GPX' })).not.toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   await user.click(screen.getByText('Excluded routes'));

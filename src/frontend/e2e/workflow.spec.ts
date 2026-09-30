@@ -165,9 +165,9 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`quality selection and cl
     warnings: empty ? ['no_candidate_meets_requirements', 'candidates_excluded'] : ['candidates_excluded'],
   } }));
   const labels = {
-    en: { prepare: 'Interpret request', generate: 'Generate routes', excluded: 'Excluded routes', noMatch: 'No routes meet these requirements.', download: 'Download GPX' },
-    ru: { prepare: 'Разобрать запрос', generate: 'Построить маршруты', excluded: 'Исключённые маршруты', noMatch: 'Подходящих маршрутов не найдено.', download: 'Скачать GPX' },
-    he: { prepare: 'פירוש הבקשה', generate: 'יצירת מסלולים', excluded: 'מסלולים שנפסלו', noMatch: 'לא נמצאו מסלולים שעומדים בדרישות.', download: 'הורדת GPX' },
+    en: { prepare: 'Interpret request', generate: 'Generate routes', excluded: 'Excluded routes', noMatch: 'No matching route was found in this search.', download: 'Download GPX', limited: 'Other routes may exist.' },
+    ru: { prepare: 'Разобрать запрос', generate: 'Построить маршруты', excluded: 'Исключённые маршруты', noMatch: 'В этом поиске подходящий маршрут не найден.', download: 'Скачать GPX', limited: 'Другие маршруты могут существовать.' },
+    he: { prepare: 'פירוש הבקשה', generate: 'יצירת מסלולים', excluded: 'מסלולים שנפסלו', noMatch: 'בחיפוש הזה לא נמצא מסלול מתאים.', download: 'הורדת GPX', limited: 'ייתכן שקיימים מסלולים אחרים.' },
   }[locale];
   await page.goto('/');
   await prompt(page);
@@ -191,6 +191,9 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`quality selection and cl
   empty = true;
   await page.getByRole('button', { name: labels.generate, exact: true }).click();
   await expect(page.getByText(labels.noMatch, { exact: true })).toBeVisible();
+  const status = page.getByRole('status').filter({ hasText: labels.noMatch });
+  await expect(status).toContainText(labels.limited);
+  await expect(status).toContainText('3');
   await expect(page.getByRole('button', { name: labels.download, exact: true })).toHaveCount(0);
   await expect(page.locator('.route-option')).toHaveCount(0);
   await expect.poll(greenPixels).toBeLessThan(before / 2);
