@@ -194,6 +194,12 @@ eight validated public-city controls, local GPX / raw ORS assessment, and
 [reference/replay evidence](evaluation/road-loop-offline-2026-09-30.md).
 This does not complete the fixed-seed comparison or improve production search.
 
+The [bounded live comparison](evaluation/road-loop-live-2026-09-30.md) used
+9 of 12 authorized ORS calls and zero Gemini, then stopped on HTTP 500.
+The simple fixed-seed arm lost diversity in Tel Aviv; the Haifa comparison
+remains incomplete. Keep the existing production strategy and the live/manual
+quality gate open.
+
 ## Implemented addition: automatic track names
 
 Requested on 2026-09-29; delivered in PR #20 using a licensed embedded GeoNames
