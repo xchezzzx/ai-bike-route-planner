@@ -28,7 +28,8 @@ Reference: https://developer.mozilla.org/en-US/docs/Web/API/Geolocation/getCurre
 
 - [x] Tests and implementation
 - [x] Local verification and independent review
-- [ ] PR, green CI, squash merge and main verification
+- [x] PR #18, green PR CI and squash merge (`acb4c35`)
+- [x] Main CI verification (Backend CI and Frontend CI succeeded at `acb4c35`)
 
 160 frontend tests pass. Production build passes (existing MapLibre chunk-size
 warning unchanged). The full 78-case browser suite passed; after the review fix,

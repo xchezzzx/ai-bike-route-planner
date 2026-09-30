@@ -25,7 +25,11 @@ public class RoutePlanEndpointTests : IClassFixture<WebApplicationFactory<Progra
 	[InlineData("plan", false)]
 	[InlineData("candidates", true)]
 	[InlineData("plan", true)]
-	public async Task QualityExclusions_AreNotRoutesOrProviderFailures(string endpoint, bool partial)
+	[InlineData("candidates", false, true)]
+	[InlineData("plan", false, true)]
+	[InlineData("candidates", true, true)]
+	[InlineData("plan", true, true)]
+	public async Task QualityExclusions_AreNotRoutesOrProviderFailures(string endpoint, bool partial, bool range = false)
 	{
 		var provider = new Provider((seed, _) =>
 		{
@@ -37,7 +41,8 @@ public class RoutePlanEndpointTests : IClassFixture<WebApplicationFactory<Progra
 		var advisor = new Advisor((_, _) => Task.FromResult(new RouteSearchAdvice(RouteSearchAction.Stop, null, null, RouteSearchReason.Stop)));
 		using var app = With(provider, advisor);
 		using var client = Client(app);
-		using var response = await client.PostAsync($"/api/routes/{endpoint}", new StringContent(Body, Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
+		var body = range ? Body.Replace("\"targetDistanceMeters\":20000", "\"targetDistanceRangeMeters\":{\"min\":18000,\"max\":22000}") : Body;
+		using var response = await client.PostAsync($"/api/routes/{endpoint}", new StringContent(body, Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 		using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 		var search = endpoint == "plan" ? json.RootElement.GetProperty("search") : json.RootElement;

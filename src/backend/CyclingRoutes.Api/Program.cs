@@ -44,7 +44,11 @@ builder.Services.AddHttpClient<IRouteSearchAdvisor, GeminiRouteSearchAdvisor>(cl
 	client.Timeout = Timeout.InfiniteTimeSpan;
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddTransient<RoutePlanningService>();
-builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+	options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+	options.SerializerOptions.AllowDuplicateProperties = false;
+});
 // Keep malformed requests as 400 responses in Development as well as Production.
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 

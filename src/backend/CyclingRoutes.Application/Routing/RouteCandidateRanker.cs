@@ -19,19 +19,18 @@ public sealed class RouteCandidateRanker
 
 	private static RankedRouteCandidate Assess(RouteIntent intent, RouteCandidate candidate, double maxAscent)
 	{
-		double? distanceDelta = null, durationDelta = null;
+		var distanceDelta = RouteTargets.DistanceDelta(intent, candidate.Path.DistanceMeters);
+		var durationDelta = RouteTargets.DurationDelta(intent, candidate.Path.EstimatedDurationSeconds);
 		var errorSum = 0d;
 		var targetCount = 0;
 		var matched = true;
-		if (intent.TargetDistance is { } distance)
+		if (RouteTargets.DistanceAim(intent) is { } distance)
 		{
-			distanceDelta = candidate.Path.DistanceMeters - distance.Meters;
-			IncludeTarget(distanceDelta.Value, distance.Meters);
+			IncludeTarget(distanceDelta!.Value, distance, intent.TargetDistanceRange is not null);
 		}
-		if (intent.TargetDuration is { } duration)
+		if (RouteTargets.DurationAim(intent) is { } duration)
 		{
-			durationDelta = candidate.Path.EstimatedDurationSeconds - duration.TotalSeconds;
-			IncludeTarget(durationDelta.Value, duration.TotalSeconds);
+			IncludeTarget(durationDelta!.Value, duration, intent.TargetDurationRange is not null);
 		}
 
 		var warnings = new List<string>();
@@ -54,14 +53,14 @@ public sealed class RouteCandidateRanker
 		}
 		return new(candidate, new(distanceDelta, durationDelta, matched, score), warnings.ToArray());
 
-		void IncludeTarget(double delta, double target)
+		void IncludeTarget(double delta, double target, bool explicitRange)
 		{
 			var absoluteDelta = Math.Abs(delta);
 			// Clamp before division so extreme positive metrics cannot overflow the score.
 			var relativeError = absoluteDelta >= target ? 1 : absoluteDelta / target;
 			errorSum += relativeError;
 			// Absorb double roundoff at the inclusive boundary without rounding metrics or scores.
-			matched &= relativeError <= TargetTolerance + RelativeRoundingAllowance;
+			matched &= explicitRange ? delta == 0 : relativeError <= TargetTolerance + RelativeRoundingAllowance;
 			targetCount++;
 		}
 	}

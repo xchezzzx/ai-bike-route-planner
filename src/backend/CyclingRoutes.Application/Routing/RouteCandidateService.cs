@@ -10,7 +10,7 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandida
 		if (intent.Shape != RouteShape.Loop || intent.Profile != CyclingProfile.Road)
 			throw new RoutingException(RoutingFailure.UnsupportedIntent);
 
-		var length = intent.TargetDistance?.Meters ?? intent.TargetDuration!.Value.TotalSeconds * 20000 / 3600;
+		var length = RouteTargets.InitialLength(intent);
 		if (length is < 1000 or > 100000)
 			throw new RoutingException(RoutingFailure.SearchDistanceOutOfRange);
 
@@ -66,7 +66,7 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandida
 		var warnings = new List<string> { "candidate_search_limited" };
 		if (incompleteFailure is not null) warnings.Add("candidate_generation_incomplete");
 		RoadCandidateSelector.AddWarnings(selection, warnings);
-		return new(length, intent.TargetDistance is null ? ["initial_speed_20_kmh"] : [], attemptedCount,
+		return new(length, RouteTargets.DistanceAim(intent) is null ? ["initial_speed_20_kmh"] : [], attemptedCount,
 			warnings.ToArray(), generated.ToArray(), incompleteFailure, selection.Excluded);
 	}
 

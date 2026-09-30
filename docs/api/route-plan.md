@@ -8,8 +8,10 @@ endpoints share the bounded [adaptive length calibration](route-candidates.md).
 {"start":{"latitude":32.0853,"longitude":34.7818},"shape":"loop","profile":"road","targetDistanceMeters":20000,"elevation":"minimize"}
 ```
 
-Only road loops are supported. A loop needs a positive distance and/or duration;
-initial length is distance or time at 20 km/h and must be 1000..100000 metres.
+Only road loops are supported. A loop needs a positive distance/time scalar or
+explicit range under the [intent contract](route-intent-validation.md). Initial
+length uses distance (scalar or range midpoint), otherwise duration (scalar or
+range midpoint) at 20 km/h, and must be 1000..100000 metres.
 Body limit: 64 KiB including chunked bodies, UTF-8 JSON only. Malformed/domain input
 returns 400, oversize 413, unsupported media 415, unsupported planning intent 422.
 Repeated JSON properties, including nested coordinates and case-insensitive
@@ -43,8 +45,15 @@ results with existing partial-result warnings. No usable geometry returns the
 existing routing ProblemDetails. This never fabricates a route or changes targets.
 
 Gemini uses the existing `Ai:Gemini:ApiKey` and `Ai:Gemini:Model` settings and a
-separate `route-search-v2` structured contract. It receives only preferences,
-attempted seeds/lengths, distance/duration/ascent and deviations. Coordinates,
+separate `route-search-v3` input/prompt contract. Its closed `nextSearch` output
+shape is unchanged from v2. The dataset filename/version remain
+`route-refinement-v2.json`/2; its `contractVersion` and evaluator reports now
+identify v3. It receives only preferences,
+attempted seeds/lengths, distance/duration/ascent and deviations. Explicit
+`targetDistanceRangeMeters` and `targetDurationRangeSeconds` preferences retain
+both bounds; they are never replaced by a scalar midpoint. Range deviations
+are zero inside and signed to the nearest bound outside. Every explicit range
+must match exactly and inclusively; legacy scalars retain 10% tolerance. Coordinates,
 raw prompts, GPX, history and keys are excluded from its input. ORS receives the
 start coordinate. No free model prose is returned. Structured-output reference:
 [Google API documentation](https://ai.google.dev/gemini-api/docs/structured-output).
@@ -71,7 +80,11 @@ or geographic reasoning. The first
 [v2 qualification](../evaluation/route-refinement-diagnostics-2026-09-29.md) passed
 all six advisor cases, but the four-city comparison remained negative: only Tel
 Aviv retained target-matching routes. Adaptive calibration was subsequently tested
-offline, not requalified live. The user explicitly accepted merge after green CI
+offline, not requalified live. Explicit range preferences and the updated advisor
+instructions are also offline-tested only. Both `route-search-v3` and extraction
+`prompt-interpretation-v4` live requalification are pending; the historical six
+v2 advisor passes do not qualify the modified v3 prompt or its range behavior.
+The user explicitly accepted merge after green CI
 with these known limitations and later manual testing. Keep the feature opt-in
 and experimental; do not claim proven route-quality improvement.
 

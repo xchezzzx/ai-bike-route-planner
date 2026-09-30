@@ -2,8 +2,11 @@
 
 POST `/api/route-intents/interpret` interprets preferences only. It makes at most
 one Gemini call and never calls ORS, generates coordinates/GPX, or saves a prompt.
-Implementation is offline-tested. The current live corpus passed 34/34 cases on
-2026-09-29; this qualifies that corpus, not production reliability or all prompts.
+Contract `prompt-interpretation-v4` is offline-tested; live requalification is
+pending after adding explicit ranges. The previous v3 live corpus passed 34/34
+cases on 2026-09-29; that result does not qualify v4 or production reliability.
+The modified refinement advisor uses `route-search-v3` and also awaits live
+requalification; its earlier v2 results are historical only.
 
 ## Request and response
 
@@ -43,6 +46,15 @@ cause a question for loops, but are valid for A-B. An ambiguous
 value can remain visible in draft but cannot produce a confirmed intent.
 Missing elevation alone defaults to balanced. A valid gravel intent returns
 unsupported with `gravel_not_supported`; it is never changed to road.
+
+Explicit EN/RU/HE distance/time intervals become `targetDistanceRangeMeters` or
+`targetDurationRangeSeconds`, each with both `min` and `max`; the corresponding
+scalar is null. Unit conversion applies to both endpoints. Draft and validated
+intent preserve the interval, never its midpoint. Nonpositive/reversed bounds
+produce application clarifications without silently sorting or repairing them.
+One-sided bounds, conflicting alternatives and fractional seconds still need
+clarification. The seven nullable preference fields and issues are required in
+the v4 provider response; range objects are closed with required numeric bounds.
 
 There is no conversation memory. Resubmit a full revised prompt and current map
 selections, not a bare reply like `30`. Named locations or coordinates in text
@@ -122,7 +134,9 @@ HTTP-only development launch, choose an unused port and explicitly set
 `ASPNETCORE_URLS` to `http://127.0.0.1:<port>` with `--no-launch-profile` instead.
 The runner rejects non-loopback addresses and redirects; it never receives a key.
 
-There are 34 synthetic cases, including 18 core EN/HE/RU cases. Contract v3 adds
+There are 37 synthetic cases, including 18 unchanged core EN/HE/RU cases and
+three explicit distance-and-time interval cases. Contract v4 adds range fields
+and changes the extraction instructions; live qualification is pending. Contract v3 added
 selected-point and targetless A-B regressions in all three languages, plus a
 named-destination guard that must still require clarification. The runner makes
 at most one sequential request per case, stops on configuration/auth/quota failure,
@@ -197,7 +211,7 @@ Subsequent full live run on 2026-09-29 passed **34/34**, with no failed comparis
 provider errors or unrun cases. Contract v3, model configuration and expectations
 were unchanged; the runner used 5000 ms pacing and no retries. Report:
 `artifacts/prompt-evaluation-20260929T123528-32e009a1.json` (ignored; copied to the
-primary checkout), exit code 0. This closes the current corpus qualification
+primary checkout), exit code 0. This closed the v3 corpus qualification
 gate, not a production reliability or general language-understanding guarantee.
 Earlier unsuccessful runs remain recorded above. Repeat qualification after
 prompt/schema/model changes and keep handling availability failures in the UI.

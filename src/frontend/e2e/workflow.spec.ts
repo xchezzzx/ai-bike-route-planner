@@ -3,6 +3,7 @@ import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
 import { basemap, cyclingBasemap } from './basemap';
 import { candidates, intent, interpretation, route, refinement } from '../tests/fixtures';
+import { t } from '../src/i18n';
 
 async function mockNetwork(page: Page, mapFails = false, style = basemap) {
   const posts: { path: string; body: unknown }[] = [];
@@ -35,6 +36,39 @@ async function generate(page: Page) {
   await page.getByRole('button', { name: 'Generate routes', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Routes', exact: true })).toBeVisible();
 }
+
+for (const locale of ['en', 'ru', 'he'] as const) test(`manual ranges retain both bounds (${locale})`, async ({ page }, info) => {
+  const posts = await mockNetwork(page);
+  await page.goto('/');
+  await page.getByLabel('Language', { exact: true }).selectOption(locale);
+  await page.getByRole('radio', { name: t(locale, 'manualMode'), exact: true }).check();
+  await page.getByLabel(t(locale, 'startLatitude'), { exact: true }).fill('32.08');
+  await page.getByLabel(t(locale, 'startLongitude'), { exact: true }).fill('34.78');
+  for (const [metric, min, max] of [['distanceInput', '35', '45'], ['durationInput', '90', '150']] as const) {
+    const group = page.getByRole('group', { name: t(locale, metric), exact: true });
+    await group.getByRole('radio', { name: t(locale, 'rangeMode'), exact: true }).check();
+    await group.getByLabel(t(locale, 'minimum'), { exact: true }).fill(min);
+    await group.getByLabel(t(locale, 'maximum'), { exact: true }).fill(max);
+  }
+  await page.getByRole('button', { name: t(locale, 'validate'), exact: true }).click();
+  await expect(page.getByRole('button', { name: t(locale, 'generate'), exact: true })).toBeEnabled();
+  expect(posts[0].body).toMatchObject({ targetDistanceRangeMeters: { min: 35000, max: 45000 }, targetDurationRangeSeconds: { min: 5400, max: 9000 } });
+  expect(posts[0].body).not.toHaveProperty('targetDistanceMeters');
+  expect(posts[0].body).not.toHaveProperty('targetDurationSeconds');
+  await page.screenshot({ path: info.outputPath(`ranges-${locale}.png`), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const bounds = page.locator('.range-bounds input');
+  for (const input of await bounds.all()) {
+    const box = await input.boundingBox();
+    expect(box!.width).toBeGreaterThan(80);
+  }
+  await page.getByRole('button', { name: t(locale, 'generate'), exact: true }).click();
+  await expect(page.getByRole('button', { name: t(locale, 'download'), exact: true })).toBeVisible();
+  expect(posts[1].body).toEqual(posts[0].body);
+  await page.getByRole('group', { name: t(locale, 'distanceInput'), exact: true }).getByRole('radio', { name: t(locale, 'targetMode'), exact: true }).check();
+  await expect(page.getByRole('button', { name: t(locale, 'generate'), exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: t(locale, 'download'), exact: true })).toHaveCount(0);
+});
 
 for (const locale of ['en', 'ru', 'he'] as const) test(`shape selector hides inactive destination and resets map picking (${locale})`, async ({ page }, testInfo) => {
   const posts = await mockNetwork(page);

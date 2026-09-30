@@ -5,7 +5,7 @@ namespace CyclingRoutes.Application.Interpretation;
 
 public sealed class InterpretationService(IRouteIntentInterpreter interpreter, RouteIntentValidator validator)
 {
-	private static readonly string[] FieldOrder = ["start", "shape", "profile", "destination", "targetDistanceMeters", "targetDurationSeconds", "elevation", "prompt"];
+	private static readonly string[] FieldOrder = ["start", "shape", "profile", "destination", "targetDistanceMeters", "targetDistanceRangeMeters", "targetDurationSeconds", "targetDurationRangeSeconds", "elevation", "prompt"];
 
 	public async Task<InterpretationResult> InterpretAsync(InterpretRouteIntentRequest request, CancellationToken cancellationToken)
 	{
@@ -29,7 +29,8 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 		{
 			Start = request.Start, Destination = request.Destination, Shape = extracted.Shape,
 			Profile = extracted.Profile, Elevation = extracted.Elevation ?? (defaultElevation ? "balanced" : null),
-			TargetDistanceMeters = extracted.TargetDistanceMeters, TargetDurationSeconds = extracted.TargetDurationSeconds
+			TargetDistanceMeters = extracted.TargetDistanceMeters, TargetDurationSeconds = extracted.TargetDurationSeconds,
+			TargetDistanceRangeMeters = extracted.TargetDistanceRangeMeters, TargetDurationRangeSeconds = extracted.TargetDurationRangeSeconds
 		};
 		var blocked = issues.Where(x => x.Code != "unsupported_preference").Select(x => x.Field).ToHashSet();
 		// Preserve the user's draft, but validate only unambiguous extracted preferences.
@@ -39,7 +40,9 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 			Profile = blocked.Contains("profile") ? null : draft.Profile,
 			Elevation = blocked.Contains("elevation") ? null : draft.Elevation,
 			TargetDistanceMeters = blocked.Contains("targetDistanceMeters") ? null : draft.TargetDistanceMeters,
-			TargetDurationSeconds = blocked.Contains("targetDurationSeconds") ? null : draft.TargetDurationSeconds
+			TargetDurationSeconds = blocked.Contains("targetDurationSeconds") ? null : draft.TargetDurationSeconds,
+			TargetDistanceRangeMeters = blocked.Contains("targetDistanceRangeMeters") ? null : draft.TargetDistanceRangeMeters,
+			TargetDurationRangeSeconds = blocked.Contains("targetDurationRangeSeconds") ? null : draft.TargetDurationRangeSeconds
 		};
 		var validation = validator.Validate(candidate, cancellationToken);
 		var questions = issues.Where(x => x.Code != "unsupported_preference").ToList();
@@ -49,7 +52,7 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 			if (code == "required" && blocked.Contains(field)) continue;
 			if (code == "target_required")
 			{
-				if (field == "targetDurationSeconds" || blocked.Contains("targetDistanceMeters") || blocked.Contains("targetDurationSeconds")) continue;
+				if (field == "targetDurationSeconds" || blocked.Overlaps(["targetDistanceMeters", "targetDurationSeconds", "targetDistanceRangeMeters", "targetDurationRangeSeconds"])) continue;
 			}
 			questions.Add(new(field, code));
 		}
@@ -58,15 +61,24 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 		if (candidate.Profile == "gravel") limitations.Add("gravel_not_supported");
 		if (candidate.Shape == "pointToPoint" && candidate.Elevation is "minimize" or "seekClimbs")
 			limitations.Add("point_to_point_elevation_not_supported");
-		if (candidate.Shape == "loop" && candidate.Profile == "road" && !blocked.Contains("targetDistanceMeters"))
+		if (candidate.Shape == "loop" && candidate.Profile == "road"
+			&& !blocked.Overlaps(["targetDistanceMeters", "targetDistanceRangeMeters"]))
 		{
 			// Capability limits depend on known search parameters, not unrelated missing fields.
 			double? length = null;
 			if (candidate.TargetDistanceMeters is { } meters && double.IsFinite(meters) && meters > 0)
 				length = meters;
-			else if (candidate.TargetDistanceMeters is null && candidate.TargetDurationSeconds is > 0
-				&& candidate.TargetDurationSeconds <= TimeSpan.MaxValue.Ticks / TimeSpan.TicksPerSecond)
-				length = (double)candidate.TargetDurationSeconds.Value * 20000 / 3600;
+			else if (candidate.TargetDistanceRangeMeters is { Min: { } min, Max: { } max }
+				&& double.IsFinite(min) && double.IsFinite(max) && min > 0 && min <= max)
+				length = min + (max - min) / 2;
+			else if (candidate.TargetDistanceMeters is null && candidate.TargetDistanceRangeMeters is null)
+			{
+				if (candidate.TargetDurationSeconds is > 0 && candidate.TargetDurationSeconds <= TimeSpan.MaxValue.Ticks / TimeSpan.TicksPerSecond)
+					length = (double)candidate.TargetDurationSeconds.Value * 20000 / 3600;
+				else if (candidate.TargetDurationRangeSeconds is { Min: > 0, Max: { } upper } range
+					&& range.Min <= upper && upper <= TimeSpan.MaxValue.Ticks / TimeSpan.TicksPerSecond)
+					length = (range.Min.Value + (upper - range.Min.Value) / 2d) * 20000 / 3600;
+			}
 			if (length is < 1000 or > 100000) limitations.Add("loop_search_distance_out_of_range");
 		}
 		var clarifications = questions.Distinct().OrderBy(x => Array.IndexOf(FieldOrder, x.Field.Split('.')[0]))
@@ -76,7 +88,9 @@ public sealed class InterpretationService(IRouteIntentInterpreter interpreter, R
 		if (validation.Intent is { } valid && clarifications.Length == 0 && issues.Length == 0)
 			responseIntent = new(new(valid.Start.Latitude, valid.Start.Longitude),
 				valid.Destination is { } destination ? new(destination.Latitude, destination.Longitude) : null,
-				draft.Shape!, draft.Profile!, draft.Elevation!, draft.TargetDistanceMeters, draft.TargetDurationSeconds);
+				draft.Shape!, draft.Profile!, draft.Elevation!, draft.TargetDistanceMeters, draft.TargetDurationSeconds,
+				valid.TargetDistanceRange is { } dr ? new(dr.Min, dr.Max) : null,
+				valid.TargetDurationRange is { } tr ? new(tr.Min, tr.Max) : null);
 		cancellationToken.ThrowIfCancellationRequested();
 		var status = clarifications.Length > 0 ? "needsClarification" : limitations.Count > 0 ? "unsupported" : "ready";
 		return new(new(status, draft, responseIntent, clarifications, limitations, assumptions), errors);

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "contractVersion": "route-search-v2",
+  "contractVersion": "route-search-v3",
   "advisorCases": [
     {
       "id": "matching-targets",

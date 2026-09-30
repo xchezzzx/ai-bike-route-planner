@@ -66,21 +66,25 @@ incremental conversation merging are outside this slice.
 
 ## Extraction contract
 
-The provider result contains all five nullable preference fields:
-shape, profile, elevation, targetDistanceMeters, targetDurationSeconds; plus an
+The v4 provider result contains all seven nullable preference fields:
+shape, profile, elevation, targetDistanceMeters, targetDurationSeconds,
+targetDistanceRangeMeters, targetDurationRangeSeconds; plus an
 issues array. These preferences use the existing API tokens and units.
 Shape is loop or pointToPoint, profile road or gravel, and elevation minimize,
 balanced, or seekClimbs. Duration is whole seconds. All numbers must be finite.
 
 Null means not established, not permission to invent a value. Convert explicit
 units to meters/seconds; retain both distance and time when both are given.
-Negative and zero targets are not silently corrected. An ambiguous quantity,
-range without a single target, or unsupported precision needs clarification.
+Negative and zero targets are not silently corrected. Explicit closed intervals
+preserve both required min/max endpoints, with a null scalar for that metric.
+Bounds are converted to meters/whole seconds without sorting or adding tolerance.
+An ambiguous quantity, one-sided bound, conflicting alternative or unsupported
+precision needs clarification. Reversed bounds fail application validation.
 No default shape, profile, distance, duration, or coordinates. Missing elevation
 alone uses the existing balanced default with assumption elevation_balanced.
 
 Each issue contains field and code only, from fixed allowlists. Fields are the
-five preference fields plus start, destination, and prompt. Codes are ambiguous,
+seven preference fields plus start, destination, and prompt. Codes are ambiguous,
 invalid_value, location_requires_map_selection, and unsupported_preference.
 At most 16 issue entries are allowed, deduplicated after parsing. There are no model-authored question texts,
 HTML, arbitrary action names, confidence scores, URLs, or executable tool calls.
@@ -122,10 +126,12 @@ HTTP 200 contains:
 Clarification messages come from application-owned EN/HE/RU templates, not the
 model. Preserve existing validation codes (required, target_required,
 must_be_positive, out_of_range, destination_not_allowed, must_differ_from_start).
+Range validation adds range_reversed and target_conflict on the range field;
+individual bound errors use the .min/.max path and existing codes.
 Combine the two target_required errors into one question on targetDistanceMeters
 asking for distance or duration. Deduplicate identical field/code pairs and order
-by start, shape, profile, destination, targetDistanceMeters,
-targetDurationSeconds, elevation, prompt, then code ordinally.
+by start, shape, profile, destination, targetDistanceMeters, targetDistanceRangeMeters,
+targetDurationSeconds, targetDurationRangeSeconds, elevation, prompt, then code ordinally.
 
 An ambiguous or invalid_value extraction issue invalidates the affected
 preference for intent creation; do not trust a simultaneously supplied value.

@@ -8,6 +8,8 @@ public sealed class RouteIntent
 	public CyclingProfile Profile { get; }
 	public Distance? TargetDistance { get; }
 	public TimeSpan? TargetDuration { get; }
+	public DistanceRange? TargetDistanceRange { get; }
+	public DurationRange? TargetDurationRange { get; }
 	public ElevationPreference Elevation { get; }
 
 	public RouteIntent(
@@ -17,7 +19,9 @@ public sealed class RouteIntent
 		Distance? targetDistance = null,
 		TimeSpan? targetDuration = null,
 		GeoCoordinate? destination = null,
-		ElevationPreference elevation = ElevationPreference.Balanced)
+		ElevationPreference elevation = ElevationPreference.Balanced,
+		DistanceRange? targetDistanceRange = null,
+		DurationRange? targetDurationRange = null)
 	{
 		ArgumentNullException.ThrowIfNull(start);
 
@@ -42,7 +46,13 @@ public sealed class RouteIntent
 				"Target duration must be greater than zero.");
 		}
 
-		if (shape == RouteShape.Loop && targetDistance is null && targetDuration is null)
+		if (targetDistance is not null && targetDistanceRange is not null)
+			throw new ArgumentException("Distance scalar and range are mutually exclusive.", nameof(targetDistanceRange));
+		if (targetDuration is not null && targetDurationRange is not null)
+			throw new ArgumentException("Duration scalar and range are mutually exclusive.", nameof(targetDurationRange));
+
+		if (shape == RouteShape.Loop && targetDistance is null && targetDuration is null
+			&& targetDistanceRange is null && targetDurationRange is null)
 		{
 			throw new ArgumentException("A loop requires a target distance or duration.");
 		}
@@ -64,6 +74,8 @@ public sealed class RouteIntent
 		Profile = profile;
 		TargetDistance = targetDistance;
 		TargetDuration = targetDuration;
+		TargetDistanceRange = targetDistanceRange;
+		TargetDurationRange = targetDurationRange;
 		Elevation = elevation;
 	}
 }

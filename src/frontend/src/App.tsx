@@ -7,6 +7,7 @@ import { readCoordinate } from './request';
 import RouteMap from './RouteMap';
 import ThemeControl from './ThemeControl';
 import StartLocation from './StartLocation';
+import TargetInputs from './TargetInputs';
 import type { CoordinateInput, Draft, Locale } from './types';
 import { usePlanner } from './usePlanner';
 import { ExcludedRoutes, RouteQuality } from './RoadQualityPanel';
@@ -83,7 +84,7 @@ export default function App() {
           <fieldset className="segmented"><legend className="sr-only">{text('inputMode')}</legend>{(['prompt', 'manual'] as const).map(mode => <label key={mode}><input type="radio" name="mode" checked={inputs.mode === mode} onChange={() => update({ mode })} /><span>{text(mode === 'prompt' ? 'promptMode' : 'manualMode')}</span></label>)}</fieldset>
           {inputs.mode === 'prompt' ? <label className="prompt-label">{text('prompt')}<textarea rows={4} maxLength={4000} value={inputs.prompt} onChange={event => update({ prompt: event.target.value })} /></label> : <div className="manual-fields">
             {(['profile', 'elevation'] as const).map(key => <label key={key}>{text(key)}<select aria-label={text(key)} value={inputs.manual[key]} onChange={event => update({ manual: { ...inputs.manual, [key]: event.target.value } })}>{(key === 'profile' ? ['road', 'gravel'] : ['balanced', 'minimize', 'seekClimbs']).map(value => <option key={value} value={value} disabled={value === 'gravel' || key === 'elevation' && !isLoop && value !== 'balanced'}>{codeText(locale, value)}</option>)}</select></label>)}
-            <div className="target-fields">{(['distance', 'duration'] as const).map(key => <label key={key}>{text(key === 'distance' ? 'distanceInput' : 'durationInput')}<input dir="ltr" inputMode="decimal" value={inputs.manual[key]} onChange={event => update({ manual: { ...inputs.manual, [key]: event.target.value } })} /></label>)}</div>
+            <TargetInputs locale={locale} value={inputs.manual} onChange={manual => update({ manual })} />
           </div>}
           <button className="secondary wide" type="button" disabled={!!pending} onClick={() => void planner.prepare()}><Search size={17} />{text(inputs.mode === 'prompt' ? 'interpret' : 'validate')}</button>
         </section>
@@ -147,7 +148,7 @@ function DraftSummary({ draft, locale }: { draft: Draft; locale: Locale }) {
   return <dl className="draft-summary">
     {(['shape', 'profile', 'elevation'] as const).map(key => <div key={key}><dt>{t(locale, key)}</dt><dd>{draft[key] ? codeText(locale, draft[key]!) : t(locale, 'notSpecified')}</dd></div>)}
     {(['start', 'destination'] as const).map(key => <div key={key}><dt>{t(locale, key)}</dt><dd dir="ltr">{draft[key] ? `${draft[key]!.latitude}, ${draft[key]!.longitude}` : t(locale, 'notSpecified')}</dd></div>)}
-    <div><dt>{t(locale, 'targetDistanceMeters')}</dt><dd dir="ltr">{draft.targetDistanceMeters == null ? t(locale, 'notSpecified') : quantity(locale, draft.targetDistanceMeters, 'km', 1000)}</dd></div>
-    <div><dt>{t(locale, 'targetDurationSeconds')}</dt><dd dir="ltr">{draft.targetDurationSeconds == null ? t(locale, 'notSpecified') : quantity(locale, draft.targetDurationSeconds, 'min', 60)}</dd></div>
+    <div><dt>{t(locale, 'targetDistanceMeters')}</dt><dd dir="ltr">{draft.targetDistanceRangeMeters ? `${quantity(locale, draft.targetDistanceRangeMeters.min, 'km', 1000)} – ${quantity(locale, draft.targetDistanceRangeMeters.max, 'km', 1000)}` : draft.targetDistanceMeters == null ? t(locale, 'notSpecified') : quantity(locale, draft.targetDistanceMeters, 'km', 1000)}</dd></div>
+    <div><dt>{t(locale, 'targetDurationSeconds')}</dt><dd dir="ltr">{draft.targetDurationRangeSeconds ? `${quantity(locale, draft.targetDurationRangeSeconds.min, 'min', 60)} – ${quantity(locale, draft.targetDurationRangeSeconds.max, 'min', 60)}` : draft.targetDurationSeconds == null ? t(locale, 'notSpecified') : quantity(locale, draft.targetDurationSeconds, 'min', 60)}</dd></div>
   </dl>;
 }

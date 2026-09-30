@@ -1,6 +1,7 @@
 export type Locale = 'en' | 'ru' | 'he';
 export interface Coordinate { latitude: number; longitude: number }
 export interface CoordinateInput { latitude: string; longitude: string }
+export interface TargetRange { min: number; max: number }
 export interface Intent {
   start: Coordinate;
   destination?: Coordinate | null;
@@ -9,6 +10,8 @@ export interface Intent {
   elevation: 'balanced' | 'minimize' | 'seekClimbs';
   targetDistanceMeters?: number | null;
   targetDurationSeconds?: number | null;
+  targetDistanceRangeMeters?: TargetRange | null;
+  targetDurationRangeSeconds?: TargetRange | null;
 }
 export type Draft = Partial<Intent>;
 export interface Interpretation {
@@ -67,7 +70,11 @@ export interface RoutePlan {
   advisorFailure: 'notConfigured' | 'authentication' | 'quota' | 'unavailable' | 'timeout' | 'invalidResponse' | null;
   attempts: { seed: number; requestedLengthMeters: number; outcome: 'accepted' | 'duplicate' | 'noRoute' | 'failed'; reason: 'distance' | 'duration' | 'elevation' | 'explore' | 'stop'; failure: string | null }[];
 }
-export interface ManualInput { shape: string; profile: string; elevation: string; distance: string; duration: string }
+export interface ManualInput {
+  shape: string; profile: string; elevation: string; distance: string; duration: string;
+  distanceMode?: 'exact' | 'range'; durationMode?: 'exact' | 'range';
+  distanceMin?: string; distanceMax?: string; durationMin?: string; durationMax?: string;
+}
 export interface Inputs {
   locale: Locale;
   mode: 'prompt' | 'manual';

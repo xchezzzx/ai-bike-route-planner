@@ -9,4 +9,6 @@ public sealed record RouteIntentResponse(
 	string Profile,
 	string Elevation,
 	double? TargetDistanceMeters,
-	long? TargetDurationSeconds);
+	long? TargetDurationSeconds,
+	DistanceRangeResponse? TargetDistanceRangeMeters = null,
+	DurationRangeResponse? TargetDurationRangeSeconds = null);

@@ -7,7 +7,7 @@ function Assert-True($value, $message) { if (-not $value) { throw $message } }
 Assert-True ($LASTEXITCODE -eq 0) 'Offline refinement validation failed.'
 $oldCorpusPath = Join-Path $PSScriptRoot '../../docs/evaluation/route-refinement-v1.json'
 & pwsh -NoProfile -File $runner -CorpusPath $oldCorpusPath
-Assert-True ($LASTEXITCODE -eq 1) 'Legacy advisor corpus must not qualify the v2 contract.'
+Assert-True ($LASTEXITCODE -eq 1) 'Legacy advisor corpus must not qualify the v3 contract.'
 $oldCorpus = Get-Content $oldCorpusPath -Raw | ConvertFrom-Json
 $newCorpus = Get-Content (Join-Path $PSScriptRoot '../../docs/evaluation/route-refinement-v2.json') -Raw | ConvertFrom-Json
 foreach ($field in @('advisorCases', 'routeCases')) {
@@ -87,6 +87,7 @@ try {
             $raw = Get-Content $output -Raw
             Assert-True (-not $raw.Contains('secret')) 'Provider detail leaked'
             $report = $raw | ConvertFrom-Json -AsHashtable
+			Assert-True ($report.contractVersion -ceq 'route-search-v3') 'Report must identify the current advisor prompt contract.'
             Assert-True ($report.results.Count -eq 2) 'Missing arm in report'
             Assert-True (@($report.results | Where-Object status -eq 'unrun').Count -eq 2-$requestCount) 'Wrong unrun count'
             if($scenario -eq 'pass'){ Assert-True ($report.results[0].bestMeanTargetError -eq 0) 'Wrong error metric' }

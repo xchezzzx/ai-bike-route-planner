@@ -12,7 +12,7 @@ public sealed class RouteGenerationService(IRoutingProvider provider)
 
 		var path = await provider.GetRoadRouteAsync(intent.Start, intent.Destination!, cancellationToken);
 		cancellationToken.ThrowIfCancellationRequested();
-		return new(path, GpxWriter.Write(path), intent.TargetDistance is not null || intent.TargetDuration is not null
+		return new(path, GpxWriter.Write(path), RouteTargets.DistanceAim(intent) is not null || RouteTargets.DurationAim(intent) is not null
 			? ["targets_not_optimized"] : []);
 	}
 }

@@ -10,7 +10,7 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 		cancellationToken.ThrowIfCancellationRequested();
 		if (intent.Shape != RouteShape.Loop || intent.Profile != CyclingProfile.Road)
 			throw new RoutingException(RoutingFailure.UnsupportedIntent);
-		var initial = intent.TargetDistance?.Meters ?? intent.TargetDuration!.Value.TotalSeconds * 20000 / 3600;
+		var initial = RouteTargets.InitialLength(intent);
 		if (!double.IsFinite(initial) || initial is < 1000 or > 100000)
 			throw new RoutingException(RoutingFailure.SearchDistanceOutOfRange);
 
@@ -51,8 +51,8 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 				if (outcome == RouteSearchOutcome.Accepted) candidates.Add(new(seed, path));
 				attempts[index] = new(seed, length, outcome, reason, null);
 				observations.Add(new(seed, length, outcome, path.DistanceMeters, path.EstimatedDurationSeconds, path.AscentMeters,
-					intent.TargetDistance is { } distance ? path.DistanceMeters - distance.Meters : null,
-					intent.TargetDuration is { } duration ? path.EstimatedDurationSeconds - duration.TotalSeconds : null));
+					RouteTargets.DistanceDelta(intent, path.DistanceMeters),
+					RouteTargets.DurationDelta(intent, path.EstimatedDurationSeconds)));
 			}
 			catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && (deadline.IsCancellationRequested || callDeadline.IsCancellationRequested))
 			{
@@ -82,7 +82,9 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 		else if (intent.Elevation != ElevationPreference.Balanced || selector.Select(intent, candidates, cancellationToken).Retained.Count == 0)
 		{
 			var context = new RouteSearchContext(new(intent.Shape, intent.Profile, intent.Elevation,
-				intent.TargetDistance?.Meters, intent.TargetDuration?.TotalSeconds), initial, Array.AsReadOnly(observations.ToArray()));
+				intent.TargetDistance?.Meters, intent.TargetDuration?.TotalSeconds,
+				intent.TargetDistanceRange is { } dr ? new(dr.Min, dr.Max) : null,
+				intent.TargetDurationRange is { } tr ? new(tr.Min, tr.Max) : null), initial, Array.AsReadOnly(observations.ToArray()));
 			RouteSearchAdvice? advice = null;
 			using var adviceDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(30), timeProvider);
 			using var adviceCall = CancellationTokenSource.CreateLinkedTokenSource(search.Token, adviceDeadline.Token);
@@ -133,7 +135,7 @@ public sealed class RoutePlanningService(IRoutingProvider provider, IRouteSearch
 		if (incomplete is not null) warnings.Add("candidate_generation_incomplete");
 		if (advisorFailure is not null) warnings.Add("advisor_fallback");
 		RoadCandidateSelector.AddWarnings(selection, warnings);
-		return new(new(initial, intent.TargetDistance is null ? ["initial_speed_20_kmh"] : [], attempts.Count,
+		return new(new(initial, RouteTargets.DistanceAim(intent) is null ? ["initial_speed_20_kmh"] : [], attempts.Count,
 			warnings.ToArray(), generated.ToArray(), incomplete, selection.Excluded), advisorCalls, advisorStatus, advisorFailure, attempts.ToArray());
 	}
 }

@@ -7,6 +7,22 @@ namespace CyclingRoutes.Tests.Integration;
 public class PromptEvaluationCorpusTests
 {
 	[Theory]
+	[InlineData("en")] [InlineData("ru")] [InlineData("he")]
+	public void CorpusIncludesExplicitDistanceAndDurationIntervals(string locale)
+	{
+		using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));
+		var item = Assert.Single(json.RootElement.GetProperty("cases").EnumerateArray(), x => x.GetProperty("id").GetString() == locale + "-ranges");
+		Assert.Equal("ready", item.GetProperty("expectedStatus").GetString());
+		var fields = item.GetProperty("expectedFields");
+		Assert.Equal(18000, fields.GetProperty("intent.targetDistanceRangeMeters.min").GetDouble());
+		Assert.Equal(22000, fields.GetProperty("intent.targetDistanceRangeMeters.max").GetDouble());
+		Assert.Equal(3000, fields.GetProperty("intent.targetDurationRangeSeconds.min").GetInt64());
+		Assert.Equal(4200, fields.GetProperty("intent.targetDurationRangeSeconds.max").GetInt64());
+		Assert.Equal(JsonValueKind.Null, fields.GetProperty("intent.targetDistanceMeters").ValueKind);
+		Assert.Equal(JsonValueKind.Null, fields.GetProperty("intent.targetDurationSeconds").ValueKind);
+	}
+
+	[Theory]
 	[InlineData("en")]
 	[InlineData("ru")]
 	[InlineData("he")]
@@ -47,7 +63,7 @@ public class PromptEvaluationCorpusTests
 	{
 		using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "prompt-interpretation-v1.json")));
 		var root = json.RootElement;
-		Assert.Equal("prompt-interpretation-v3", root.GetProperty("contractVersion").GetString());
+		Assert.Equal("prompt-interpretation-v4", root.GetProperty("contractVersion").GetString());
 		var cases = root.GetProperty("cases").EnumerateArray().ToArray();
 		Assert.True(cases.Length >= 25);
 		Assert.Equal(cases.Length, cases.Select(x => x.GetProperty("id").GetString()).Distinct().Count());
@@ -64,7 +80,7 @@ public class PromptEvaluationCorpusTests
 			Assert.Equal(JsonValueKind.Array, item.GetProperty("expectedLimitations").ValueKind);
 			Assert.Equal(JsonValueKind.Array, item.GetProperty("expectedAssumptions").ValueKind);
 			foreach (var field in item.GetProperty("expectedFields").EnumerateObject())
-				Assert.Matches(@"^(intent|draft)(\.(shape|profile|elevation|targetDistanceMeters|targetDurationSeconds|start\.(latitude|longitude)|destination\.(latitude|longitude)))?$", field.Name);
+				Assert.Matches(@"^(intent|draft)(\.(shape|profile|elevation|targetDistanceMeters|targetDurationSeconds|targetDistanceRangeMeters(\.(min|max))?|targetDurationRangeSeconds(\.(min|max))?|start\.(latitude|longitude)|destination\.(latitude|longitude)))?$", field.Name);
 			if (status == "ready")
 			{
 				var fields = item.GetProperty("expectedFields");
@@ -72,7 +88,11 @@ public class PromptEvaluationCorpusTests
 					Shape = fields.GetProperty("intent.shape").GetString(), Profile = fields.GetProperty("intent.profile").GetString(),
 					Elevation = fields.GetProperty("intent.elevation").GetString(),
 					TargetDistanceMeters = fields.TryGetProperty("intent.targetDistanceMeters", out var distance) && distance.ValueKind != JsonValueKind.Null ? distance.GetDouble() : null,
-					TargetDurationSeconds = fields.TryGetProperty("intent.targetDurationSeconds", out var duration) && duration.ValueKind != JsonValueKind.Null ? duration.GetInt64() : null };
+					TargetDurationSeconds = fields.TryGetProperty("intent.targetDurationSeconds", out var duration) && duration.ValueKind != JsonValueKind.Null ? duration.GetInt64() : null,
+					TargetDistanceRangeMeters = fields.TryGetProperty("intent.targetDistanceRangeMeters.min", out var minDistance)
+						? new(minDistance.GetDouble(), fields.GetProperty("intent.targetDistanceRangeMeters.max").GetDouble()) : null,
+					TargetDurationRangeSeconds = fields.TryGetProperty("intent.targetDurationRangeSeconds.min", out var minDuration)
+						? new(minDuration.GetInt64(), fields.GetProperty("intent.targetDurationRangeSeconds.max").GetInt64()) : null };
 				Assert.Empty(new RouteIntentValidator().Validate(intent, TestContext.Current.CancellationToken).Errors);
 			}
 		}

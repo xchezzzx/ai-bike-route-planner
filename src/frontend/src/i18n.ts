@@ -95,6 +95,10 @@ const messages = {
   locationInsecure: ['Location requires HTTPS. Select start manually.', 'Для определения местоположения нужен HTTPS. Выберите старт вручную.', 'איתור מיקום דורש HTTPS. יש לבחור התחלה ידנית.'],
   distance: ['Distance', 'Расстояние', 'מרחק'], duration: ['Provider time', 'Время провайдера', 'זמן לפי הספק'],
   targetDistanceMeters: ['Target distance', 'Целевое расстояние', 'מרחק יעד'], targetDurationSeconds: ['Target duration', 'Целевая длительность', 'משך יעד'],
+  targetMode: ['Target', 'Цель', 'יעד'], rangeMode: ['Range', 'Диапазон', 'טווח'],
+  minimum: ['Minimum', 'Минимум', 'מינימום'], maximum: ['Maximum', 'Максимум', 'מקסימום'],
+  range_reversed: ['Minimum must not exceed maximum.', 'Минимум не должен превышать максимум.', 'המינימום לא יכול להיות גדול מהמקסימום.'],
+  target_conflict: ['Choose a target or a range, not both.', 'Укажите цель или диапазон, но не оба.', 'יש לבחור יעד או טווח, לא שניהם.'],
   draft: ['Interpreted preferences', 'Распознанные параметры', 'העדפות שזוהו'],
   ready: ['Ready to generate', 'Готово к построению', 'מוכן ליצירה'], needsClarification: ['Clarification needed', 'Нужно уточнение', 'נדרשת הבהרה'], unsupported: ['Unsupported preferences', 'Неподдерживаемые параметры', 'העדפות לא נתמכות'],
   assumptions: ['Assumptions', 'Допущения', 'הנחות'], limitations: ['Limitations', 'Ограничения', 'מגבלות'],
@@ -201,6 +205,8 @@ export function codeText(locale: Locale, code: string, fallback: MessageKey = 'u
   return t(locale, Object.hasOwn(messages, code) ? code as MessageKey : fallback);
 }
 export function fieldText(locale: Locale, field: string): string {
+  if (field.startsWith('targetDistanceRangeMeters')) return t(locale, 'targetDistanceMeters');
+  if (field.startsWith('targetDurationRangeSeconds')) return t(locale, 'targetDurationSeconds');
   const fields: Record<string, MessageKey> = { 'start.latitude': 'startLatitude', 'start.longitude': 'startLongitude', 'destination.latitude': 'destinationLatitude', 'destination.longitude': 'destinationLongitude', start: 'start', destination: 'destination', shape: 'shape', profile: 'profile', elevation: 'elevation', targetDistanceMeters: 'targetDistanceMeters', targetDurationSeconds: 'targetDurationSeconds', prompt: 'prompt', locale: 'language' };
   return t(locale, fields[field] ?? 'request');
 }
