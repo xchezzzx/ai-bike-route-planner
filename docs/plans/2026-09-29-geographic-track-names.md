@@ -2,9 +2,10 @@
 
 ## Scope and Design
 
-Backend, deterministic importer, offline tests, and documentation only. Base:
-`main d186bac`, branch `oleg/geographic-track-names`. No frontend, auth,
-deployment, commits, pushes, PRs, live routing, or live LLM requests.
+Original backend delegation: deterministic importer, offline tests and
+documentation, based on `main d186bac`. The parent added frontend integration
+and rebased the feature onto ranges/geolocation; authentication and deployment
+remain separate work. No live routing or LLM requests are part of this feature.
 
 The application resolves one canonical name from the actual routed geometry's
 first and last positions, requested shape/profile, and provider-reported actual
@@ -104,8 +105,14 @@ explicit expected track name. All generated-route endpoints share the mapper.
 `GpxWriter.Write(path, name)` now requires the name explicitly. `GeneratedRoute.Create`
 resolves once, preserves provider geometry/metrics/warnings, and appends attribution
 on a copy of the path before serializing GPX. Do not re-resolve in frontend.
-Update frontend contract/display/download later using JSON `name` as documented
+The frontend contract/display/download now use JSON `name` as documented
 in [the API contract](../api/geographic-track-names.md). Do not infer uniqueness.
+
+After integration with ranges/geolocation: Release backend tests passed 392 unit
++ 462 integration (854 total), frontend tests passed 189, and the importer suite
+passed 23 assertions. A first frontend run had a worker startup timeout under
+concurrent local load; a complete rerun passed without changing test timeouts.
+The production frontend build passed. Combined browser verification is pending.
 
 No naming decision is currently blocked. Limitations: nearest-point rather than
 containment; IL-only source; possible collisions; truncated long labels; mutable

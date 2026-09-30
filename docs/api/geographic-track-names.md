@@ -13,7 +13,8 @@ The backend computes the name once. GPX 1.1 `trk/name` is exactly the same value
 The client must use `name + ".gpx"` as the download filename and may display `name`
 without reconstructing it from a requested distance or location. There is no new
 download endpoint, HTTP Content-Disposition header or separate filename field.
-Frontend changes and integration are intentionally left to the parent task.
+The frontend displays the canonical name and uses it for the selected download.
+Older responses without a safe name retain the `cycling-route-N.gpx` fallback.
 
 ## Format
 
