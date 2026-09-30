@@ -293,7 +293,7 @@ test('prompt confirmation, real canvas, route selection, fit and selected GPX', 
   await expect(page.getByRole('radio', { name: /Route 2/ })).toBeChecked();
   await page.getByRole('radio', { name: /Route 1/ }).check();
   await page.getByRole('radio', { name: /Route 2/ }).check();
-  await expect(page.getByText('120 m', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Elevation profile', exact: true }).getByText('120 m', { exact: true })).toBeVisible();
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download GPX', exact: true }).click();
   const download = await downloadEvent;

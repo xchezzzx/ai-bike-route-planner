@@ -65,7 +65,9 @@ for (const locale of ['en','ru','he'] as const) test(`track patterns, gap taps a
   let before!: PNG;
   await expect(async () => { before = PNG.sync.read(await canvas.screenshot()); topStroke(before); }).toPass();
   const stroke = topStroke(before); const calls = network.calls();
+  const originalSize = (await canvas.boundingBox())!;
   await page.getByRole('radio', { name: 'Road type', exact: true }).check();
+  await expect.poll(async () => (await canvas.boundingBox())!.height).toBe(originalSize.height);
   let gap: { x: number; y: number } | undefined;
   await expect(async () => {
     const after = PNG.sync.read(await canvas.screenshot());
