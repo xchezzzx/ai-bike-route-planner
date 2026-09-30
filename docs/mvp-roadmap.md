@@ -4,7 +4,7 @@ This is the staged direction agreed in the project conversation. Backend:
 C#/.NET 10 modular monolith. Frontend: React + TypeScript, web only. Initial
 service area: Israel. Languages: English, Hebrew (RTL), and Russian.
 
-## Current release acceptance (2026-09-29)
+## Current release acceptance (2026-09-30)
 
 The user approved merging PRs #15-#17 after green CI, including adaptive loop
 length calibration, even without proven live quality improvement. Manual testing
@@ -15,13 +15,16 @@ matching routes in the four-city comparison. Calibration was subsequently tested
 offline, not live. AI refinement stays off by default. See the
 [evidence and accepted limitations](evaluation/route-refinement-diagnostics-2026-09-29.md).
 
-Outstanding work: real-road/GPX acceptance, delivery of distance/time ranges,
-geographic track names, and public-deployment prerequisites (API
-abuse protection, secrets, hosting and CD). None is completed by merging these PRs.
-Browser geolocation subsequently shipped in PR #18. Range implementation and
-offline verification are complete on the next branch; extraction v4 and advisor
-v3 require new live qualification. The historical 34/34 and 6/6 live results below
-apply only to their earlier contracts. See the
+Geolocation shipped in PR #18, explicit distance/time ranges in #19 and geographic
+track names in #20, each after green CI. Protected same-origin deployment
+preparation now includes a full-app container, tester access, shared rate limits,
+no-key Docker CI and a Render blueprint with checks-gated deploys. This is not an
+actual cloud deployment: hosting account linkage, secret entry and public HTTPS
+acceptance remain owner steps. See the [deployment runbook](deployment/protected-staging.md).
+
+Still outstanding: real-road/GPX/device acceptance and public hosting verification.
+Extraction v4 and advisor input v3 also require fresh live qualification; the
+historical 34/34 and 6/6 live results below apply only to earlier contracts. See the
 [remaining MVP delivery plan](plans/2026-09-29-mvp-completion.md).
 
 ## Milestone history
@@ -69,14 +72,14 @@ apply only to their earlier contracts. See the
    2026-09-29 passed all 34 cases, closing the current corpus qualification gate.
    Prior failures remain evidence of variability, not erased by a successful run;
    manual route input remains independent of Gemini.
-   Stage 6b is implemented on the feature branch, not yet delivered to main:
+   Stage 6b is delivered to main through PR #15:
    AI guides candidate construction/refinement through routing tools; graph-based
    routing supplies traversable geometry. Never fabricate GPX coordinates with an LLM.
    The [bounded refinement design](api/agentic-refinement-design.md) was approved
    on 2026-09-29. Its [implementation plan](plans/2026-09-29-agentic-refinement.md)
    is approved and Tasks 1-5 are implemented. Independent review findings were
    corrected with regression tests. Live qualification failed (1/6 advisor cases;
-   mixed four-city comparison), so Task 6 delivery/merge remains incomplete.
+   mixed four-city comparison), so Task 6 delivery was initially held.
    See [evidence and next checks](evaluation/route-refinement-2026-09-29.md).
    A later six-call Gemini-only diagnosis identified contradictory stop fields
    and truncated responses. The user approved the local `route-search-v2`
@@ -84,7 +87,8 @@ apply only to their earlier contracts. See the
    See [diagnosis and correction](evaluation/route-refinement-diagnostics-2026-09-29.md).
    First authorized v2 live run at `8f3831e`: one stop case passed, one search
    case received provider HTTP 503, four were unrun after fail-fast. Used two
-   Gemini calls and zero ORS; no retries or comparison. Merge remains blocked.
+   Gemini calls and zero ORS; no retries or comparison. Merge was blocked at that
+   point; subsequent acceptance above supersedes that historical hold.
 7. React interface: start-point map selection, prompt, visible interpreted
    preferences, candidates, metrics, GPX download, language switch and Hebrew RTL.
    Implemented and merged through PR #10, with manual input as a
@@ -100,8 +104,9 @@ apply only to their earlier contracts. See the
    hosting secrets, staging deploy, production deploy and basic monitoring.
    Backend CI includes the evaluator harness and no-key Docker smoke; frontend
    CI exercises a production build with deterministic API/map browser fixtures.
-   Local loopback launch is available. Public staging/production hosting is not
-   configured; free-tier verification and abuse protection remain prerequisites.
+   Local loopback launch is available. Protected full-app staging preparation and
+   a checks-gated Render blueprint are implemented. Public staging/production is
+   not provisioned; hosting access, runtime secrets and cloud checks remain.
 
 ## Current execution order
 
@@ -121,15 +126,15 @@ lanes or legal access, and it does not change the ORS routing profile.
    A-B, clear generation readiness, supported manual choices and multilingual
    selected-map-point interpretation. See the
    [execution record](plans/2026-09-29-route-request-usability.md).
-2. Current full live interpretation corpus passed 34/34, separately from offline
-   fixtures. Requalify whenever the prompt/schema/model changes; earlier failures
-   still inform availability and production-readiness decisions.
+2. The v3 live interpretation corpus passed 34/34, separately from offline
+   fixtures. Explicit ranges changed extraction to v4 and advisor input to v3;
+   fresh live qualification is pending. Earlier passes do not qualify new versions.
 3. Road-loop quality now takes priority following the negative 40 km experiment:
    assess surface evidence and exact retracing, select zero to three near-target
    candidates, and expose uncertainty/exclusions in both search modes. Scope
    and [written design](superpowers/specs/2026-09-29-road-loop-quality-design.md)
    and [implementation plan](superpowers/plans/2026-09-29-road-loop-quality.md)
-   approved and implemented on the feature branch, not merged. Evidence parsing,
+   approved and delivered through PR #15. Evidence parsing,
    shared selection, API/UI exclusions and empty-result handling pass local gates.
    Offline replay retained 1/10 saved alternatives; this is filtering, not proof
    of improved construction or all-paved roads. See the
@@ -138,8 +143,8 @@ lanes or legal access, and it does not change the ORS routing profile.
 4. Stage 6b: bounded AI-guided candidate construction/refinement using routing
    tools, with application-owned budgets and unchanged user constraints.
    V2 advisor corpus passed 6/6. Adaptive length calibration is implemented and
-   offline-tested. Merge is approved after CI under the limited release acceptance
-   above; real route-quality improvement remains unverified.
+   offline-tested and merged under the limited release acceptance above; real
+   route-quality improvement remains unverified.
 5. Simplify start selection with a Loop / A-B control and opt-in browser
    geolocation, then add automatic track names and verify actual Israeli
    route/GPX quality.
@@ -147,13 +152,16 @@ lanes or legal access, and it does not change the ORS routing profile.
    hosting configuration, secrets and staging/production verification.
 
 Persistence is not a prerequisite for these deliveries. Stage 6b is implemented;
-provider-contract acceptance is distinct from route-quality acceptance. Geographic naming, field/device acceptance
-and public hosting remain outstanding.
+provider-contract acceptance is distinct from route-quality acceptance. Field/device
+acceptance and public hosting remain outstanding. Persistence, Strava, individual
+accounts, gravel routing and the road-network waypoint prototype are later work,
+not hidden prerequisites for this closed tester release.
 
-## Planned addition: automatic track names
+## Implemented addition: automatic track names
 
-Requested on 2026-09-29; not implemented. Add to the route/GPX delivery stage
-before persistence, without requiring an LLM to invent place names.
+Requested on 2026-09-29; delivered in PR #20 using a licensed embedded GeoNames
+Israel settlement subset, without runtime geocoding or LLM-generated place names.
+See the [canonical naming contract](api/geographic-track-names.md).
 
 - Name each generated candidate using the settlements nearest its actual start
   and finish, the route surface/profile label, and its actual generated distance.
@@ -213,7 +221,7 @@ Reference: [Browser Geolocation API](https://developer.mozilla.org/en-US/docs/We
 
 ## Implemented addition: Loop / A-B segmented control
 
-Requested and implemented on 2026-09-29 on the feature branch, not merged.
+Requested and implemented on 2026-09-29, delivered through PR #15.
 One accessible route-shape selector above the coordinate fields serves prompt
 and manual modes. The manual shape dropdown is removed.
 
@@ -246,8 +254,8 @@ ORS/Gemini calls, backend changes or geolocation implementation in this step.
 
 ## Implemented addition: theme selection
 
-Approved and implemented on 2026-09-29 on `oleg/dark-theme`, dependent on the
-unmerged track-segment work. Light/dark/system selection uses `next-themes`,
+Approved and implemented on 2026-09-29 and delivered through PR #17 after the
+track-segment work in PR #16. Light/dark/system selection uses `next-themes`,
 persists when browser storage permits, and follows the OS only in system mode.
 The interface and OpenFreeMap basemap change together without replacing user
 inputs, generated routes, the selected segment or the camera position.

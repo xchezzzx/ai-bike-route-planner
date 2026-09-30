@@ -10,9 +10,9 @@ new live Gemini/ORS qualification and real-device acceptance are not implied.
   interpretation, manual UI, tests and documentation; separate PR.
 - [x] Explicit browser location as start: accuracy confirmation, stale callback
   fencing, translated errors, browser tests; separate PR.
-- [ ] Geographic track names: licensed local settlement data, deterministic
+- [x] Geographic track names: licensed local settlement data, deterministic
   naming, consistent API/GPX/UI/download; separate PR.
-- [ ] Protected deployment: same-origin container, tester access, bounded API
+- [x] Protected deployment preparation: same-origin container, tester access, bounded API
   consumption, secret configuration, CI-controlled deployment and runbook.
 - [ ] Public environment verification, only when hosting access is available.
 - [ ] User manual road-quality and device checks (not an automated claim).
@@ -20,7 +20,11 @@ new live Gemini/ORS qualification and real-device acceptance are not implied.
 Geolocation was independently ready first and merged as PR #18 after green PR CI.
 The ranges branch is integrated on that main revision; remaining PRs are delivered
 sequentially to avoid a stacked queue. Ranges merged in PR #19 after both CI
-workflows passed; geographic naming is the next independent delivery.
+workflows passed; geographic naming followed in PR #20 after green CI.
+Protected staging preparation passed integrated local verification: 910 backend
+tests, 192 frontend tests, 11 synthetic-credential isolation checks and the
+full-app no-key Docker smoke. Its PR/CI gate is recorded separately from actual
+hosting, which remains unchecked below the code-delivery boundary.
 
 ## Range contract
 
@@ -70,9 +74,27 @@ desktop/mobile browser cases passed. New range UI was inspected in desktop RU
 and mobile HE screenshots. The range request tests were observed failing before
 implementation. Review found no remaining actionable defects in the final diff.
 Extraction is now v4 and advisor input/prompt v3; prior live qualification does
-not cover these revisions. No live provider calls were made. CI/merge pending.
+not cover these revisions. No live provider calls were made in range development.
+Ranges were subsequently merged in PR #19 after green CI.
 
 After integrating geolocation from main, all 176 frontend tests, the production
 build and all 86 desktop/mobile browser cases passed. One earlier parallel local
 test run timed out under load; the complete single-worker rerun passed without
 changing any test deadlines. Backend totals remain 359 unit + 438 integration.
+
+## Remaining owner acceptance
+
+- Connect Render to GitHub, inspect the Free blueprint, enter runtime access
+  settings privately, then verify the deployed HTTPS service. No cloud service
+  was created by code preparation; follow the deployment runbook.
+- With a separately agreed provider-call budget, requalify extraction v4 and
+  advisor input v3, and compare real road loops at known Israeli locations.
+- Manually inspect route manoeuvres/surface/access and import named GPX files on
+  the intended cycling device. Verify geolocation on a real mobile browser.
+- AI refinement remains off by default. Earlier city comparison failures and
+  unknown surface coverage remain explicit release limitations.
+
+A staging test initially made one unintended Gemini call after inheriting local
+provider settings. Its fixture and three inherited no-key fixtures were hardened
+with empty DI options plus an outbound HTTP blocker. Synthetic-credential CI
+regressions cover this failure without live requests; see the staging plan.

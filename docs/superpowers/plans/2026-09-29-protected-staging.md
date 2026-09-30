@@ -101,3 +101,8 @@ Execution: native, autonomous as explicitly requested; no commits/push/provision
   credentials. Assertions do not print credential values on failure.
 - Parent frontend translations for 401/403/429 passed three RED-to-GREEN tests in
   EN/RU/HE; the client preserves safe error codes and does not retry automatically.
+- Final integration on main after PRs #19/#20: 392 unit + 518 integration = 910
+  backend tests passed, 192 frontend tests passed, all 11 isolation regressions
+  passed with synthetic inherited credentials, and the full-app Docker build and
+  no-key smoke passed again. Temporary containers were removed. PR CI remains a
+  separate merge gate; real hosting has not been provisioned.
