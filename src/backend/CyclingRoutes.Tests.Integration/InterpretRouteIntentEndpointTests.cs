@@ -5,6 +5,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using CyclingRoutes.Application.Interpretation;
 using CyclingRoutes.Contracts.RoutePlanning;
+using CyclingRoutes.Infrastructure.Interpretation;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -21,9 +22,9 @@ public class InterpretRouteIntentEndpointTests : IClassFixture<WebApplicationFac
 	private static readonly RouteIntentExtraction Complete = new("loop", "road", null, 20000, null, []);
 	private static InterpretRouteIntentRequest Request() => new() { Prompt = "A road loop of 20 km", Locale = "en", Start = new() { Latitude = 32, Longitude = 34 } };
 	private WebApplicationFactory<Program> Factory(Stub? stub = null, string environment = "Production") => _factory.WithWebHostBuilder(b =>
-		b.UseEnvironment(environment).ConfigureAppConfiguration((_, c) => c.AddInMemoryCollection(new Dictionary<string, string?>
+		b.UseEnvironment(environment).UseSetting("Access:Mode", "Local").ConfigureAppConfiguration((_, c) => c.AddInMemoryCollection(new Dictionary<string, string?>
 		{ ["Ai:Gemini:ApiKey"] = "", ["Ai:Gemini:Model"] = "" }))
-		.ConfigureTestServices(s => { if (stub is not null) s.AddSingleton<IRouteIntentInterpreter>(stub); }));
+		.ConfigureTestServices(s => { OfflineProviders.Configure(s); if (stub is not null) s.AddSingleton<IRouteIntentInterpreter>(stub); }));
 	private static HttpClient Client(WebApplicationFactory<Program> factory) => factory.CreateClient(new() { BaseAddress = new("https://localhost") });
 
 	[Theory]
@@ -80,6 +81,8 @@ public class InterpretRouteIntentEndpointTests : IClassFixture<WebApplicationFac
 	public async Task MissingConfig_DoesNotPreventHealth()
 	{
 		using var factory = Factory(); using var client = Client(factory);
+		Assert.True(string.IsNullOrEmpty(factory.Services.GetRequiredService<GeminiOptions>().ApiKey), "Gemini credentials must be disabled.");
+		Assert.True(string.IsNullOrEmpty(factory.Services.GetRequiredService<GeminiOptions>().Model), "Gemini model must be disabled.");
 		Assert.Equal("Healthy", await client.GetStringAsync("/health", TestContext.Current.CancellationToken));
 		using var response = await client.PostAsJsonAsync(Url, Request(), TestContext.Current.CancellationToken);
 		Assert.Equal(503, (int)response.StatusCode);

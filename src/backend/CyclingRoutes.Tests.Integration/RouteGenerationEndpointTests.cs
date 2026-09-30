@@ -131,10 +131,12 @@ public class RouteGenerationEndpointTests : IClassFixture<WebApplicationFactory<
 	public async Task UnavailableGeneration_ReturnsHonestProblem(string shape, string profile, string elevation, int status, string code)
 	{
 		using var factory = _factory.WithWebHostBuilder(builder => builder
-			.UseEnvironment("Production")
+			.UseEnvironment("Production").UseSetting("Access:Mode", "Local")
 			.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
-				new Dictionary<string, string?> { ["Routing:OpenRouteService:ApiKey"] = "" })));
+				new Dictionary<string, string?> { ["Routing:OpenRouteService:ApiKey"] = "" }))
+			.ConfigureTestServices(OfflineProviders.Configure));
 		using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+		Assert.True(string.IsNullOrEmpty(factory.Services.GetRequiredService<OpenRouteServiceOptions>().ApiKey), "Routing credentials must be disabled.");
 		var json = JsonSerializer.Serialize(new
 		{
 			start = new { latitude = 32.0853, longitude = 34.7818 },

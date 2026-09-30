@@ -212,16 +212,18 @@ public class RouteCandidatesEndpointTests : IClassFixture<WebApplicationFactory<
 	[Fact]
 	public async Task MissingKey_Returns503()
 	{
-		using var factory = _factory.WithWebHostBuilder(builder => builder.UseEnvironment("Production")
+		using var factory = _factory.WithWebHostBuilder(builder => builder.UseEnvironment("Production").UseSetting("Access:Mode", "Local")
 			.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
-				new Dictionary<string, string?> { ["Routing:OpenRouteService:ApiKey"] = "" })));
+				new Dictionary<string, string?> { ["Routing:OpenRouteService:ApiKey"] = "" }))
+			.ConfigureTestServices(OfflineProviders.Configure));
 		using var client = Client(factory);
+		Assert.True(string.IsNullOrEmpty(factory.Services.GetRequiredService<OpenRouteServiceOptions>().ApiKey), "Routing credentials must be disabled.");
 		using var response = await client.PostAsJsonAsync("/api/routes/candidates", Request(), TestContext.Current.CancellationToken);
 		await AssertProblem(response, 503, "routing_not_configured");
 	}
 
 	private WebApplicationFactory<Program> WithProvider(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send, string environment = "Production") =>
-		_factory.WithWebHostBuilder(builder => builder.UseEnvironment(environment).ConfigureTestServices(services =>
+		_factory.WithWebHostBuilder(builder => builder.UseEnvironment(environment).UseSetting("Access:Mode", "Local").ConfigureTestServices(services =>
 		{
 			services.AddSingleton(new OpenRouteServiceOptions { ApiKey = "test-key" });
 			services.AddHttpClient<IRoutingProvider, OpenRouteServiceProvider>()
