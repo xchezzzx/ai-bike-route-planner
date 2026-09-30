@@ -2,11 +2,12 @@ import { expect, it } from 'vitest';
 import { nearestPlace, searchPlaces } from '../src/places';
 import catalog from '../src/data/places.json';
 import manifest from '../src/data/places-manifest.json';
-import naming from '../../backend/CyclingRoutes.Infrastructure/Naming/Data/settlements.json';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 it('ships the pinned settlement positions with source aliases and reproducible bytes', () => {
+  const naming: { settlements: { id: number; asciiName: string; latitude: number; longitude: number }[] } =
+    JSON.parse(readFileSync('../backend/CyclingRoutes.Infrastructure/Naming/Data/settlements.json', 'utf8'));
   expect(catalog).toHaveLength(manifest.settlementCount);
   expect(new Set(catalog.map(p => p.id)).size).toBe(catalog.length);
   expect(catalog.map(({ id, name, latitude, longitude }) => ({ id, asciiName: name, latitude, longitude })))
