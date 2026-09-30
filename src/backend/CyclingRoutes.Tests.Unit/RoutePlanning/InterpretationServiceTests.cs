@@ -51,6 +51,219 @@ public class InterpretationServiceTests
 	}
 
 	[Theory]
+	[InlineData("")]
+	[InlineData(" ")]
+	[InlineData("Loop")]
+	[InlineData("pointtopoint")]
+	[InlineData("pointToPoint ")]
+	[InlineData(" loop")]
+	[InlineData("triangle")]
+	public async Task InvalidSelectedShape_DoesNotCallProvider(string shape)
+	{
+		var stub = new Stub(Complete);
+		var result = await new InterpretationService(stub, new()).InterpretAsync(Request() with { Shape = shape }, TestContext.Current.CancellationToken);
+		Assert.Null(result.Response);
+		Assert.Equal(new[] { "invalid_value" }, result.Errors["shape"]);
+		Assert.Equal(0, stub.Calls);
+	}
+
+	[Theory]
+	[InlineData("en", "loop")]
+	[InlineData("ru", "loop")]
+	[InlineData("he", "loop")]
+	[InlineData("en", "pointToPoint")]
+	[InlineData("ru", "pointToPoint")]
+	[InlineData("he", "pointToPoint")]
+	public async Task SelectedShape_FillsMissingExtractionAndPreservesCallerCoordinates(string locale, string shape)
+	{
+		var request = Request() with
+		{
+			Prompt = "road, 20 km", Locale = locale, Shape = shape,
+			Destination = shape == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+		};
+		var stub = new Stub(Complete with { Shape = null });
+		var result = await new InterpretationService(stub, new()).InterpretAsync(request, TestContext.Current.CancellationToken);
+		Assert.Empty(result.Errors);
+		var body = result.Response!;
+		Assert.Equal("ready", body.Status);
+		Assert.Equal(shape, body.Draft.Shape); Assert.Equal(shape, body.Intent!.Shape);
+		Assert.Same(request.Start, body.Draft.Start); Assert.Same(request.Destination, body.Draft.Destination);
+		Assert.Equal(request.Start!.Latitude, body.Intent.Start.Latitude); Assert.Equal(request.Start.Longitude, body.Intent.Start.Longitude);
+		Assert.Equal(request.Destination?.Latitude, body.Intent.Destination?.Latitude); Assert.Equal(request.Destination?.Longitude, body.Intent.Destination?.Longitude);
+		Assert.Equal(20000, body.Intent.TargetDistanceMeters); Assert.Empty(body.Clarifications);
+		Assert.Equal((request.Prompt, locale), stub.Input); Assert.Equal(1, stub.Calls);
+	}
+
+	[Theory]
+	[InlineData("loop")]
+	[InlineData("pointToPoint")]
+	public async Task SelectedShape_MatchingExtractionRemainsReady(string shape)
+	{
+		var body = (await Run(Complete with { Shape = shape }, Request() with
+		{
+			Shape = shape, Destination = shape == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+		})).Response!;
+		Assert.Equal("ready", body.Status);
+		Assert.Equal(shape, body.Intent!.Shape); Assert.Empty(body.Clarifications);
+	}
+
+	[Theory]
+	[InlineData("loop", "needsClarification")]
+	[InlineData("pointToPoint", "ready")]
+	public async Task SelectedShape_MissingTargetsFollowSelectedShape(string shape, string status)
+	{
+		var body = (await Run(Complete with { Shape = null, TargetDistanceMeters = null }, Request() with
+		{
+			Shape = shape, Destination = shape == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+		})).Response!;
+		Assert.Equal(status, body.Status); Assert.Equal(shape, body.Draft.Shape);
+		if (shape == "loop")
+		{
+			Assert.Null(body.Intent);
+			var question = Assert.Single(body.Clarifications);
+			Assert.Equal("targetDistanceMeters", question.Field); Assert.Equal("target_required", question.Code);
+		}
+		else
+		{
+			Assert.NotNull(body.Intent); Assert.Empty(body.Clarifications);
+			Assert.Null(body.Intent.TargetDistanceMeters); Assert.Null(body.Intent.TargetDurationSeconds);
+		}
+	}
+
+	[Theory]
+	[InlineData("loop", "pointToPoint")]
+	[InlineData("pointToPoint", "loop")]
+	public async Task SelectedShape_ConflictProducesExactlyOneShapeQuestionInEveryLocale(string selected, string extracted)
+	{
+		var messages = new List<string>();
+		foreach (var locale in new[] { "en", "ru", "he" })
+		{
+			var body = (await Run(Complete with { Shape = extracted, TargetDistanceMeters = null }, Request() with
+			{
+				Shape = selected, Locale = locale,
+				Destination = selected == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+			})).Response!;
+			Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+			Assert.Equal(extracted, body.Draft.Shape);
+			var question = Assert.Single(body.Clarifications);
+			Assert.Equal("shape", question.Field); Assert.Equal("route_shape_conflict", question.Code);
+			Assert.False(string.IsNullOrWhiteSpace(question.Message)); messages.Add(question.Message);
+		}
+		Assert.Equal(3, messages.Distinct().Count());
+	}
+
+	[Theory]
+	[InlineData(null, "ambiguous")]
+	[InlineData(null, "invalid_value")]
+	[InlineData("loop", "ambiguous")]
+	[InlineData("loop", "invalid_value")]
+	[InlineData("pointToPoint", "ambiguous")]
+	[InlineData("pointToPoint", "invalid_value")]
+	public async Task SelectedShape_DoesNotResolveUncertainExtraction(string? extractedShape, string code)
+	{
+		var body = (await Run(Complete with { Shape = extractedShape, Issues = [new("shape", code), new("shape", code)] },
+			Request() with { Shape = "loop" })).Response!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+		Assert.Equal(extractedShape ?? "loop", body.Draft.Shape);
+		var question = Assert.Single(body.Clarifications);
+		Assert.Equal("shape", question.Field); Assert.Equal(code, question.Code);
+	}
+
+	[Fact]
+	public async Task SelectedShape_DoesNotReplaceInvalidExtractionToken()
+	{
+		var body = (await Run(Complete with { Shape = "triangle" }, Request() with { Shape = "loop" })).Response!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+		Assert.Equal("triangle", body.Draft.Shape);
+		var question = Assert.Single(body.Clarifications);
+		Assert.Equal("shape", question.Field); Assert.Equal("invalid_value", question.Code);
+	}
+
+	[Theory]
+	[InlineData("prompt")]
+	[InlineData("shape")]
+	[InlineData("profile")]
+	[InlineData("elevation")]
+	public async Task SelectedShape_UnsupportedPreferencesStayUnsupported(string field)
+	{
+		var body = (await Run(Complete with { Shape = null, Issues = [new(field, "unsupported_preference")] },
+			Request() with { Shape = "loop" })).Response!;
+		Assert.Equal("unsupported", body.Status); Assert.Null(body.Intent);
+		Assert.Empty(body.Clarifications); Assert.Equal(new[] { "unsupported_preference" }, body.Limitations);
+	}
+
+	[Theory]
+	[InlineData("start")]
+	[InlineData("destination")]
+	public async Task SelectedShape_PlaceConflictsRemainUnresolvedEvenWithCoordinates(string field)
+	{
+		var body = (await Run(Complete with { Shape = null, Issues = [new(field, "location_requires_map_selection")] },
+			Request() with { Shape = "pointToPoint", Destination = new() { Latitude = 32.2, Longitude = 34.8 } })).Response!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+		var question = Assert.Single(body.Clarifications);
+		Assert.Equal(field, question.Field); Assert.Equal("location_requires_map_selection", question.Code);
+	}
+
+	[Theory]
+	[InlineData("missing", "required")]
+	[InlineData("equal", "must_differ_from_start")]
+	[InlineData("loop", "destination_not_allowed")]
+	public async Task SelectedShape_PreservesDestinationValidation(string scenario, string code)
+	{
+		var body = (await Run(Complete with { Shape = null }, Request() with
+		{
+			Shape = scenario == "loop" ? "loop" : "pointToPoint",
+			Destination = scenario == "missing" ? null : Request().Start
+		})).Response!;
+		Assert.Null(body.Intent); Assert.Equal("needsClarification", body.Status);
+		var question = Assert.Single(body.Clarifications);
+		Assert.Equal("destination", question.Field); Assert.Equal(code, question.Code);
+	}
+
+	[Theory]
+	[InlineData("start", "location_requires_map_selection")]
+	[InlineData("destination", "location_requires_map_selection")]
+	[InlineData("profile", "ambiguous")]
+	[InlineData("prompt", "unsupported_preference")]
+	[InlineData("shape", "unsupported_preference")]
+	public async Task SelectedShape_ConflictPreservesOtherExtractionIssues(string field, string code)
+	{
+		var body = (await Run(Complete with { Shape = "loop", TargetDistanceMeters = null, Issues = [new(field, code)] },
+			Request() with { Shape = "pointToPoint", Destination = new() { Latitude = 32.2, Longitude = 34.8 } })).Response!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+		Assert.Contains(body.Clarifications, x => x.Field == "shape" && x.Code == "route_shape_conflict");
+		if (code == "unsupported_preference")
+		{
+			Assert.Single(body.Clarifications); Assert.Equal(new[] { "unsupported_preference" }, body.Limitations);
+		}
+		else
+		{
+			Assert.Equal(2, body.Clarifications.Count);
+			Assert.Contains(body.Clarifications, x => x.Field == field && x.Code == code);
+		}
+	}
+
+	[Fact]
+	public async Task SelectedShape_ConflictPreservesEqualEndpointQuestion()
+	{
+		var body = (await Run(Complete with { Shape = "loop", TargetDistanceMeters = null },
+			Request() with { Shape = "pointToPoint", Destination = Request().Start })).Response!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+		Assert.Equal(2, body.Clarifications.Count);
+		Assert.Contains(body.Clarifications, x => x.Field == "shape" && x.Code == "route_shape_conflict");
+		Assert.Contains(body.Clarifications, x => x.Field == "destination" && x.Code == "must_differ_from_start");
+	}
+
+	[Fact]
+	public async Task LegacyMissingShape_KeepsExistingClarifications()
+	{
+		var body = (await Run(Complete with { Shape = null, TargetDistanceMeters = null }, Request() with { Shape = null })).Response!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent); Assert.Null(body.Draft.Shape);
+		Assert.Equal(new[] { ("shape", "required"), ("targetDistanceMeters", "target_required") },
+			body.Clarifications.Select(x => (x.Field, x.Code)));
+	}
+
+	[Theory]
 	[InlineData("en", "en-US")]
 	[InlineData("ru", "ru-RU")]
 	[InlineData("he", "he-IL")]

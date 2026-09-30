@@ -59,6 +59,251 @@ public class InterpretRouteIntentEndpointTests : IClassFixture<WebApplicationFac
 	}
 
 	[Theory]
+	[InlineData("en", "road, 20 km", "loop")]
+	[InlineData("ru", "шоссе, 20 км", "loop")]
+	[InlineData("he", "כביש, 20 קילומטרים", "loop")]
+	[InlineData("en", "road", "pointToPoint")]
+	[InlineData("ru", "шоссе", "pointToPoint")]
+	[InlineData("he", "כביש", "pointToPoint")]
+	public async Task SelectedShape_FillsMissingExtractionWithoutRepeatingShapeInPrompt(string locale, string prompt, string shape)
+	{
+		var request = Request() with
+		{
+			Locale = locale, Prompt = prompt,
+			Destination = shape == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+		};
+		var stub = new Stub(Complete with { Shape = null, TargetDistanceMeters = shape == "loop" ? 20000 : null });
+		using var factory = Factory(stub); using var client = Client(factory);
+		using var response = await PostWithShape(client, request, shape);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var body = (await response.Content.ReadFromJsonAsync<InterpretRouteIntentResponse>(TestContext.Current.CancellationToken))!;
+		Assert.Equal("ready", body.Status);
+		Assert.Equal(shape, body.Draft.Shape); Assert.Equal(shape, body.Intent!.Shape);
+		Assert.Equal(request.Start, body.Draft.Start);
+		Assert.Equal(request.Destination, body.Draft.Destination);
+		Assert.Equal(request.Start!.Latitude, body.Intent.Start.Latitude);
+		Assert.Equal(request.Start.Longitude, body.Intent.Start.Longitude);
+		Assert.Equal(request.Destination?.Latitude, body.Intent.Destination?.Latitude);
+		Assert.Equal(request.Destination?.Longitude, body.Intent.Destination?.Longitude);
+		Assert.Empty(body.Clarifications); Assert.Empty(body.Limitations);
+		Assert.Equal((prompt, locale), stub.Input); Assert.Equal(1, stub.Calls);
+	}
+
+	[Theory]
+	[InlineData("en", "loop", "pointToPoint")]
+	[InlineData("ru", "loop", "pointToPoint")]
+	[InlineData("he", "loop", "pointToPoint")]
+	[InlineData("en", "pointToPoint", "loop")]
+	[InlineData("ru", "pointToPoint", "loop")]
+	[InlineData("he", "pointToPoint", "loop")]
+	public async Task SelectedShape_ConflictProducesOnlyLocalizedShapeQuestion(string locale, string selected, string extracted)
+	{
+		var request = Request() with
+		{
+			Locale = locale,
+			Destination = selected == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+		};
+		var stub = new Stub(Complete with { Shape = extracted, TargetDistanceMeters = null });
+		using var factory = Factory(stub); using var client = Client(factory);
+		using var response = await PostWithShape(client, request, selected);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var body = (await response.Content.ReadFromJsonAsync<InterpretRouteIntentResponse>(TestContext.Current.CancellationToken))!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+		Assert.Equal(extracted, body.Draft.Shape);
+		var question = Assert.Single(body.Clarifications);
+		Assert.Equal("shape", question.Field); Assert.Equal("route_shape_conflict", question.Code);
+		Assert.Contains(locale switch { "ru" => "Тип маршрута", "he" => "סוג מסלול", _ => "Route shape" }, question.Message);
+		Assert.Contains(locale switch { "ru" => "противоречит запросу", "he" => "סותר את הבקשה", _ => "conflicts with the prompt" }, question.Message);
+		Assert.Empty(body.Limitations); Assert.Equal(1, stub.Calls);
+	}
+
+	[Theory]
+	[InlineData("en", "loop", "needsClarification")]
+	[InlineData("ru", "loop", "needsClarification")]
+	[InlineData("he", "loop", "needsClarification")]
+	[InlineData("en", "pointToPoint", "ready")]
+	[InlineData("ru", "pointToPoint", "ready")]
+	[InlineData("he", "pointToPoint", "ready")]
+	public async Task SelectedShape_TargetsAreRequiredOnlyForLoops(string locale, string shape, string status)
+	{
+		var request = Request() with
+		{
+			Locale = locale, Prompt = "road",
+			Destination = shape == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+		};
+		using var factory = Factory(new Stub(Complete with { Shape = null, TargetDistanceMeters = null })); using var client = Client(factory);
+		using var response = await PostWithShape(client, request, shape);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var body = (await response.Content.ReadFromJsonAsync<InterpretRouteIntentResponse>(TestContext.Current.CancellationToken))!;
+		Assert.Equal(status, body.Status);
+		Assert.Equal(shape, body.Draft.Shape);
+		if (shape == "loop")
+		{
+			Assert.Null(body.Intent);
+			var question = Assert.Single(body.Clarifications);
+			Assert.Equal("targetDistanceMeters", question.Field); Assert.Equal("target_required", question.Code);
+		}
+		else
+		{
+			Assert.Empty(body.Clarifications); Assert.NotNull(body.Intent);
+			Assert.Null(body.Intent.TargetDistanceMeters); Assert.Null(body.Intent.TargetDurationSeconds);
+		}
+	}
+
+	[Theory]
+	[InlineData("shape", "ambiguous")]
+	[InlineData("shape", "invalid_value")]
+	[InlineData("start", "location_requires_map_selection")]
+	[InlineData("destination", "location_requires_map_selection")]
+	[InlineData("prompt", "unsupported_preference")]
+	[InlineData("shape", "unsupported_preference")]
+	public async Task SelectedShape_DoesNotSwallowExtractionIssues(string field, string code)
+	{
+		using var factory = Factory(new Stub(Complete with { Shape = null, Issues = [new(field, code)] })); using var client = Client(factory);
+		using var response = await PostWithShape(client, Request(), "loop");
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var body = (await response.Content.ReadFromJsonAsync<InterpretRouteIntentResponse>(TestContext.Current.CancellationToken))!;
+		Assert.Null(body.Intent);
+		Assert.Equal("loop", body.Draft.Shape);
+		if (code == "unsupported_preference")
+		{
+			Assert.Equal("unsupported", body.Status); Assert.Empty(body.Clarifications);
+			Assert.Equal(new[] { "unsupported_preference" }, body.Limitations);
+		}
+		else
+		{
+			Assert.Equal("needsClarification", body.Status);
+			var question = Assert.Single(body.Clarifications);
+			Assert.Equal(field, question.Field); Assert.Equal(code, question.Code);
+		}
+	}
+
+	[Theory]
+	[InlineData("Development")]
+	[InlineData("Production")]
+	public async Task SelectedShape_InvalidValuesReturnValidationProblemBeforeInterpreter(string environment)
+	{
+		var stub = new Stub(); using var factory = Factory(stub, environment); using var client = Client(factory);
+		foreach (var shape in new[] { "", " ", "Loop", "pointtopoint", "pointToPoint ", " loop", "triangle", "A-to-B" })
+		{
+			using var response = await PostWithShape(client, Request(), shape);
+			Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+			using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+			Assert.True(json.RootElement.TryGetProperty("errors", out var errors), "Invalid selected shape must be an envelope validation error.");
+			Assert.Equal("invalid_value", errors.GetProperty("shape")[0].GetString());
+		}
+		Assert.Equal(0, stub.Calls);
+	}
+
+	[Theory]
+	[InlineData("loop")]
+	[InlineData("pointToPoint")]
+	public async Task SelectedShape_MatchingExtractionIsReady(string shape)
+	{
+		using var factory = Factory(new Stub(Complete with { Shape = shape })); using var client = Client(factory);
+		using var response = await PostWithShape(client, Request() with
+		{
+			Destination = shape == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+		}, shape);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var body = (await response.Content.ReadFromJsonAsync<InterpretRouteIntentResponse>(TestContext.Current.CancellationToken))!;
+		Assert.Equal("ready", body.Status); Assert.Equal(shape, body.Intent!.Shape); Assert.Empty(body.Clarifications);
+	}
+
+	[Theory]
+	[InlineData(false, "loop")]
+	[InlineData(true, "loop")]
+	[InlineData(false, "pointToPoint")]
+	[InlineData(true, "pointToPoint")]
+	[InlineData(false, null)]
+	[InlineData(true, null)]
+	public async Task LegacyAbsentOrNullShape_KeepsExtractionAndMissingShapeBehavior(bool explicitNull, string? extractedShape)
+	{
+		var request = Request() with
+		{
+			Destination = extractedShape == "pointToPoint" ? new() { Latitude = 32.2, Longitude = 34.8 } : null
+		};
+		using var factory = Factory(new Stub(Complete with { Shape = extractedShape, TargetDistanceMeters = null })); using var client = Client(factory);
+		var envelope = JsonSerializer.SerializeToNode(request, JsonSerializerOptions.Web)!.AsObject();
+		if (explicitNull) envelope["shape"] = null; else envelope.Remove("shape");
+		using var response = await client.PostAsync(Url, new StringContent(envelope.ToJsonString(), Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var body = (await response.Content.ReadFromJsonAsync<InterpretRouteIntentResponse>(TestContext.Current.CancellationToken))!;
+		Assert.Equal(extractedShape, body.Draft.Shape);
+		if (extractedShape == "pointToPoint")
+		{
+			Assert.Equal("ready", body.Status); Assert.Equal(extractedShape, body.Intent!.Shape); Assert.Empty(body.Clarifications);
+		}
+		else
+		{
+			Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+			Assert.Equal(extractedShape is null ? 2 : 1, body.Clarifications.Count);
+			Assert.Contains(body.Clarifications, x => x.Field == "targetDistanceMeters" && x.Code == "target_required");
+			if (extractedShape is null) Assert.Contains(body.Clarifications, x => x.Field == "shape" && x.Code == "required");
+		}
+	}
+
+	[Theory]
+	[InlineData("missing", "required")]
+	[InlineData("equal", "must_differ_from_start")]
+	[InlineData("loop", "destination_not_allowed")]
+	public async Task SelectedShape_PreservesDestinationInvariants(string scenario, string code)
+	{
+		using var factory = Factory(new Stub(Complete with { Shape = null })); using var client = Client(factory);
+		using var response = await PostWithShape(client, Request() with
+		{
+			Destination = scenario == "missing" ? null : Request().Start
+		}, scenario == "loop" ? "loop" : "pointToPoint");
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var body = (await response.Content.ReadFromJsonAsync<InterpretRouteIntentResponse>(TestContext.Current.CancellationToken))!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+		var question = Assert.Single(body.Clarifications);
+		Assert.Equal("destination", question.Field); Assert.Equal(code, question.Code);
+	}
+
+	[Theory]
+	[InlineData("start", "location_requires_map_selection")]
+	[InlineData("destination", "location_requires_map_selection")]
+	[InlineData("prompt", "unsupported_preference")]
+	[InlineData("shape", "unsupported_preference")]
+	public async Task SelectedShape_ConflictPreservesIndependentExtractionIssues(string field, string code)
+	{
+		using var factory = Factory(new Stub(Complete with { TargetDistanceMeters = null, Issues = [new(field, code)] })); using var client = Client(factory);
+		using var response = await PostWithShape(client, Request() with { Destination = new() { Latitude = 32.2, Longitude = 34.8 } }, "pointToPoint");
+		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+		var body = (await response.Content.ReadFromJsonAsync<InterpretRouteIntentResponse>(TestContext.Current.CancellationToken))!;
+		Assert.Equal("needsClarification", body.Status); Assert.Null(body.Intent);
+		Assert.Contains(body.Clarifications, x => x.Field == "shape" && x.Code == "route_shape_conflict");
+		if (code == "unsupported_preference")
+		{
+			Assert.Single(body.Clarifications); Assert.Equal(new[] { "unsupported_preference" }, body.Limitations);
+		}
+		else
+		{
+			Assert.Equal(2, body.Clarifications.Count);
+			Assert.Contains(body.Clarifications, x => x.Field == field && x.Code == code);
+		}
+	}
+
+	[Theory]
+	[InlineData("Development")]
+	[InlineData("Production")]
+	public async Task SelectedShape_MalformedTokensAndDuplicatesReturn400BeforeInterpreter(string environment)
+	{
+		var stub = new Stub(); using var factory = Factory(stub, environment); using var client = Client(factory);
+		var envelope = JsonSerializer.SerializeToNode(Request(), JsonSerializerOptions.Web)!.AsObject();
+		envelope.Remove("shape");
+		var valid = envelope.ToJsonString();
+		foreach (var token in new[] { "1", "true", "[]", "{}", "\"loop\",\"shape\":\"pointToPoint\"" })
+		{
+			var body = valid[..^1] + ",\"shape\":" + token + "}";
+			using var response = await client.PostAsync(Url, new StringContent(body, Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
+			Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+		}
+		Assert.Equal(0, stub.Calls);
+	}
+
+	[Theory]
 	[InlineData(InterpretationFailure.NotConfigured, 503, "ai_not_configured")]
 	[InlineData(InterpretationFailure.CredentialsRejected, 503, "ai_credentials_rejected")]
 	[InlineData(InterpretationFailure.RateLimited, 503, "ai_rate_limited")]
@@ -175,12 +420,19 @@ public class InterpretRouteIntentEndpointTests : IClassFixture<WebApplicationFac
 	}
 
 	private sealed class Unseekable(byte[] bytes) : MemoryStream(bytes) { public override bool CanSeek => false; }
+	private static Task<HttpResponseMessage> PostWithShape(HttpClient client, InterpretRouteIntentRequest request, string? shape)
+	{
+		var body = JsonSerializer.SerializeToNode(request, JsonSerializerOptions.Web)!.AsObject();
+		body["shape"] = shape;
+		return client.PostAsync(Url, new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"), TestContext.Current.CancellationToken);
+	}
 	private sealed class Stub(RouteIntentExtraction? value = null, InterpretationFailure? failure = null, Func<CancellationToken, Task>? onCall = null) : IRouteIntentInterpreter
 	{
 		public int Calls { get; private set; }
+		public (string, string) Input { get; private set; }
 		public async Task<RouteIntentExtraction> InterpretAsync(string prompt, string locale, CancellationToken cancellationToken)
 		{
-			Calls++; if (onCall is not null) await onCall(cancellationToken);
+			Calls++; Input = (prompt, locale); if (onCall is not null) await onCall(cancellationToken);
 			if (failure is { } f) throw new InterpretationException(f);
 			return value ?? Complete;
 		}
