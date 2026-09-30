@@ -112,7 +112,8 @@ After integration with ranges/geolocation: Release backend tests passed 392 unit
 + 462 integration (854 total), frontend tests passed 189, and the importer suite
 passed 23 assertions. A first frontend run had a worker startup timeout under
 concurrent local load; a complete rerun passed without changing test timeouts.
-The production frontend build passed. Combined browser verification is pending.
+The production frontend build and all 92 combined desktop/mobile browser cases
+passed. Backend CI now runs the offline importer fixture suite as well.
 
 No naming decision is currently blocked. Limitations: nearest-point rather than
 containment; IL-only source; possible collisions; truncated long labels; mutable

@@ -6,7 +6,7 @@ new live Gemini/ORS qualification and real-device acceptance are not implied.
 
 ## Delivery sequence
 
-- [ ] Distance/time ranges: domain, strict API, selection/calibration, prompt
+- [x] Distance/time ranges: domain, strict API, selection/calibration, prompt
   interpretation, manual UI, tests and documentation; separate PR.
 - [x] Explicit browser location as start: accuracy confirmation, stale callback
   fencing, translated errors, browser tests; separate PR.
@@ -19,7 +19,8 @@ new live Gemini/ORS qualification and real-device acceptance are not implied.
 
 Geolocation was independently ready first and merged as PR #18 after green PR CI.
 The ranges branch is integrated on that main revision; remaining PRs are delivered
-sequentially to avoid a stacked queue.
+sequentially to avoid a stacked queue. Ranges merged in PR #19 after both CI
+workflows passed; geographic naming is the next independent delivery.
 
 ## Range contract
 

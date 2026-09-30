@@ -46,6 +46,10 @@ jobs:
       shell: pwsh
       run: ./tools/tests/evaluate-refinement.tests.ps1
 
+    - name: Verify geographic data importer offline
+      shell: pwsh
+      run: ./tools/tests/import-geonames.tests.ps1
+
     - name: Build and smoke-test API container without keys
       shell: bash
       run: |
