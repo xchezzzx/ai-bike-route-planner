@@ -22,6 +22,10 @@ no-key Docker CI and a Render blueprint with checks-gated deploys. This is not a
 actual cloud deployment: hosting account linkage, secret entry and public HTTPS
 acceptance remain owner steps. See the [deployment runbook](deployment/protected-staging.md).
 
+Cloud deployment is deferred by the user on 2026-09-30 and will be handled
+together in a separate task. No hosting provider is selected; the Render
+blueprint is preparation, not a hosting decision.
+
 Still outstanding: real-road/GPX/device acceptance and public hosting verification.
 Extraction v4 and advisor input v3 also require fresh live qualification; the
 historical 34/34 and 6/6 live results below apply only to earlier contracts. See the
@@ -148,14 +152,41 @@ lanes or legal access, and it does not change the ORS routing profile.
 5. Simplify start selection with a Loop / A-B control and opt-in browser
    geolocation, then add automatic track names and verify actual Israeli
    route/GPX quality.
-6. Prepare public deployment: abuse protection, current free-tier checks,
-   hosting configuration, secrets and staging/production verification.
+6. Cloud deployment is deferred to a separate joint task: choose a provider,
+   verify its current terms, then configure hosting, secrets and HTTPS acceptance.
 
 Persistence is not a prerequisite for these deliveries. Stage 6b is implemented;
 provider-contract acceptance is distinct from route-quality acceptance. Field/device
 acceptance and public hosting remain outstanding. Persistence, Strava, individual
 accounts, gravel routing and the road-network waypoint prototype are later work,
 not hidden prerequisites for this closed tester release.
+
+## Backlog: road-loop search reliability (2026-09-30)
+
+Added after manual testing near Haifa/Nesher. The screenshot for a 35-45 km
+range showed no retained candidates after three attempts. A later visible run
+with a 50-60 km range returned 65.1, 33 and 83.6 km candidates: all failed the
+distance range, and the 65.1 and 83.6 km candidates also failed the road-surface
+limit. These observations do not establish that a suitable loop cannot exist.
+
+- [ ] Evaluate length calibration while keeping the seed fixed. The current
+  search corrects length using the preceding result but changes seed on every
+  attempt; a different loop may not follow the preceding length estimate.
+  Compare fixed-seed calibration with the existing strategy before choosing an
+  implementation. Keep original ranges and surface requirements unchanged.
+- [ ] If calibration is insufficient, prototype controlled road-network
+  waypoint construction. Compare distance fit, surface evidence, unnecessary
+  manoeuvres and retracing against the baseline and the supplied reference GPX.
+  No routing-engine migration is assumed by this backlog item.
+- [ ] Clarify empty-result wording in EN/RU/HE: state that no suitable route was
+  found in the actual number of attempts, without implying that no suitable
+  route exists. Retain the excluded-candidate reasons and limited-search warning.
+
+Acceptance: record reproducible starts and target ranges, distinguish offline
+verification from live results, and report retained candidates and exclusion
+reasons. Cover bounded attempts, cancellation and exact range boundaries with
+regression tests when implementation changes. Live comparisons require a
+separately agreed provider-call budget; adding this backlog makes no live calls.
 
 ## Implemented addition: automatic track names
 
