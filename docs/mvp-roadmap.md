@@ -15,9 +15,14 @@ matching routes in the four-city comparison. Calibration was subsequently tested
 offline, not live. AI refinement stays off by default. See the
 [evidence and accepted limitations](evaluation/route-refinement-diagnostics-2026-09-29.md).
 
-Outstanding work: real-road/GPX acceptance, distance/time ranges, browser
-geolocation, geographic track names, and public-deployment prerequisites (API
+Outstanding work: real-road/GPX acceptance, delivery of distance/time ranges,
+geographic track names, and public-deployment prerequisites (API
 abuse protection, secrets, hosting and CD). None is completed by merging these PRs.
+Browser geolocation subsequently shipped in PR #18. Range implementation and
+offline verification are complete on the next branch; extraction v4 and advisor
+v3 require new live qualification. The historical 34/34 and 6/6 live results below
+apply only to their earlier contracts. See the
+[remaining MVP delivery plan](plans/2026-09-29-mvp-completion.md).
 
 ## Milestone history
 
@@ -175,7 +180,7 @@ before persistence, without requiring an LLM to invent place names.
 
 ## Implemented addition: current location as start
 
-Requested on 2026-09-29; implemented on `oleg/start-geolocation`, pending CI/merge.
+Requested on 2026-09-29; implemented and merged in PR #18 after green CI.
 See the [implementation and verification record](plans/2026-09-29-start-geolocation.md).
 Small frontend usability task using
 the existing coordinate-selection/invalidation flow; no new backend endpoint,

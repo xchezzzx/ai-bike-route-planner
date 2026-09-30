@@ -8,7 +8,7 @@ new live Gemini/ORS qualification and real-device acceptance are not implied.
 
 - [ ] Distance/time ranges: domain, strict API, selection/calibration, prompt
   interpretation, manual UI, tests and documentation; separate PR.
-- [ ] Explicit browser location as start: accuracy confirmation, stale callback
+- [x] Explicit browser location as start: accuracy confirmation, stale callback
   fencing, translated errors, browser tests; separate PR.
 - [ ] Geographic track names: licensed local settlement data, deterministic
   naming, consistent API/GPX/UI/download; separate PR.
@@ -16,6 +16,10 @@ new live Gemini/ORS qualification and real-device acceptance are not implied.
   consumption, secret configuration, CI-controlled deployment and runbook.
 - [ ] Public environment verification, only when hosting access is available.
 - [ ] User manual road-quality and device checks (not an automated claim).
+
+Geolocation was independently ready first and merged as PR #18 after green PR CI.
+The ranges branch is integrated on that main revision; remaining PRs are delivered
+sequentially to avoid a stacked queue.
 
 ## Range contract
 
@@ -66,3 +70,8 @@ and mobile HE screenshots. The range request tests were observed failing before
 implementation. Review found no remaining actionable defects in the final diff.
 Extraction is now v4 and advisor input/prompt v3; prior live qualification does
 not cover these revisions. No live provider calls were made. CI/merge pending.
+
+After integrating geolocation from main, all 176 frontend tests, the production
+build and all 86 desktop/mobile browser cases passed. One earlier parallel local
+test run timed out under load; the complete single-worker rerun passed without
+changing any test deadlines. Backend totals remain 359 unit + 438 integration.
