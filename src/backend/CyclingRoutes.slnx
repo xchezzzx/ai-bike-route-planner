@@ -3,6 +3,7 @@
   <Project Path="CyclingRoutes.Application/CyclingRoutes.Application.csproj" />
   <Project Path="CyclingRoutes.Contracts/CyclingRoutes.Contracts.csproj" />
   <Project Path="CyclingRoutes.Domain/CyclingRoutes.Domain.csproj" />
+  <Project Path="CyclingRoutes.Evaluation/CyclingRoutes.Evaluation.csproj" />
   <Project Path="CyclingRoutes.Infrastructure/CyclingRoutes.Infrastructure.csproj" />
   <Project Path="CyclingRoutes.Tests.Integration/CyclingRoutes.Tests.Integration.csproj" />
   <Project Path="CyclingRoutes.Tests.Unit/CyclingRoutes.Tests.Unit.csproj" />
