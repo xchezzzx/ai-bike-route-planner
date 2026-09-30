@@ -12,7 +12,7 @@ No provider calls, cloud deployment, new package, or production search change.
       suitable route exists; preserve attempt count and exclusion details.
 - [x] Assess the supplied private GPX locally; commit only aggregate evidence.
 - [x] Run regression suites and independent review.
-- [ ] Commit, open PR and merge after green CI.
+- [x] Commit, open PR and merge after green CI.
 
 ## Evaluation Rules
 
@@ -50,3 +50,15 @@ to change construction or prototype road-network waypoints.
 - Independent review found incompatible saved units, partial final-file writes
   and discarded retained warnings. Regression tests and fixes added; reviewer
   confirmed all three closed by source inspection.
+
+## Delivery
+
+Two logical commits were squashed into [PR #23](https://github.com/xchezzzx/ai-bike-route-planner/pull/23)
+after all three required PR checks succeeded. Main commit
+`97138b28739965435c221641903d5730a9d4f9c5` also passed backend and frontend CI.
+Cloud deployment remains deferred.
+
+The subsequently authorized 12-ORS/zero-Gemini comparison stopped after 9 ORS
+calls on HTTP 500. See [the live evidence and limitations](../evaluation/road-loop-live-2026-09-30.md).
+This delivery completes offline preparation and UI wording, not route-quality
+acceptance or a production fixed-seed implementation.
