@@ -2,7 +2,7 @@ using CyclingRoutes.Domain.RoutePlanning;
 
 namespace CyclingRoutes.Application.Routing;
 
-public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandidateSelector selector, TimeProvider timeProvider)
+public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandidateSelector selector, TimeProvider timeProvider, RouteNameResolver names)
 {
 	public async Task<RouteCandidateSearchResult> GenerateAsync(RouteIntent intent, CancellationToken cancellationToken)
 	{
@@ -59,7 +59,7 @@ public sealed class RouteCandidateService(IRoutingProvider provider, RoadCandida
 		{
 			cancellationToken.ThrowIfCancellationRequested();
 			generated.Add(new(item.Candidate.Seed, item.Assessment,
-				new(item.Candidate.Path, GpxWriter.Write(item.Candidate.Path), item.Warnings)));
+				GeneratedRoute.Create(item.Candidate.Path, intent, item.Warnings, names)));
 		}
 		cancellationToken.ThrowIfCancellationRequested();
 		if (deadline.IsCancellationRequested) incompleteFailure = RoutingFailure.Timeout;

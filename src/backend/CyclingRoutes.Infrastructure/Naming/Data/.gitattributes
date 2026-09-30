@@ -1,0 +1,2 @@
+# The provenance manifest hashes the exact UTF-8/LF bytes of the generated data.
+*.json text eol=lf

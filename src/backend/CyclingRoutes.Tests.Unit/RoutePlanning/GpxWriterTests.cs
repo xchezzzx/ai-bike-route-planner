@@ -13,7 +13,7 @@ public class GpxWriterTests
 	public void Export_RoundTripsCoordinatesWithoutRoundingToInvalidLongitude(double latitude, double longitude)
 	{
 		var route = new RoutedPath([new(new(latitude, longitude), double.MaxValue), new(new(0, 0), null)], 1, 1, null, null, "ORS");
-		var document = XDocument.Parse(GpxWriter.Write(route));
+		var document = XDocument.Parse(GpxWriter.Write(route, "Test-route"));
 		XNamespace ns = "http://www.topografix.com/GPX/1/1";
 		var point = document.Descendants(ns + "trkpt").First();
 		var lat = point.Attribute("lat")!.Value;
@@ -40,11 +40,12 @@ public class GpxWriterTests
 			var route = new RoutedPath(
 				[new(new(32.0853, 34.7818), -12.5), new(new(32.1, 34.82), null)],
 				4567.8, 987.6, null, null, "ORS & OSM <contributors>");
-			var document = XDocument.Parse(GpxWriter.Write(route));
+			var document = XDocument.Parse(GpxWriter.Write(route, "Test & <route>"));
 			XNamespace ns = "http://www.topografix.com/GPX/1/1";
 			Assert.Equal(ns + "gpx", document.Root!.Name);
 			Assert.Equal("1.1", document.Root.Attribute("version")!.Value);
 			Assert.Equal("ORS & OSM <contributors>", document.Root.Element(ns + "metadata")!.Element(ns + "desc")!.Value);
+			Assert.Equal("Test & <route>", document.Root.Element(ns + "trk")!.Element(ns + "name")!.Value);
 			var segment = Assert.Single(document.Descendants(ns + "trkseg"));
 			var points = segment.Elements(ns + "trkpt").ToArray();
 			Assert.Equal(2, points.Length);
@@ -62,7 +63,7 @@ public class GpxWriterTests
 	public void Export_UsesGpxDecimalSyntaxAndExclusiveLongitudeBound()
 	{
 		var route = new RoutedPath([new(new(0.00000001, 180), null), new(new(0, -180), null)], 1, 1, null, null, "ORS");
-		var document = XDocument.Parse(GpxWriter.Write(route));
+		var document = XDocument.Parse(GpxWriter.Write(route, "Test-route"));
 		XNamespace ns = "http://www.topografix.com/GPX/1/1";
 		var first = document.Descendants(ns + "trkpt").First();
 		Assert.Equal("0.00000001", first.Attribute("lat")!.Value);

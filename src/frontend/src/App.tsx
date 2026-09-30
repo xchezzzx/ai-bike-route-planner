@@ -8,6 +8,7 @@ import RouteMap from './RouteMap';
 import ThemeControl from './ThemeControl';
 import StartLocation from './StartLocation';
 import TargetInputs from './TargetInputs';
+import { trackName } from './trackName';
 import type { CoordinateInput, Draft, Locale } from './types';
 import { usePlanner } from './usePlanner';
 import { ExcludedRoutes, RouteQuality } from './RoadQualityPanel';
@@ -43,7 +44,7 @@ export default function App() {
     if (!chosen) return;
     const url = URL.createObjectURL(new Blob([chosen.route.gpx], { type: 'application/gpx+xml;charset=utf-8' }));
     const anchor = document.createElement('a');
-    anchor.href = url; anchor.download = `cycling-route-${selected + 1}.gpx`;
+    anchor.href = url; anchor.download = `${trackName(chosen.route, selected)}.gpx`;
     document.body.append(anchor); anchor.click(); anchor.remove();
     const revoke = URL.revokeObjectURL.bind(URL);
     setTimeout(() => revoke(url), 1000);
@@ -110,7 +111,7 @@ export default function App() {
           {chosen ? <>
           <div role="radiogroup" aria-label={text('routes')} className="route-options">{results.candidates.map((candidate, index) => <label className={`route-option ${selected === index ? 'selected' : ''}`} key={candidate.seed}>
             <input type="radio" name="route" checked={selected === index} onChange={() => planner.select(index)} />
-            <span className={`route-swatch color-${index % 3}`} /><span>{text('route')} {index + 1}</span><b dir="ltr">{quantity(locale, candidate.route.distanceMeters, 'km', 1000)}</b>
+            <span className={`route-swatch color-${index % 3}`} /><span className="route-label"><span>{text('route')} {index + 1}</span>{candidate.route.name && <small dir="ltr">{trackName(candidate.route, index)}</small>}</span><b dir="ltr">{quantity(locale, candidate.route.distanceMeters, 'km', 1000)}</b>
           </label>)}</div>
           <dl className="route-metrics"><div><dt>{text('duration')}</dt><dd dir="ltr">{quantity(locale, chosen.route.estimatedDurationSeconds, 'min', 60)}</dd></div><div><dt>{text('ascent')}</dt><dd dir="ltr">{quantity(locale, chosen.route.ascentMeters, 'm')}</dd></div><div><dt>{text('descent')}</dt><dd dir="ltr">{quantity(locale, chosen.route.descentMeters, 'm')}</dd></div><div><dt>{text('attempts')}</dt><dd dir="ltr">{results.attemptedCount}</dd></div></dl>
           <p className="target-match">{chosen.assessment?.targetsMatched && <Check size={16} />}{text(chosen.assessment ? chosen.assessment.targetsMatched ? 'matched' : 'notMatched' : 'notAssessed')}</p>

@@ -109,6 +109,10 @@ dd { margin: 0; text-align: end; overflow-wrap: anywhere; }
 .count { color: var(--muted); font-size: 12px; }
 .download { width: auto; padding-inline: 8px; gap: 6px; border-color: var(--border); }
 .route-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.route-option { max-width: 100%; min-width: 0; }
+.route-label { display: grid; gap: 2px; min-width: 0; }
+.route-label small { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.route-option > b { flex-shrink: 0; }
 .route-option { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 5px; padding: 8px 10px; cursor: pointer; font-weight: 500; }
 .route-option input { width: 14px; height: 14px; min-height: 0; margin: 0; accent-color: var(--accent); }
 .route-option.selected { border-color: var(--selected-border); background: var(--selection); }

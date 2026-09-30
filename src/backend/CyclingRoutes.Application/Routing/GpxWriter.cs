@@ -7,7 +7,7 @@ public static class GpxWriter
 {
 	private static readonly XNamespace Namespace = "http://www.topografix.com/GPX/1/1";
 
-	public static string Write(RoutedPath path)
+	public static string Write(RoutedPath path, string name)
 	{
 		var points = path.Points.Select(point => new XElement(Namespace + "trkpt",
 			new XAttribute("lat", Format(point.Position.Latitude)),
@@ -16,7 +16,7 @@ public static class GpxWriter
 		var document = new XDocument(new XElement(Namespace + "gpx",
 			new XAttribute("version", "1.1"), new XAttribute("creator", "CyclingRoutes"),
 			new XElement(Namespace + "metadata", new XElement(Namespace + "desc", path.Attribution)),
-			new XElement(Namespace + "trk", new XElement(Namespace + "name", "Cycling route"),
+			new XElement(Namespace + "trk", new XElement(Namespace + "name", name),
 				new XElement(Namespace + "trkseg", points))));
 		return document.ToString(SaveOptions.DisableFormatting);
 	}

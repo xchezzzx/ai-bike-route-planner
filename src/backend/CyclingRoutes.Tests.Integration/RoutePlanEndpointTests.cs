@@ -104,7 +104,7 @@ public class RoutePlanEndpointTests : IClassFixture<WebApplicationFactory<Progra
 			var geometry = route.GetProperty("geometry");
 			XNamespace ns = "http://www.topografix.com/GPX/1/1";
 			Assert.Equal(geometry.GetArrayLength(), XDocument.Parse(route.GetProperty("gpx").GetString()!).Descendants(ns + "trkpt").Count());
-			Assert.Equal(GpxWriter.Write(Path(candidate.GetProperty("seed").GetInt32(), scenario == "matched" ? 20000 : 28000)), route.GetProperty("gpx").GetString());
+			Assert.Equal(GpxWriter.Write(Path(candidate.GetProperty("seed").GetInt32(), scenario == "matched" ? 20000 : 28000), scenario == "matched" ? "Route-loop-road-20" : "Route-loop-road-28"), route.GetProperty("gpx").GetString());
 		}
 	}
 
@@ -208,7 +208,7 @@ public class RoutePlanEndpointTests : IClassFixture<WebApplicationFactory<Progra
 			Assert.Equal(3, segments[0].GetProperty("toPointIndex").GetInt32());
 			Assert.Equal(annotated ? "asphalt" : "unknown", segments[0].GetProperty("surface").GetString());
 			Assert.Equal(annotated ? "cycleway" : "unknown", segments[0].GetProperty("wayType").GetString());
-			Assert.Equal(GpxWriter.Write(Path(candidate.GetProperty("seed").GetInt32(), 20000)), route.GetProperty("gpx").GetString());
+			Assert.Equal(GpxWriter.Write(Path(candidate.GetProperty("seed").GetInt32(), 20000), "Route-loop-road-20"), route.GetProperty("gpx").GetString());
 		}
 	}
 

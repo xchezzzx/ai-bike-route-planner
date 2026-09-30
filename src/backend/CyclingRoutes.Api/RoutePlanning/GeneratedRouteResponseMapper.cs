@@ -13,7 +13,7 @@ internal static class GeneratedRouteResponseMapper
 			? supplied : [new(0, path.Points.Count - 1, RouteSurface.Unknown, RouteWayType.Unknown)];
 		return new(path.Points.Select(point => new RoutePointResponse(point.Position.Latitude, point.Position.Longitude, point.ElevationMeters)).ToArray(),
 			path.DistanceMeters, path.EstimatedDurationSeconds, path.AscentMeters, path.DescentMeters,
-			path.Attribution, route.Warnings, route.Gpx,
+			path.Attribution, route.Warnings, route.Gpx, route.Name,
 			segments.Select(segment => new RouteSegmentResponse(segment.FromPointIndex, segment.ToPointIndex,
 				JsonNamingPolicy.CamelCase.ConvertName(segment.Surface.ToString()),
 				JsonNamingPolicy.CamelCase.ConvertName(segment.WayType.ToString()))).ToArray());

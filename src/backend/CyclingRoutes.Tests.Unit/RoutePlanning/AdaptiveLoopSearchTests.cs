@@ -123,10 +123,10 @@ public class AdaptiveLoopSearchTests
 	private static async Task<RouteCandidateSearchResult> Search(bool advised, Provider provider, RouteIntent intent)
 	{
 		var selector = new RoadCandidateSelector(new(), new());
-		if (!advised) return await new RouteCandidateService(provider, selector, TimeProvider.System)
+		if (!advised) return await new RouteCandidateService(provider, selector, TimeProvider.System, RouteNamingFixture.NeutralNames)
 			.GenerateAsync(intent, TestContext.Current.CancellationToken);
 		var advisor = new FailingAdvisor();
-		var result = await new RoutePlanningService(provider, advisor, selector, TimeProvider.System)
+		var result = await new RoutePlanningService(provider, advisor, selector, TimeProvider.System, RouteNamingFixture.NeutralNames)
 			.PlanAsync(intent, TestContext.Current.CancellationToken);
 		Assert.Equal(1, advisor.Calls);
 		Assert.Equal(provider.Lengths, result.Attempts.Select(a => a.RequestedLengthMeters));

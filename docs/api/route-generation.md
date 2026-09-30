@@ -9,7 +9,9 @@ Loops and sampled preference ranking are available through the separate
 
 200 returns geometry (named latitude/longitude/elevationMeters), distanceMeters,
 estimatedDurationSeconds, ascentMeters/descentMeters when available, attribution,
-warnings, and gpx (a GPX 1.1 XML string of exactly the returned geometry).
+warnings, name, and gpx (a GPX 1.1 XML string of exactly the returned geometry).
+The [canonical geographic name](geographic-track-names.md) also appears in GPX
+`trk/name`; use `name + ".gpx"` for downloads.
 The client can save gpx as UTF-8 without another routing call. There is no route
 ID or persistence. A-B requests may omit both targets. Targets are not optimized
 yet: results include targets_not_optimized only when a target was supplied.
