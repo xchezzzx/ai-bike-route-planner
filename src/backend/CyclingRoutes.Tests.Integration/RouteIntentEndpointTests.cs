@@ -118,7 +118,7 @@ public class RouteIntentEndpointTests : IClassFixture<WebApplicationFactory<Prog
 	[InlineData("Production", "{}", "text/plain", 415)]
 	public async Task BindingFailures_ReturnProblemDetailsWithoutInternals(string environment, string json, string mediaType, int status)
 	{
-		using var factory = _factory.WithWebHostBuilder(builder => builder.UseEnvironment(environment));
+		using var factory = _factory.WithWebHostBuilder(builder => builder.UseEnvironment(environment).UseSetting("Access:Mode", "Local"));
 		using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
 		using var content = new StringContent(json, Encoding.UTF8, mediaType);
 		using var response = await client.PostAsync(Endpoint, content, TestContext.Current.CancellationToken);

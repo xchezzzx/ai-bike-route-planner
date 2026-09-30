@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using CyclingRoutes.Api.Access;
 using CyclingRoutes.Application.Interpretation;
 using CyclingRoutes.Infrastructure.Interpretation;
 using CyclingRoutes.Api.RoutePlanning;
@@ -8,6 +9,24 @@ using CyclingRoutes.Infrastructure.Routing;
 using CyclingRoutes.Infrastructure.Naming;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOptions<AccessOptions>()
+	.Configure(options =>
+	{
+		builder.Configuration.GetSection("Access").Bind(options);
+		options.Mode = builder.Configuration["Access:Mode"] ??
+			(builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("Testing") ? "Local" : "Protected");
+		options.Password ??= "";
+		options.PublicOrigin ??= "";
+	})
+	.Validate(options => options.IsValid(), "Access requires Local mode or Protected mode with a password of at least 24 characters (at most 750 UTF-8 credential bytes) and a canonical HTTPS PublicOrigin without path, query or fragment.")
+	.ValidateOnStart();
+builder.Services.AddSingleton<AccessRateLimits>();
+builder.Services.AddRateLimiter(options =>
+{
+	options.GlobalLimiter = AccessRateLimits.CreateApiLimiter();
+	options.OnRejected = (context, _) => new ValueTask(AccessRateLimits.RejectAsync(context.HttpContext, context.Lease));
+});
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -56,8 +75,29 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 
 var app = builder.Build();
+// Validate before entering the hosting loop so startup failures are deterministic.
+_ = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AccessOptions>>().Value;
+app.UseMiddleware<AccessMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseRouting();
+app.UseRateLimiter();
+// A routing fallback can mask API 404/405/415 responses. Serve the SPA only after
+// routing/static files have declined a non-file, non-API GET/HEAD request.
+app.Use(async (context, next) =>
+{
+	await next(context);
+	if (context.GetEndpoint() is not null || context.Response.HasStarted || context.Response.StatusCode != 404 ||
+		context.Request.Path.StartsWithSegments("/api") || Path.HasExtension(context.Request.Path.Value) ||
+		!(HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))) return;
+
+	var index = app.Environment.WebRootFileProvider.GetFileInfo("index.html");
+	if (!index.Exists) return;
+	context.Response.StatusCode = StatusCodes.Status200OK;
+	await Results.File(index.CreateReadStream(), "text/html; charset=utf-8").ExecuteAsync(context);
+});
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -72,6 +112,6 @@ app.MapRouteCandidatesEndpoints();
 app.MapRoutePlanEndpoints();
 app.MapInterpretRouteIntentEndpoints();
 
-app.UseHttpsRedirection();
-
+// Render terminates TLS and redirects at the edge. Do not trust forwarded headers
+// or redirect this internal HTTP hop, which would loop behind the TLS terminator.
 app.Run();

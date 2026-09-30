@@ -117,7 +117,9 @@ target deviations, and warnings when targets are missed or search is incomplete.
 This bounded search does not guarantee an optimal route or verified road safety.
 See the [candidate contract and limitations](docs/api/route-candidates.md).
 
-Do not expose a configured API publicly before adding authentication/rate limits.
+Public test deployments must use Protected access mode and an HTTPS edge. See the
+[closed tester deployment guide](docs/deployment/protected-staging.md) for access
+settings, shared rate limits, public error codes and hosting restrictions.
 
 POST /api/route-intents/interpret accepts a prompt, locale (en/he/ru), and optional
 map coordinates. It returns inspectable preferences or clarifications, never a
@@ -139,12 +141,15 @@ With Docker Desktop's Linux engine running, use src/backend as build context:
 
 ```powershell
 docker build -f src/backend/CyclingRoutes.Api/Dockerfile -t cycling-routes-api src/backend
-docker run --rm -p 127.0.0.1:8080:8080 cycling-routes-api
+docker run --rm -p 127.0.0.1:8080:8080 -e Access__Mode=Local cycling-routes-api
 ```
 
 The standalone container serves HTTP on port 8080; no TLS certificate is
-bundled. HTTPS termination and forwarded headers must be configured for the
-chosen hosting service before deployment.
+bundled. Local mode is anonymous and must stay on loopback. For a combined React
+and API image, use the root Dockerfile and `./tools/smoke-protected-deployment.ps1`.
+Production defaults to Protected and refuses startup without access settings.
+Render handles public HTTPS; the app does not trust arbitrary forwarded headers
+or redirect its internal HTTP hop. See the deployment guide before provisioning.
 
 ## Structure and progress
 

@@ -1,0 +1,32 @@
+previews:
+  generation: off
+services:
+  - type: web
+    name: cycling-routes-testers
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: checksPass
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "8080"
+      - key: PORT
+        value: "8080"
+      - key: Access__Mode
+        value: Protected
+      - key: Access__Password
+        sync: false
+      - key: Access__PublicOrigin
+        sync: false
+      - key: Ai__Gemini__ApiKey
+        sync: false
+      - key: Ai__Gemini__Model
+        sync: false
+      - key: Routing__OpenRouteService__ApiKey
+        sync: false
