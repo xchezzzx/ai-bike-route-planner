@@ -47,8 +47,14 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`manual ranges retain bot
   for (const [metric, min, max] of [['distanceInput', '35', '45'], ['durationInput', '90', '150']] as const) {
     const group = page.getByRole('group', { name: t(locale, metric), exact: true });
     await group.getByRole('radio', { name: t(locale, 'rangeMode'), exact: true }).check();
-    await group.getByLabel(t(locale, 'minimum'), { exact: true }).fill(min);
-    await group.getByLabel(t(locale, 'maximum'), { exact: true }).fill(max);
+    for (const [bound, target] of [['minimum', min], ['maximum', max]] as const) {
+      const thumb = group.getByRole('slider', { name: t(locale, bound), exact: true });
+      const current = Number(await thumb.getAttribute('aria-valuenow'));
+      const delta = Number(target) - current;
+      await thumb.focus();
+      for (let step = 0; step < Math.abs(delta); step++) await page.keyboard.press(delta > 0 ? 'ArrowUp' : 'ArrowDown');
+      await expect(thumb).toHaveAttribute('aria-valuenow', target);
+    }
   }
   await page.getByRole('button', { name: t(locale, 'validate'), exact: true }).click();
   await expect(page.getByRole('button', { name: t(locale, 'generate'), exact: true })).toBeEnabled();
@@ -57,10 +63,10 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`manual ranges retain bot
   expect(posts[0].body).not.toHaveProperty('targetDurationSeconds');
   await page.screenshot({ path: info.outputPath(`ranges-${locale}.png`), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const bounds = page.locator('.range-bounds input');
-  for (const input of await bounds.all()) {
-    const box = await input.boundingBox();
-    expect(box!.width).toBeGreaterThan(80);
+  for (const slider of await page.locator('.range-slider').all()) {
+    const box = await slider.boundingBox();
+    expect(box!.width).toBeGreaterThan(250);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
   }
   await page.getByRole('button', { name: t(locale, 'generate'), exact: true }).click();
   await expect(page.getByRole('button', { name: t(locale, 'download'), exact: true })).toBeVisible();
@@ -68,6 +74,47 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`manual ranges retain bot
   await page.getByRole('group', { name: t(locale, 'distanceInput'), exact: true }).getByRole('radio', { name: t(locale, 'targetMode'), exact: true }).check();
   await expect(page.getByRole('button', { name: t(locale, 'generate'), exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: t(locale, 'download'), exact: true })).toHaveCount(0);
+});
+
+for (const locale of ['en', 'ru', 'he'] as const) test(`range sliders accept pointer input and optional duration (${locale})`, async ({ page, isMobile }, info) => {
+  const posts = await mockNetwork(page);
+  await page.goto('/');
+  await page.getByLabel('Language', { exact: true }).selectOption(locale);
+  await page.getByRole('combobox', { name: t(locale, 'theme'), exact: true }).selectOption('dark');
+  await page.getByRole('radio', { name: t(locale, 'manualMode'), exact: true }).check();
+  await page.getByLabel(t(locale, 'startLatitude'), { exact: true }).fill('32.08');
+  await page.getByLabel(t(locale, 'startLongitude'), { exact: true }).fill('34.78');
+  const distance = page.getByRole('group', { name: t(locale, 'distanceInput'), exact: true });
+  await distance.getByRole('radio', { name: t(locale, 'rangeMode'), exact: true }).check();
+  const track = distance.locator('.range-track');
+  await track.scrollIntoViewIfNeeded();
+  const box = (await track.boundingBox())!;
+  const point = { x: box.x + box.width * (locale === 'he' ? .22 : .78), y: box.y + box.height / 2 };
+  if (isMobile) await page.touchscreen.tap(point.x, point.y);
+  else {
+    const thumb = distance.getByRole('slider', { name: t(locale, 'maximum'), exact: true });
+    const handle = (await thumb.boundingBox())!;
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(point.x, point.y, { steps: 8 });
+    await page.mouse.up();
+  }
+  const min = Number(await distance.getByRole('slider', { name: t(locale, 'minimum'), exact: true }).getAttribute('aria-valuenow'));
+  const max = Number(await distance.getByRole('slider', { name: t(locale, 'maximum'), exact: true }).getAttribute('aria-valuenow'));
+  expect(min).toBe(35);
+  expect(max).toBeGreaterThan(45);
+  expect(max).toBeLessThanOrEqual(100);
+  const duration = page.getByRole('group', { name: t(locale, 'durationInput'), exact: true });
+  await duration.getByRole('radio', { name: t(locale, 'rangeMode'), exact: true }).check();
+  await duration.getByRole('button', { name: t(locale, 'clearRange'), exact: true }).click();
+  await expect(duration.getByRole('slider', { name: t(locale, 'minimum'), exact: true })).toHaveAttribute('aria-disabled', 'true');
+  await page.getByRole('button', { name: t(locale, 'validate'), exact: true }).click();
+  await expect(page.getByRole('button', { name: t(locale, 'generate'), exact: true })).toBeEnabled();
+  expect(posts).toHaveLength(1);
+  expect(posts[0].body).toMatchObject({ targetDistanceRangeMeters: { min: min * 1000, max: max * 1000 } });
+  expect(posts[0].body).not.toHaveProperty('targetDurationRangeSeconds');
+  await page.screenshot({ path: info.outputPath(`range-slider-dark-${locale}.png`), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 for (const locale of ['en', 'ru', 'he'] as const) test(`shape selector hides inactive destination and resets map picking (${locale})`, async ({ page }, testInfo) => {

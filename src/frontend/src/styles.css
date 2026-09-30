@@ -75,7 +75,19 @@ svg { flex-shrink: 0; }
 .target-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .target-input > .segmented { margin-bottom: 8px; }
 .target-input .segmented span { padding-inline: 2px; overflow-wrap: anywhere; }
-.range-bounds { display: grid; gap: 8px; }
+.target-input:has(.range-target) { grid-column: 1 / -1; }
+.range-value { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 34px; }
+.range-value output { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.range-slider { position: relative; display: flex; align-items: center; width: 100%; height: 44px; padding-inline: 12px; touch-action: none; user-select: none; }
+.range-track { position: relative; flex: 1; height: 6px; background: var(--divider); border-radius: 3px; }
+.range-selection { position: absolute; height: 100%; background: var(--accent); border-radius: 3px; }
+.range-thumb { position: relative; display: block; width: 24px; height: 24px; border: 2px solid var(--accent); border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px #0002; cursor: grab; }
+.range-thumb::before { content: ''; position: absolute; inset: -12px; }
+.range-thumb:active { cursor: grabbing; }
+.range-thumb:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; z-index: 1; }
+.range-slider[data-disabled] { opacity: .45; }
+.range-thumb[data-disabled] { cursor: default; }
+.range-scale { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 .generate-section { padding: 18px 20px 0; display: grid; gap: 12px; }
 .pending { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .pending .icon-button { margin-inline-start: auto; }
