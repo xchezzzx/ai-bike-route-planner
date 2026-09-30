@@ -178,7 +178,7 @@ limit. These observations do not establish that a suitable loop cannot exist.
   waypoint construction. Compare distance fit, surface evidence, unnecessary
   manoeuvres and retracing against the baseline and the supplied reference GPX.
   No routing-engine migration is assumed by this backlog item.
-- [ ] Clarify empty-result wording in EN/RU/HE: state that no suitable route was
+- [x] Clarify empty-result wording in EN/RU/HE: state that no suitable route was
   found in the actual number of attempts, without implying that no suitable
   route exists. Retain the excluded-candidate reasons and limited-search warning.
 
@@ -187,6 +187,12 @@ verification from live results, and report retained candidates and exclusion
 reasons. Cover bounded attempts, cancellation and exact range boundaries with
 regression tests when implementation changes. Live comparisons require a
 separately agreed provider-call budget; adding this backlog makes no live calls.
+
+Offline preparation is implemented in
+[the evaluation utility and protocol](evaluation/road-loop-evaluation.md):
+eight validated public-city controls, local GPX / raw ORS assessment, and
+[reference/replay evidence](evaluation/road-loop-offline-2026-09-30.md).
+This does not complete the fixed-seed comparison or improve production search.
 
 ## Implemented addition: automatic track names
 

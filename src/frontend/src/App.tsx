@@ -117,7 +117,7 @@ export default function App() {
           <p className="target-match">{chosen.assessment?.targetsMatched && <Check size={16} />}{text(chosen.assessment ? chosen.assessment.targetsMatched ? 'matched' : 'notMatched' : 'notAssessed')}</p>
           {chosen.assessment && <dl className="comparison"><div><dt>{text('searchDistance')}</dt><dd dir="ltr">{quantity(locale, results.requestedLengthMeters, 'km', 1000)}</dd></div>{chosen.assessment.distanceDeltaMeters != null && <div><dt>{text('distanceDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.distanceDeltaMeters, 'km', 1000)}</dd></div>}{chosen.assessment.durationDeltaSeconds != null && <div><dt>{text('durationDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.durationDeltaSeconds, 'min', 60)}</dd></div>}</dl>}
           {chosen.assessment?.quality && <RouteQuality quality={chosen.assessment.quality} locale={locale} />}
-          </> : <div role="status"><p>{text('noMatches')}</p><p>{text('attempts')}: {results.attemptedCount}</p></div>}
+          </> : <div role="status"><p>{text('noMatches')}</p><p>{text('attempts')}: {results.attemptedCount}</p><p>{text('otherRoutesMayExist')}</p></div>}
           <Notices codes={[...results.warnings.filter(code => code !== 'no_candidate_meets_requirements'), ...(chosen?.route.warnings ?? [])]} locale={locale} title="warnings" />
           <ExcludedRoutes candidates={results.excludedCandidates} locale={locale} />
           <Notices codes={results.assumptions} locale={locale} title="assumptions" />
