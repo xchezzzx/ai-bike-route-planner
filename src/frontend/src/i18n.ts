@@ -97,6 +97,8 @@ const messages = {
   targetDistanceMeters: ['Target distance', 'Целевое расстояние', 'מרחק יעד'], targetDurationSeconds: ['Target duration', 'Целевая длительность', 'משך יעד'],
   targetMode: ['Target', 'Цель', 'יעד'], rangeMode: ['Range', 'Диапазон', 'טווח'],
   minimum: ['Minimum', 'Минимум', 'מינימום'], maximum: ['Maximum', 'Максимум', 'מקסימום'],
+  clearRange: ['Clear range', 'Очистить диапазон', 'ניקוי טווח'],
+  setRange: ['Set range', 'Задать диапазон', 'הגדרת טווח'],
   range_reversed: ['Minimum must not exceed maximum.', 'Минимум не должен превышать максимум.', 'המינימום לא יכול להיות גדול מהמקסימום.'],
   target_conflict: ['Choose a target or a range, not both.', 'Укажите цель или диапазон, но не оба.', 'יש לבחור יעד או טווח, לא שניהם.'],
   draft: ['Interpreted preferences', 'Распознанные параметры', 'העדפות שזוהו'],

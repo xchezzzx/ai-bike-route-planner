@@ -14,8 +14,12 @@ new live Gemini/ORS qualification and real-device acceptance are not implied.
   naming, consistent API/GPX/UI/download; separate PR.
 - [x] Protected deployment preparation: same-origin container, tester access, bounded API
   consumption, secret configuration, CI-controlled deployment and runbook.
-- [ ] Public environment verification, only when hosting access is available.
+- [ ] Public environment verification: deferred to a separate joint task;
+  hosting provider is not selected.
 - [ ] User manual road-quality and device checks (not an automated claim).
+- [ ] Road-loop search reliability: evaluate fixed-seed calibration, prototype
+  road-network waypoints if needed, and clarify empty-result wording. See the
+  [backlog and acceptance criteria](../mvp-roadmap.md#backlog-road-loop-search-reliability-2026-09-30).
 
 Geolocation was independently ready first and merged as PR #18 after green PR CI.
 The ranges branch is integrated on that main revision; remaining PRs are delivered
@@ -84,9 +88,9 @@ changing any test deadlines. Backend totals remain 359 unit + 438 integration.
 
 ## Remaining owner acceptance
 
-- Connect Render to GitHub, inspect the Free blueprint, enter runtime access
-  settings privately, then verify the deployed HTTPS service. No cloud service
-  was created by code preparation; follow the deployment runbook.
+- Cloud deployment is deferred by the user on 2026-09-30. Select hosting and
+  complete deployment together in a separate task; Render is not a selected
+  provider. No cloud service was created by code preparation.
 - With a separately agreed provider-call budget, requalify extraction v4 and
   advisor input v3, and compare real road loops at known Israeli locations.
 - Manually inspect route manoeuvres/surface/access and import named GPX files on
