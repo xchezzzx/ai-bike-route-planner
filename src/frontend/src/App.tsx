@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { Bike, Check, Download, LoaderCircle, LocateFixed, MapPin, RefreshCw, Route, Search, Square } from 'lucide-react';
+import { Bike, Check, Clock, Download, LoaderCircle, LocateFixed, MapPin, RefreshCw, Route, Ruler, Search, Square, TrendingUp } from 'lucide-react';
 import { request } from './api';
 import { codeText, fieldText, quantity, t, type MessageKey } from './i18n';
 import { readCoordinate } from './request';
@@ -8,9 +8,10 @@ import RouteMap from './RouteMap';
 import ThemeControl from './ThemeControl';
 import StartLocation from './StartLocation';
 import PlaceInput from './PlaceInput';
+import ElevationProfile from './ElevationProfilePanel';
 import TargetInputs from './TargetInputs';
 import { trackName } from './trackName';
-import type { Coordinate, CoordinateInput, Draft, Locale } from './types';
+import type { Coordinate, CoordinateInput, Draft, GeneratedRoute, Locale } from './types';
 import { usePlanner } from './usePlanner';
 import { ExcludedRoutes, RouteQuality } from './RoadQualityPanel';
 
@@ -24,6 +25,9 @@ export default function App() {
   const [health, setHealth] = useState<MessageKey>('apiChecking');
   const healthRequest = useRef<AbortController | null>(null);
   const chosen = results?.candidates[selected];
+  const [inspection, setInspection] = useState<{ route: GeneratedRoute; index: number } | null>(null);
+  const inspectedIndex = inspection?.route === chosen?.route ? inspection?.index ?? null : null;
+  useEffect(() => { setInspection(null); }, [chosen?.route]);
   const isLoop = inputs.manual.shape === 'loop';
   const activePick = isLoop ? 'start' : pick;
   useEffect(() => {
@@ -80,6 +84,10 @@ export default function App() {
       onChange={() => update({ [field]: { latitude: '', longitude: '' } })}
       onSelect={coordinate => selectPoint(field, coordinate, true)} />{coordinates(field)}</div>;
   }
+  function inspectPoint(index: number | null) {
+    setInspection(chosen && index != null && Number.isInteger(index) && chosen.route.geometry[index]
+      ? { route: chosen.route, index } : null);
+  }
   return <>
     <header className="app-header">
       <h1><Bike size={24} aria-hidden="true" />{text('app')}</h1>
@@ -90,7 +98,7 @@ export default function App() {
       </div>
     </header>
     <main className="workspace">
-      <aside className="controls" aria-label={text('request')}>
+      <aside className="controls" dir={locale === 'he' ? 'rtl' : 'ltr'} aria-label={text('request')}>
         <section className="control-section">
           <div className="coordinates-heading"><h2><MapPin size={17} />{text('locations')}</h2><button type="button" className="icon-button" title={text('useLocation')} aria-label={text('useLocation')} onClick={planner.location.locate}><LocateFixed size={18} /></button></div>
           <StartLocation locale={locale} location={planner.location} />
@@ -121,17 +129,19 @@ export default function App() {
           {pending && <div className="pending" role="status"><LoaderCircle className="spinner" size={17} /><span>{text(pending)}</span><button type="button" className="icon-button" title={text('cancel')} aria-label={text('cancel')} onClick={planner.cancel}><Square size={16} /></button></div>}
           {error && <div className={error.code === 'cancelled' ? 'notice' : 'error'} role={error.code === 'cancelled' ? 'status' : 'alert'}><p>{codeText(locale, error.code, 'server_error')}</p>{Object.entries(error.fields).map(([field, codes]) => <p key={field}><strong>{fieldText(locale, field)}: </strong>{codes.map(code => codeText(locale, code, 'invalid_value')).join(' ')}</p>)}</div>}
         </div>
-      </aside>
-      <div className="map-and-results">
-        <RouteMap locale={locale} theme={resolvedTheme === 'dark' ? 'dark' : 'light'} shape={isLoop ? 'loop' : 'pointToPoint'} start={point('start')} destination={isLoop ? undefined : point('destination')} focus={planner.locationCenter} pick={activePick} candidates={results?.candidates ?? []} selected={selected} onRouteSelect={planner.select} onSelect={coordinate => selectPoint(activePick, coordinate)} onEndpointSelect={(field, coordinate) => selectPoint(field, coordinate)} />
         {results ? <section className="results" aria-label={text('routes')}>
           <div className="results-heading"><h2>{text('routes')} <span className="count">{results.candidates.length}</span></h2>{chosen && <button type="button" className="icon-button download" title={text('download')} aria-label={text('download')} onClick={download}><Download size={20} /><span dir="ltr">GPX</span></button>}</div>
           {chosen ? <>
           <div role="radiogroup" aria-label={text('routes')} className="route-options">{results.candidates.map((candidate, index) => <label className={`route-option ${selected === index ? 'selected' : ''}`} key={candidate.seed}>
             <input type="radio" name="route" checked={selected === index} onChange={() => planner.select(index)} />
-            <span className={`route-swatch color-${index % 3}`} /><span className="route-label"><span>{text('route')} {index + 1}</span>{candidate.route.name && <small dir="ltr">{trackName(candidate.route, index)}</small>}</span><b dir="ltr">{quantity(locale, candidate.route.distanceMeters, 'km', 1000)}</b>
+            <span className={`route-swatch color-${index % 3}`} /><span className="route-label"><span>{text('route')} {index + 1}</span>{candidate.route.name && <small dir="ltr">{trackName(candidate.route, index)}</small>}</span>
+            <span className="route-stats">
+              <span className="route-stat" role="img" title={text('distance')} aria-label={`${text('distance')}: ${quantity(locale, candidate.route.distanceMeters, 'km', 1000)}`}><Ruler size={14} aria-hidden="true" /><b dir="ltr">{quantity(locale, candidate.route.distanceMeters, 'km', 1000)}</b></span>
+              <span className="route-stat" role="img" title={text('ascent')} aria-label={`${text('ascent')}: ${quantity(locale, candidate.route.ascentMeters, 'm')}`}><TrendingUp size={14} aria-hidden="true" /><b dir="ltr">{quantity(locale, candidate.route.ascentMeters, 'm')}</b></span>
+              <span className="route-stat" role="img" title={text('duration')} aria-label={`${text('duration')}: ${quantity(locale, candidate.route.estimatedDurationSeconds, 'min', 60)}`}><Clock size={14} aria-hidden="true" /><b dir="ltr">{quantity(locale, candidate.route.estimatedDurationSeconds, 'min', 60)}</b></span>
+            </span>
           </label>)}</div>
-          <dl className="route-metrics"><div><dt>{text('duration')}</dt><dd dir="ltr">{quantity(locale, chosen.route.estimatedDurationSeconds, 'min', 60)}</dd></div><div><dt>{text('ascent')}</dt><dd dir="ltr">{quantity(locale, chosen.route.ascentMeters, 'm')}</dd></div><div><dt>{text('descent')}</dt><dd dir="ltr">{quantity(locale, chosen.route.descentMeters, 'm')}</dd></div><div><dt>{text('attempts')}</dt><dd dir="ltr">{results.attemptedCount}</dd></div></dl>
+          <p className="search-attempts">{text('attempts')}: {results.attemptedCount}</p>
           <p className="target-match">{chosen.assessment?.targetsMatched && <Check size={16} />}{text(chosen.assessment ? chosen.assessment.targetsMatched ? 'matched' : 'notMatched' : 'notAssessed')}</p>
           {chosen.assessment && <dl className="comparison"><div><dt>{text('searchDistance')}</dt><dd dir="ltr">{quantity(locale, results.requestedLengthMeters, 'km', 1000)}</dd></div>{chosen.assessment.distanceDeltaMeters != null && <div><dt>{text('distanceDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.distanceDeltaMeters, 'km', 1000)}</dd></div>}{chosen.assessment.durationDeltaSeconds != null && <div><dt>{text('durationDelta')}</dt><dd dir="ltr">{quantity(locale, chosen.assessment.durationDeltaSeconds, 'min', 60)}</dd></div>}</dl>}
           {chosen.assessment?.quality && <RouteQuality quality={chosen.assessment.quality} locale={locale} />}
@@ -155,6 +165,11 @@ export default function App() {
           </div>}
           <p className="safety">{text('safety')}</p>{chosen && <p className="route-attribution" dir="auto">{chosen.route.attribution}</p>}
         </section> : <div className="empty-state">{text('empty')}</div>}
+      </aside>
+      <div className="map-and-results" dir={locale === 'he' ? 'rtl' : 'ltr'}>
+        <RouteMap locale={locale} theme={resolvedTheme === 'dark' ? 'dark' : 'light'} shape={isLoop ? 'loop' : 'pointToPoint'} start={point('start')} destination={isLoop ? undefined : point('destination')} focus={planner.locationCenter} pick={activePick} candidates={results?.candidates ?? []} selected={selected} inspectedPoint={inspectedIndex == null ? undefined : chosen?.route.geometry[inspectedIndex]} onRouteSelect={planner.select} onSelect={coordinate => selectPoint(activePick, coordinate)} onEndpointSelect={(field, coordinate) => selectPoint(field, coordinate)}>
+          {chosen && <ElevationProfile route={chosen.route} locale={locale} theme={resolvedTheme === 'dark' ? 'dark' : 'light'} color={['#15724f', '#ba4661', '#346db5'][selected % 3]} inspectedIndex={inspectedIndex} onInspect={inspectPoint} />}
+        </RouteMap>
       </div>
     </main>
   </>;

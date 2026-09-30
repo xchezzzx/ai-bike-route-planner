@@ -4,11 +4,15 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import RouteMap from '../src/RouteMap';
 import { candidates } from './fixtures';
 
-const state = vi.hoisted(() => ({ maps: [] as any[] }));
+const state = vi.hoisted(() => ({ maps: [] as any[], markers: [] as any[] }));
 vi.mock('maplibre-gl', () => ({
   setWorkerUrl: vi.fn(), AttributionControl: class {},
   LngLatBounds: class { extend() { return this; } },
-  Marker: class { setLngLat() { return this; } addTo() { return this; } remove() {} },
+  Marker: class {
+    point: unknown; remove = vi.fn();
+    constructor(public options: any) { state.markers.push(this); }
+    setLngLat(point: unknown) { this.point = point; return this; } addTo() { return this; }
+  },
   Map: class {
     events: Record<string, (event?: any) => void> = {}; layers = new Map(); sources = new Map(); hits: any[] = [];
     fitBounds = vi.fn(); remove = vi.fn(); resize = vi.fn(); setPaintProperty = vi.fn(); setFilter = vi.fn();
@@ -23,13 +27,23 @@ vi.mock('maplibre-gl', () => ({
     queryRenderedFeatures(_: unknown, opts: { layers: string[] }) { return this.hits.filter(hit => opts.layers.includes(hit.layer.id)); }
   },
 }));
-beforeEach(() => { state.maps.length = 0; vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }); });
+beforeEach(() => { state.maps.length = 0; state.markers.length = 0; vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }); });
 const routeProps = () => ({ locale: 'en' as const, pick: 'start' as const, candidates: candidates.candidates, selected: 0, onRouteSelect: vi.fn(), onSelect: vi.fn() });
 const click = { point: { x: 1, y: 1 }, lngLat: { lat: 32, wrap: () => ({ lng: 34 }) }, originalEvent: { preventDefault: vi.fn() } };
 async function loadMap(map: any) {
   await act(() => map.events['style.load']());
   await act(() => map.events.idle());
 }
+
+it('highlights the inspected elevation point without changing the route camera', async () => {
+  const props = routeProps(); const ui = render(<RouteMap {...props} />);
+  const map = state.maps[0]; await loadMap(map); const fits = map.fitBounds.mock.calls.length;
+  ui.rerender(<RouteMap {...props} inspectedPoint={{ latitude: 32.11, longitude: 34.8 }} />);
+  const marker = state.markers.find(x => x.options.element.className.includes('elevation-point'));
+  expect(marker).toBeDefined(); expect(marker.point).toEqual([34.8, 32.11]);
+  expect(map.fitBounds).toHaveBeenCalledTimes(fits);
+  ui.rerender(<RouteMap {...props} />); expect(marker.remove).toHaveBeenCalled();
+});
 
 it('opens endpoint actions after both points are set instead of moving either', async () => {
   const props = { ...routeProps(), candidates: [], shape: 'pointToPoint' as const, start: { latitude: 32, longitude: 34 }, destination: { latitude: 32.1, longitude: 34.1 }, onEndpointSelect: vi.fn() };

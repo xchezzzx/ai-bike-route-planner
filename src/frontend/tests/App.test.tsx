@@ -3,9 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import App from '../src/App';
 import { candidates, intent, interpretation, route, refinement } from './fixtures';
+import type { ReactNode } from 'react';
+import type { GeneratedRoute } from '../src/types';
 
 // jsdom has no WebGL; the browser suite exercises the actual MapLibre canvas.
-vi.mock('../src/RouteMap', () => ({ default: ({ focus, onSelect, onEndpointSelect }: { focus?: unknown; onSelect: (point: unknown) => void; onEndpointSelect?: (field: string, point: unknown) => void }) => <div data-testid="map" data-focus={focus ? 'queued' : 'none'}><button onClick={() => onSelect({ latitude: 32.08, longitude: 34.78 })}>Pick map point</button><button onClick={() => onEndpointSelect?.('destination', { latitude: 32.8, longitude: 35 })}>Map to here</button></div> }));
+vi.mock('../src/RouteMap', () => ({ default: ({ focus, inspectedPoint, children, onSelect, onEndpointSelect }: { focus?: unknown; inspectedPoint?: { latitude: number }; children?: ReactNode; onSelect: (point: unknown) => void; onEndpointSelect?: (field: string, point: unknown) => void }) => <div data-testid="map" data-focus={focus ? 'queued' : 'none'} data-inspected={inspectedPoint?.latitude ?? 'none'}><button onClick={() => onSelect({ latitude: 32.08, longitude: 34.78 })}>Pick map point</button><button onClick={() => onEndpointSelect?.('destination', { latitude: 32.8, longitude: 35 })}>Map to here</button>{children}</div> }));
+vi.mock('../src/ElevationProfilePanel', () => ({ default: ({ route, inspectedIndex, onInspect }: { route: GeneratedRoute; inspectedIndex: number | null; onInspect: (index: number | null) => void }) => <section aria-label="Elevation profile" data-inspected={inspectedIndex ?? 'none'}><span>{route.distanceMeters}</span><button onClick={() => onInspect(1)}>Inspect elevation point</button></section> }));
 
 it('passes the explicit AB shape with a minimal prompt and selected points', async () => {
   const user = userEvent.setup(); render(<App />);
@@ -58,6 +61,36 @@ async function setupPrompt() {
   await user.type(screen.getByLabelText('Ride request'), 'A 25 km road loop');
   return user;
 }
+
+it('places route choices under settings with distance, ascent and provider-time icons', async () => {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  const results = await screen.findByRole('region', { name: 'Routes' });
+  expect(results.closest('aside')).not.toBeNull();
+  const choices = within(results).getAllByRole('radio');
+  expect(choices).toHaveLength(2);
+  for (const choice of choices) expect(within(choice.closest('label')!).getAllByRole('img')).toHaveLength(3);
+  expect(screen.getByRole('img', { name: 'Ascent: 120 m' })).toBeInTheDocument();
+  expect(screen.getAllByRole('img', { name: 'Provider time: 75 min' })).toHaveLength(2);
+});
+
+it('links elevation inspection to the chosen route and clears it on switching and invalidation', async () => {
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  await screen.findByRole('region', { name: 'Elevation profile' });
+  await user.click(screen.getByRole('button', { name: 'Inspect elevation point' }));
+  expect(screen.getByTestId('map')).toHaveAttribute('data-inspected', '32.11');
+  await user.click(screen.getByRole('radio', { name: /Route 2/ }));
+  expect(screen.getByTestId('map')).toHaveAttribute('data-inspected', 'none');
+  expect(screen.getByRole('region', { name: 'Elevation profile' })).toHaveAttribute('data-inspected', 'none');
+  await user.click(screen.getByRole('button', { name: 'Inspect elevation point' }));
+  expect(screen.getByTestId('map')).toHaveAttribute('data-inspected', '32.06');
+  await user.click(screen.getByRole('button', { name: 'Clear start' }));
+  expect(screen.queryByRole('region', { name: 'Elevation profile' })).not.toBeInTheDocument();
+  expect(screen.getByTestId('map')).toHaveAttribute('data-inspected', 'none');
+});
 
 it('picks the missing start after clearing it without replacing destination', async () => {
   const user = userEvent.setup(); render(<App />);

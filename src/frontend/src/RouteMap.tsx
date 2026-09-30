@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as LibreMap } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
@@ -17,6 +17,8 @@ interface Props {
   start?: Coordinate;
   destination?: Coordinate;
   focus?: Coordinate;
+  inspectedPoint?: Coordinate;
+  children?: ReactNode;
   pick: 'start' | 'destination';
   shape?: 'loop' | 'pointToPoint';
   candidates: Candidate[];
@@ -183,6 +185,16 @@ export default function RouteMap(props: Props) {
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map || !ready || !props.inspectedPoint) return;
+    const element = document.createElement('div');
+    element.className = 'map-point elevation-point';
+    element.setAttribute('role', 'img'); element.setAttribute('aria-label', text('elevationPoint'));
+    const marker = new maplibregl.Marker({ element }).setLngLat([props.inspectedPoint.longitude, props.inspectedPoint.latitude]).addTo(map);
+    return () => { marker.remove(); };
+  }, [ready, props.inspectedPoint?.latitude, props.inspectedPoint?.longitude, props.locale]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !styleReady) return;
     const data: FeatureCollection<LineString> = { type: 'FeatureCollection', features: props.candidates.map((candidate, index) => ({
       type: 'Feature', properties: { index, color: colors[index % colors.length] },
@@ -252,6 +264,7 @@ export default function RouteMap(props: Props) {
       <button className="icon-button" type="button" title={text('resetMap')} aria-label={text('resetMap')} disabled={!ready} onClick={() => mapRef.current?.jumpTo({ center, zoom: 11 })}><MapIcon size={18} /></button>
     </div>
   </section>
+    {props.children}
     <RouteSegmentControls {...segmentData} locale={props.locale} mode={mode} onModeChange={setMode}
       selectedSegmentIndex={selectedSegment} onSegmentSelect={setSelectedSegment} color={colors[props.selected % colors.length]} />
   </>;

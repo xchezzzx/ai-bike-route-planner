@@ -2,6 +2,15 @@ import type { Locale } from './types';
 
 // A single key set keeps every application label and known backend code translated.
 const messages = {
+  elevationProfile: ['Elevation profile', 'Профиль высот', 'פרופיל גובה'],
+  elevationPoint: ['Inspected track point', 'Выбранная точка трека', 'נקודת מסלול נבחרת'],
+  trackPoint: ['Track point', 'Точка трека', 'נקודה במסלול'],
+  elevationAxis: ['Elevation (m)', 'Высота (м)', 'גובה (מטרים)'],
+  minimumElevation: ['Minimum elevation', 'Минимальная высота', 'גובה מינימלי'],
+  maximumElevation: ['Maximum elevation', 'Максимальная высота', 'גובה מקסימלי'],
+  elevationUnavailable: ['Elevation data is unavailable.', 'Данные о высоте отсутствуют.', 'נתוני הגובה אינם זמינים.'],
+  elevationPartial: ['Elevation data is incomplete.', 'Данные о высоте неполные.', 'נתוני הגובה חלקיים.'],
+  clearInspection: ['Clear inspected point', 'Убрать выбранную точку', 'ניקוי הנקודה הנבחרת'],
   locations: ['Locations', 'Точки маршрута', 'מיקומים'],
   findSettlement: ['Town or village', 'Город или посёлок', 'עיר או יישוב'],
   nearPlace: ['Near', 'Рядом с', 'ליד'],
