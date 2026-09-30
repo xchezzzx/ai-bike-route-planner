@@ -1,3 +1,4 @@
+import { fillField } from "./fields";
 import { expect, test } from '@playwright/test';
 import { basemap } from './basemap';
 import { t } from '../src/i18n';
@@ -21,8 +22,8 @@ for (const locale of ['en', 'ru', 'he'] as const) for (const coarse of [false, t
   const start = page.getByLabel(t(locale, 'startLatitude'), { exact: true });
   await expect(start).toHaveValue('');
   await page.getByRole('radio', { name: t(locale, 'pointToPoint'), exact: true }).check();
-  await page.getByLabel(t(locale, 'destinationLatitude'), { exact: true }).fill('32.2');
-  await page.getByLabel(t(locale, 'destinationLongitude'), { exact: true }).fill('34.8');
+  await fillField(page, t(locale, 'destinationLatitude'), '32.2');
+  await fillField(page, t(locale, 'destinationLongitude'), '34.8');
   await page.getByRole('radio', { name: t(locale, 'destination'), exact: true }).check();
   await page.getByRole('button', { name: t(locale, 'useLocation'), exact: true }).click();
   if (coarse) {
@@ -71,7 +72,7 @@ test('a deferred location focus cannot replace a subsequently generated route vi
   await page.goto('/');
   await page.getByRole('button', { name: 'Use my location as start', exact: true }).click();
   await expect(page.getByLabel('Start latitude', { exact: true })).toHaveValue('32.800000');
-  await page.getByLabel('Ride request', { exact: true }).fill('A 25 km road loop');
+  await fillField(page, 'Ride request', 'A 25 km road loop');
   // A new input deliberately invalidates focus too; acquire again to cover preparation itself.
   await page.getByRole('button', { name: 'Use my location as start', exact: true }).click();
   await expect(page.getByText('Start updated.', { exact: false })).toBeVisible();

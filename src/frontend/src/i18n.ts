@@ -2,6 +2,16 @@ import type { Locale } from './types';
 
 // A single key set keeps every application label and known backend code translated.
 const messages = {
+  locations: ['Locations', 'Точки маршрута', 'מיקומים'],
+  findSettlement: ['Town or village', 'Город или посёлок', 'עיר או יישוב'],
+  nearPlace: ['Near', 'Рядом с', 'ליד'],
+  mapPoint: ['Point on map', 'Точка на карте', 'נקודה במפה'],
+  noSettlements: ['No matching settlements', 'Населённые пункты не найдены', 'לא נמצאו יישובים תואמים'],
+  exactCoordinates: ['Exact coordinates', 'Точные координаты', 'קואורדינטות מדויקות'],
+  fromHere: ['From here', 'Отсюда', 'מכאן'],
+  toHere: ['To here', 'Сюда', 'לכאן'],
+  mapPointActions: ['Choose endpoint', 'Выбрать точку маршрута', 'בחירת נקודת מסלול'],
+  closeMenu: ['Close menu', 'Закрыть меню', 'סגירת התפריט'],
   theme: ['Theme', 'Тема', 'ערכת נושא'],
   themeSystem: ['System', 'Системная', 'מערכת'],
   themeLight: ['Light', 'Светлая', 'בהירה'],

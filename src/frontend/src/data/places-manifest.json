@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "sourceArchiveSha256": "fd0e8659b303cd14ccd37353cde2def17e165d617e3bf7ff72f131fa67636443",
+  "settlementCount": 1224,
+  "outputSha256": "f1e28fd2dbdcfa521dcc11334e0af3302cc4f50152777ee7fee40ab7e61f129c",
+  "sourceUrl": "https://download.geonames.org/export/dump/IL.zip",
+  "aliases": "name and comma-separated alternatenames; not language-tagged",
+  "attribution": "GeoNames, CC BY 4.0; filtered IL snapshot. No completeness or positional accuracy guarantee."
+}

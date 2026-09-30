@@ -1,3 +1,4 @@
+import { fillField } from "./fields";
 import { expect, test, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 import { readFile } from 'node:fs/promises';
@@ -46,9 +47,9 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`theme preserves route, c
     he: ['ערכת נושא', 'קו רוחב של התחלה', 'קו אורך של התחלה', 'בקשת רכיבה', 'פירוש הבקשה', 'יצירת מסלולים', 'מקטעי המסלול', 'מקטע', 'הורדת GPX', 'הגדלה', 'פרטי המקטע'] }[locale];
   const theme = page.getByRole('combobox', { name: labels[0], exact: true });
   await expect(theme).toHaveValue('system');
-  await page.getByLabel(labels[1], { exact: true }).fill('32.08');
-  await page.getByLabel(labels[2], { exact: true }).fill('34.78');
-  await page.getByLabel(labels[3], { exact: true }).fill('A 25 km road loop');
+  await fillField(page, labels[1], '32.08');
+  await fillField(page, labels[2], '34.78');
+  await fillField(page, labels[3], 'A 25 km road loop');
   await page.getByRole('button', { name: labels[4], exact: true }).click();
   await page.getByRole('button', { name: labels[5], exact: true }).click();
   await page.getByText(labels[6], { exact: true }).click();

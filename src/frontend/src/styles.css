@@ -55,7 +55,26 @@ svg { flex-shrink: 0; }
 .segmented span { display: block; padding: 7px 5px; border: 1px solid transparent; border-radius: 4px; }
 .segmented input { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; opacity: 0; }
 .segmented input:checked + span { background: var(--surface); border-color: var(--border); color: var(--accent); box-shadow: 0 1px 2px #0000000b; }
-.coordinate-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 30px; gap: 7px; align-items: end; }
+.coordinate-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 7px; align-items: end; }
+.endpoint-field { display: grid; gap: 6px; min-width: 0; }
+.place-input { position: relative; min-width: 0; }
+.place-input > label { margin-bottom: 6px; }
+.place-row { display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 5px; padding-inline: 8px 3px; background: var(--surface); }
+.place-row > svg { color: var(--muted); }
+.place-row input { border: 0; padding-inline: 0; min-height: 44px; }
+.place-row .icon-button { width: 36px; height: 44px; }
+.place-options { position: absolute; top: 100%; inset-inline: 0; z-index: 5; border: 1px solid var(--border); background: var(--surface); box-shadow: 0 4px 10px #0002; border-radius: 5px; max-height: 260px; overflow-y: auto; }
+.place-options [role="option"] { padding: 9px 12px; min-height: 44px; display: grid; gap: 2px; cursor: pointer; overflow-wrap: anywhere; font-size: 14px; }
+.place-options [role="option"]:hover, .place-options [aria-selected="true"] { background: var(--selection); }
+.place-options small, .place-options p { font-size: 11px; color: var(--muted); }
+.place-options p { padding: 12px; }
+.exact-coordinates { font-size: 11px; color: var(--muted); }
+.exact-coordinates summary { cursor: pointer; min-height: 28px; padding-block: 4px; }
+.exact-coordinates[open] .coordinate-fields { margin-top: 4px; }
+.place-attribution { color: var(--muted); font-size: 10px; }
+.place-attribution a { color: inherit; }
+.map-point-menu { position: absolute; z-index: 4; width: 180px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; box-shadow: 0 4px 14px #0003; }
+.map-point-menu button { display: flex; justify-content: start; width: 100%; min-height: 42px; border: 0; font-size: 13px; overflow-wrap: anywhere; }
 .coordinates-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .location-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .location-status > span { min-width: 0; overflow-wrap: anywhere; }
