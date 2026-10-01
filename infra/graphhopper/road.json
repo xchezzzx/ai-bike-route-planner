@@ -1,0 +1,7 @@
+{
+  "priority": [
+    { "if": "!bike_access", "multiply_by": "0" },
+    { "if": "road_class == STEPS || road_class == CONSTRUCTION || road_environment == FERRY || road_environment == FORD", "multiply_by": "0" },
+    { "if": "surface == UNPAVED || surface == COMPACTED || surface == FINE_GRAVEL || surface == GRAVEL || surface == GROUND || surface == DIRT || surface == GRASS || surface == SAND || surface == WOOD", "multiply_by": "0" }
+  ]
+}

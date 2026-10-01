@@ -1,0 +1,41 @@
+graphhopper:
+  datareader.file: /data/input/israel-and-palestine-260929.osm.pbf
+  graph.location: /data/graph
+  profiles:
+    - name: road
+      navigation_mode: bike
+      custom_model_files: [racingbike.json, bike_elevation.json, road.json]
+  custom_models.directory: /opt/graphhopper
+  profiles_ch: []
+  profiles_lm: []
+  graph.encoded_values: racingbike_priority, racingbike_access, racingbike_average_speed, bike_access, bike_road_access, roundabout, average_slope, mtb_rating, hike_rating, country, road_class, road_environment, surface
+  import.osm.ignored_highways: ""
+  graph.elevation.provider: srtm
+  graph.elevation.base_url: https://srtm.kurviger.de/SRTM3/
+  graph.elevation.cache_dir: /data/elevation/srtm3-kurviger
+  graph.elevation.dataaccess: MMAP
+  graph.elevation.clear: false
+  graph.elevation.interpolate: bilinear
+  graph.dataaccess.default_type: MMAP
+  prepare.min_network_size: 200
+  prepare.ch.threads: 1
+  prepare.subnetworks.threads: 1
+  datareader.worker_threads: 2
+  routing.timeout_ms: 15000
+  routing.max_visited_nodes: 1000000
+server:
+  application_connectors:
+    - type: http
+      port: 8989
+      bind_host: 0.0.0.0
+  admin_connectors:
+    - type: http
+      port: 8990
+      bind_host: 127.0.0.1
+  request_log:
+    appenders: []
+logging:
+  level: INFO
+  appenders:
+    - type: console
+      time_zone: UTC
