@@ -23,6 +23,7 @@ export default function ElevationProfilePanel({ route, locale, theme, color, ins
   const canvas = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart<'line', Datum[]> | null>(null);
   const inspectRef = useRef(onInspect);
+  const pointerPosition = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => { inspectRef.current = onInspect; }, [onInspect]);
   const current = inspectedIndex === null ? null : profile.points[inspectedIndex] ?? null;
   const pointText = (index: number) => {
@@ -38,6 +39,14 @@ export default function ElevationProfilePanel({ route, locale, theme, color, ins
     let disposed = false;
     const inspect = (event: ChartEvent) => {
       if (disposed) return;
+      // A redraw/scroll can emit a mouse event without user movement. Keep
+      // keyboard inspection until the pointer actually moves or the user taps.
+      if (event.type === 'mousemove' && event.native instanceof MouseEvent) {
+        const { clientX: x, clientY: y, movementX, movementY } = event.native;
+        const previous = pointerPosition.current;
+        pointerPosition.current = { x, y };
+        if (previous?.x === x && previous.y === y && !(movementX || movementY)) return;
+      }
       if (event.x == null || event.y == null || event.x < chart.chartArea.left || event.x > chart.chartArea.right
         || event.y < chart.chartArea.top || event.y > chart.chartArea.bottom) {
         inspectRef.current(null);
