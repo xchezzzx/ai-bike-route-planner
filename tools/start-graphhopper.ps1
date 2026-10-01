@@ -40,7 +40,7 @@ function Save-Json([object]$Value, [string]$Path) {
     $Value | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $temp -Encoding utf8NoBOM
     Move-Item -LiteralPath $temp -Destination $Path -Force
 }
-$names = @('GH_DATA_DIR', 'GH_PORT', 'GH_OSM_FILE', 'GH_MIN_NETWORK_SIZE', 'GH_IMAGE')
+$names = @('GH_DATA_DIR', 'GH_PORT', 'GH_OSM_FILE', 'GH_MIN_NETWORK_SIZE', 'GH_IMAGE', 'GH_USER')
 $saved = @{}
 foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 $compose = @('compose', '--env-file', (Join-Path $infra 'compose.env'), '-f', (Join-Path $infra 'compose.yml'), '-p', $ProjectName)
@@ -48,6 +48,15 @@ try {
     $env:GH_DATA_DIR = $DataDirectory.Replace('\', '/')
     $env:GH_PORT = [string]$Port
     $env:GH_MIN_NETWORK_SIZE = if ($Synthetic) { '0' } else { '200' }
+    $env:GH_USER = '0:0'
+    if (-not $IsWindows) {
+        $idExecutable = (Get-Command id -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+        $uid = & $idExecutable -u
+        if ($LASTEXITCODE -ne 0 -or $uid -notmatch '^\d+$') { throw 'Cannot determine host UID' }
+        $gid = & $idExecutable -g
+        if ($LASTEXITCODE -ne 0 -or $gid -notmatch '^\d+$') { throw 'Cannot determine host GID' }
+        $env:GH_USER = "${uid}:${gid}"
+    }
     $existing = @(Docker ($compose + @('ps', '-a', '-q', 'graphhopper')) | Where-Object { $_ })
     if ($existing.Count -gt 1) { throw 'Expected at most one engine in this Compose project' }
     if ($existing.Count -eq 1) {

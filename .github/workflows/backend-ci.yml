@@ -94,6 +94,9 @@ jobs:
     - name: Import synthetic roads and verify engine restart
       shell: pwsh
       run: ./infra/graphhopper/tests/smoke.ps1
+    - name: Verify Linux persistent-data ownership without extra capabilities
+      shell: pwsh
+      run: ./infra/graphhopper/tests/linux-permissions.ps1
 
   protected-deployment:
     name: Smoke protected full-app container

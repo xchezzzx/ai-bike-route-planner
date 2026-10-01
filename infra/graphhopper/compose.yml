@@ -4,6 +4,7 @@ services:
     build:
       context: .
     init: true
+    user: ${GH_USER:-0:0}
     restart: "no"
     ports:
       - "127.0.0.1:${GH_PORT:-8989}:8989"

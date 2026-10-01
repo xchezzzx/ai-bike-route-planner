@@ -4,6 +4,10 @@ The engine and explicit application provider switch are ready for local manual
 testing. They create no cloud resources and require no ORS or Gemini requests. Requirements:
 Docker with Linux containers, Docker Compose v2+, PowerShell 7.4+, and native
 `docker`/`curl` on PATH. The launcher works with Windows or Linux executable names.
+On Linux/macOS it maps the host UID:GID into the container so the persistent
+directory remains writable without extra capabilities or world-writable permissions.
+Windows Docker Desktop uses its bind-mount permission translation with `0:0`;
+the container still drops all capabilities and disallows new privileges.
 
 ## Commands
 
