@@ -1,7 +1,7 @@
 # Local GraphHopper
 
-Task 1 provides an isolated local engine, not the application provider switch.
-It creates no cloud resources and makes no ORS or Gemini requests. Requirements:
+The engine and explicit application provider switch are ready for local manual
+testing. They create no cloud resources and require no ORS or Gemini requests. Requirements:
 Docker with Linux containers, Docker Compose v2+, PowerShell 7.4+, and native
 `docker`/`curl` on PATH. The launcher works with Windows or Linux executable names.
 
@@ -151,5 +151,50 @@ Observed on 2026-10-01, not a benchmark or quality qualification:
   PBF: 119,964,524 bytes. Runtime memory includes file mappings/page cache;
   Docker stats and cgroup memory peaks measure different accounting views.
 
-This work leaves the engine running. Backend/frontend integration, full app
-qualification, CI execution and final branch review belong to later tasks.
+## Application Manual Testing
+
+After engine readiness, start the app explicitly:
+
+```powershell
+pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
+# App stop (does not stop GraphHopper):
+pwsh -NoProfile -File tools/start-local.ps1 -Stop
+# Offline launcher regression checks:
+pwsh -NoProfile -File tools/test-local-routing.ps1
+```
+
+Use the printed frontend URL; occupied 5173/5080 ports cause new ports to be
+selected without stopping unrelated processes. Choose Manual and keep AI
+refinement off. This session explicitly empties ORS/Gemini credentials, including
+inherited environment values, overriding Development User Secrets. Prompt mode
+is therefore intentionally unavailable. The default launcher remains ORS for
+backward compatibility. A running session with another provider cannot be
+silently reused. `/health` tests API health, not ongoing engine readiness.
+
+The API selects `Routing:Provider=GraphHopper`, with a root HTTP(S)
+`Routing:GraphHopper:BaseUrl` and `Routing:GraphHopper:Profile=road`. It shares the
+existing `IRoutingProvider`, contracts, quality filters and GPX/naming workflow.
+Client requests are bounded to 15 seconds and 8 MiB, redirects disabled, no
+retries or ORS fallback. The native loop's ordinary unsnappable generated-point
+error is recognized only in a round-trip request; configuration errors remain
+distinct and raw upstream locations are never returned in public errors.
+
+App checks on 2026-10-01 used public control points, three routing attempts per
+loop, and **zero ORS/Gemini calls**:
+
+| Scenario | Observed result |
+| --- | --- |
+| Tel Aviv area A-B | 12.06 km, 37.9 min; 190 geometry/elevation points, 27 segment runs |
+| Tel Aviv loop, 35-45 km | Two closed accepted candidates: 42.89 and 41.63 km |
+| Haifa loop, 35-45 km | Two closed accepted candidates: 39.73 and 39.52 km; remaining seed found no route |
+| Tel Aviv loop, 20 km target | No accepted candidate; 17.39, 24.94 and 14.05 km excluded by unchanged tolerance |
+
+Desktop 1440x1000 and mobile 390x844 live-browser checks verified a nonblank map
+with the track visible, elevation profile, segment metadata, no page overflow or
+page errors, and matching named GPX download. Screenshots/raw outputs remain in
+ignored local artifacts. These samples are functional checks, **not evidence of
+better overall route quality than ORS**. Loop warnings still report unknown
+surfaces and paths/tracks/footways; inspect these before riding. A-B time is a
+provider estimate, not a personal speed prediction. Keep distance/time constraints
+unchanged when comparing providers, and record excluded attempts as well as
+successful ones. Cloud deployment remains a separate joint task.

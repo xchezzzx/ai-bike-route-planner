@@ -32,11 +32,11 @@ Files: `infra/graphhopper/`, `tools/start-graphhopper.ps1`, local engine documen
 
 Produces: loopback `http://127.0.0.1:8989/route` and `/info`, profile `road`, with elevation and `surface`, `road_class`, `road_environment` path details.
 
-- [ ] Add a bounded synthetic OSM smoke scenario before the engine implementation; demonstrate absent engine/config failure.
-- [ ] Add pinned image, cycling import/model, Compose persistence and downloader/cache identity launcher.
-- [ ] Run synthetic smoke; build/import Israel-and-Palestine extract with SRTM and record readiness/resources.
-- [ ] Verify graph reuse after restart; document exact launch/stop and data limitations.
-- [ ] Commit the isolated engine infrastructure.
+- [x] Add a bounded synthetic OSM smoke scenario before the engine implementation; demonstrate absent engine/config failure.
+- [x] Add pinned image, cycling import/model, Compose persistence and downloader/cache identity launcher.
+- [x] Run synthetic smoke; build/import Israel-and-Palestine extract with SRTM and record readiness/resources.
+- [x] Verify graph reuse after restart; document exact launch/stop and data limitations.
+- [x] Commit the isolated engine infrastructure.
 
 ### Task 2: Adapter and explicit provider selection
 
@@ -44,21 +44,31 @@ Files: `CyclingRoutes.Infrastructure/Routing/GraphHopper*.cs`, `CyclingRoutes.Ap
 
 Consumes Task 1's HTTP contract; produces the existing `RoutedPath` through `IRoutingProvider` without API changes.
 
-- [ ] Write failing HTTP adapter/DI tests for the Review Focus cases, requests, milliseconds, evidence and error mapping.
-- [ ] Implement strict parser, evidence mapping and adapter; add validated explicit provider registration with ORS default.
-- [ ] Run the targeted tests and whole backend suite.
-- [ ] Commit the adapter/integration.
+- [x] Write failing HTTP adapter/DI tests for the Review Focus cases, requests, milliseconds, evidence and error mapping.
+- [x] Implement strict parser, evidence mapping and adapter; add validated explicit provider registration with ORS default.
+- [x] Run the targeted tests and whole backend suite.
+- [x] Commit the adapter/integration.
 
 ### Task 3: Local app and manual handoff
 
 Files: `tools/start-local.ps1`, local docs/evaluation notes and regression checks.
 
-- [ ] Write failing launcher checks for explicit provider and zero external credentials.
-- [ ] Add GraphHopper opt-in and readiness to the owned-process launcher; preserve default behavior.
-- [ ] Start frontend/backend with local engine; test A-B, loops, explicit ranges, GPX, elevation and nonblank map.
+- [x] Write failing launcher checks for explicit provider and zero external credentials.
+- [x] Add GraphHopper opt-in and readiness to the owned-process launcher; preserve default behavior.
+- [x] Start frontend/backend with local engine; test A-B, loops, explicit ranges, GPX, elevation and nonblank map.
 - [ ] Run full verification and independent whole-branch review, fix blockers, create/attach PR and inspect CI.
 - [ ] Merge after green CI under existing authorization; leave a working owned local session for manual testing.
 
 ## Plan Review
 
 Self-review: spec coverage and shared contract names checked; tasks separate infrastructure, HTTP boundary and manual workflow. User explicitly requested autonomous completion, so additional interactive design/plan approvals are omitted. Native loop search remains heuristic and manually qualified, not guaranteed to satisfy every range or produce better routes.
+
+## Execution Record
+
+Preflight: existing provider contract and test isolation checked; baseline backend 579 integration + 434 unit tests passed. The clean existing managed worktree was reused; the main checkout's dirty documentation and ignored private files were preserved.
+
+Ruling: infrastructure preparation and adapter implementation ran concurrently with disjoint file ownership because their HTTP contract was fixed; no intermediate review pause was introduced under explicit autonomous authorization. Cost if wrong: contract integration failures, covered by local container/API checks and the final review.
+
+Ruling: select the explicitly pinned 2026-09-29 PBF because 2026-09-30 checksum download failed. Cost if wrong: a one-day older OSM snapshot, never presented as latest data or silently replaced.
+
+Verification before final review: backend Release 637 integration + 434 unit tests, frontend 303 tests and 120 desktop/mobile browser scenarios passed. Engine synthetic smoke passed independently with no regional/elevation downloads. Live application A-B, two loop ranges, excluded 20 km case, GPX/elevation/segments and desktop/mobile screenshots/pixel checks were recorded; no ORS/Gemini calls. Native round-trip failure classification was reproduced, tested RED then GREEN, and verified live.
