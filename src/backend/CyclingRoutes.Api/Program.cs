@@ -38,11 +38,22 @@ builder.Services.AddSingleton(new OpenRouteServiceOptions
 {
 	ApiKey = builder.Configuration["Routing:OpenRouteService:ApiKey"] ?? ""
 });
-builder.Services.AddHttpClient<IRoutingProvider, OpenRouteServiceProvider>(client =>
+builder.Services.AddOptions<RoutingOptions>()
+	.Bind(builder.Configuration.GetSection("Routing"))
+	.Validate(options => options.IsValid(), "Routing requires OpenRouteService or GraphHopper with a root HTTP(S) URL without credentials, query or fragment and a valid profile name.")
+	.ValidateOnStart();
+builder.Services.AddHttpClient<IRoutingProvider>(client =>
 {
 	client.Timeout = TimeSpan.FromSeconds(15);
 	client.MaxResponseContentBufferSize = 8 * 1024 * 1024;
-}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+	.AddTypedClient<IRoutingProvider>((client, services) =>
+	{
+		var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<RoutingOptions>>().Value;
+		return options.Provider == "GraphHopper"
+			? new GraphHopperProvider(client, options.GraphHopper)
+			: new OpenRouteServiceProvider(client, services.GetRequiredService<OpenRouteServiceOptions>());
+	});
 builder.Services.AddTransient<RouteGenerationService>();
 builder.Services.AddSingleton<ISettlementLookup>(_ => GeoNamesSettlementLookup.LoadEmbedded());
 builder.Services.AddSingleton<RouteNameResolver>();
@@ -77,6 +88,7 @@ builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadReq
 var app = builder.Build();
 // Validate before entering the hosting loop so startup failures are deterministic.
 _ = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AccessOptions>>().Value;
+_ = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<RoutingOptions>>().Value;
 app.UseMiddleware<AccessMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();

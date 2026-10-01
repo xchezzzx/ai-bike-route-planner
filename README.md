@@ -36,9 +36,30 @@ Select start/destination on the map or enter coordinates. Prompt mode interprets
 the text first; review its preferences and explicitly generate a route. Manual
 mode validates parameters without Gemini. Optional AI refinement of a prepared
 road loop calls Gemini only when Generate routes is pressed and advice is needed.
-It is off by default; ordinary generation remains independent of Gemini. Both modes use real ORS
+It is off by default; ordinary generation remains independent of Gemini. Both modes use the selected routing provider's
 geometry, show provider warnings and download the selected GPX without another
 provider call. No prompts or route history are stored by the UI.
+
+### Self-hosted GraphHopper
+
+For local road-route testing without ORS/Gemini keys, start the pinned GraphHopper
+11.1 service (Docker Linux containers) and select it explicitly:
+
+```powershell
+pwsh -NoProfile -File tools/start-graphhopper.ps1
+pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
+```
+
+Use **Manual** mode; the GraphHopper launcher session disables ORS/Gemini credentials,
+so prompt interpretation and AI advice are intentionally unavailable. Start/stop
+any previous owned app session before switching providers. The UI launcher prints
+its actual URL and checks engine readiness; GraphHopper listens on loopback port
+8989. Engine data is persistent and ignored by Git. Stop the app and engine
+separately. See [setup, evidence and limitations](docs/development/local-graphhopper.md).
+
+Normal launch still defaults to ORS. Direct API hosts can set `Routing__Provider=GraphHopper`
+and `Routing__GraphHopper__BaseUrl=http://127.0.0.1:8989/`. Unknown providers/invalid
+URLs fail startup; no automatic provider fallback or live retries are added.
 
 The language selector supports English, Russian and Hebrew (RTL). MapLibre uses
 OpenFreeMap tiles; loading a map sends viewport/tile requests to that external
@@ -99,11 +120,12 @@ parameters (200) or field-level validation codes in ProblemDetails (400).
 This endpoint does not generate or save a route. See the
 [API contract and example](docs/api/route-intent-validation.md).
 
-POST /api/routes/generate builds one point-to-point road route via openrouteservice
-on the current HeiGIT API. Set Routing:OpenRouteService:ApiKey through Visual
+POST /api/routes/generate builds one point-to-point road route using the selected
+provider (openrouteservice on the current HeiGIT API by default). For ORS, set Routing:OpenRouteService:ApiKey through Visual
 Studio's Manage User Secrets for CyclingRoutes.Api (Development), or through
 Routing__OpenRouteService__ApiKey in the process environment. Do not commit keys.
-Without a key, generation returns 503; health and validation still work.
+Without an ORS key, default generation returns 503; health and validation still work.
+Self-hosted GraphHopper does not require a routing API key.
 
 The response includes geometry, estimated metrics, attribution, and a GPX XML
 string to save as UTF-8. Targets are not optimized yet, and unsupported intents

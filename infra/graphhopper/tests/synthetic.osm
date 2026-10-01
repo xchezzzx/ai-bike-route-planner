@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="graphhopper-local-smoke">
+  <bounds minlat="32.0" minlon="34.8" maxlat="32.02" maxlon="34.82"/>
+  <node id="1" lat="32.000" lon="34.800"/>
+  <node id="2" lat="32.000" lon="34.810"/>
+  <node id="3" lat="32.010" lon="34.810"/>
+  <node id="4" lat="32.010" lon="34.800"/>
+  <node id="5" lat="32.005" lon="34.805"/>
+  <node id="6" lat="32.000" lon="34.805"/>
+  <node id="7" lat="32.010" lon="34.805"/>
+  <way id="10"><nd ref="1"/><nd ref="6"/><nd ref="2"/><tag k="highway" v="cycleway"/><tag k="surface" v="asphalt"/><tag k="name" v="Paved cycleway"/></way>
+  <way id="11"><nd ref="2"/><nd ref="3"/><tag k="highway" v="residential"/><tag k="surface" v="asphalt"/></way>
+  <way id="12"><nd ref="3"/><nd ref="7"/><nd ref="4"/><tag k="highway" v="residential"/><tag k="surface" v="asphalt"/></way>
+  <way id="13"><nd ref="4"/><nd ref="1"/><tag k="highway" v="residential"/><tag k="surface" v="asphalt"/></way>
+  <way id="14"><nd ref="1"/><nd ref="5"/><nd ref="3"/><tag k="highway" v="track"/><tag k="surface" v="gravel"/><tag k="bicycle" v="yes"/></way>
+  <way id="15"><nd ref="6"/><nd ref="5"/><nd ref="7"/><tag k="highway" v="residential"/><tag k="surface" v="asphalt"/><tag k="bicycle" v="no"/></way>
+  <way id="16"><nd ref="1"/><nd ref="3"/><tag k="highway" v="steps"/><tag k="bicycle" v="yes"/></way>
+  <way id="17"><nd ref="2"/><nd ref="4"/><tag k="route" v="ferry"/><tag k="bicycle" v="yes"/><tag k="duration" v="00:01"/></way>
+  <way id="18"><nd ref="1"/><nd ref="3"/><tag k="highway" v="residential"/><tag k="surface" v="asphalt"/><tag k="ford" v="yes"/><tag k="bicycle" v="yes"/></way>
+  <way id="19"><nd ref="2"/><nd ref="4"/><tag k="highway" v="construction"/><tag k="surface" v="asphalt"/><tag k="bicycle" v="yes"/></way>
+</osm>

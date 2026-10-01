@@ -1,7 +1,12 @@
 #Requires -Version 7.4
 [CmdletBinding()]
-param([switch]$Stop)
+param(
+    [switch]$Stop,
+    [ValidateSet('OpenRouteService', 'GraphHopper')][string]$RoutingProvider = 'OpenRouteService',
+    [string]$GraphHopperUrl = 'http://127.0.0.1:8989/'
+)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'local-routing.ps1')
 $root = Split-Path $PSScriptRoot -Parent
 $statePath = Join-Path $root 'artifacts/local-servers.json'
 
@@ -12,6 +17,10 @@ function Get-OwnedProcess($entry) {
 }
 
 function Invoke-LocalSession {
+if (-not $Stop) {
+    $routingEnvironment = Get-LocalRoutingEnvironment -RoutingProvider $RoutingProvider -GraphHopperUrl $GraphHopperUrl
+    $RoutingProvider = $routingEnvironment.Routing__Provider
+}
 if (Test-Path -LiteralPath $statePath) {
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
     $owned = @($state.processes | ForEach-Object { Get-OwnedProcess $_ } | Where-Object { $null -ne $_ })
@@ -22,12 +31,16 @@ if (Test-Path -LiteralPath $statePath) {
         return
     }
     if ($owned.Count -gt 0) {
+        Assert-LocalRoutingSession -State $state -RoutingProvider $RoutingProvider
         Write-Output "Existing local session: $($state.frontendUrl) (API $($state.backendUrl))."
         Write-Output 'Use tools/start-local.ps1 -Stop before starting another session.'
         return
     }
 }
 if ($Stop) { Write-Output 'No owned local session.'; return }
+if ($RoutingProvider -eq 'GraphHopper') {
+    Assert-GraphHopperReady -GraphHopperUrl $routingEnvironment.Routing__GraphHopper__BaseUrl
+}
 
 function Find-Port([int]$preferred) {
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $preferred)
@@ -59,7 +72,9 @@ if ($IsWindows) { $common.WindowStyle = 'Hidden' }
 $committed = $false
 try {
     $dll = Join-Path $root 'src/backend/CyclingRoutes.Api/bin/Release/net10.0/CyclingRoutes.Api.dll'
-    $backend = Start-Process @common -FilePath (Get-Command dotnet).Source -ArgumentList @(('"' + $dll + '"'), '--urls', $backendUrl) -WorkingDirectory (Join-Path $root 'src/backend/CyclingRoutes.Api') -Environment @{ ASPNETCORE_ENVIRONMENT = 'Development'; DOTNET_ENVIRONMENT = 'Development'; Logging__LogLevel__Default = 'Warning' } -RedirectStandardOutput (Join-Path $logs 'backend.log') -RedirectStandardError (Join-Path $logs 'backend-error.log')
+    $backendEnvironment = @{ ASPNETCORE_ENVIRONMENT = 'Development'; DOTNET_ENVIRONMENT = 'Development'; Logging__LogLevel__Default = 'Warning' }
+    foreach ($key in $routingEnvironment.Keys) { $backendEnvironment[$key] = $routingEnvironment[$key] }
+    $backend = Start-Process @common -FilePath (Resolve-LocalExecutable -Name dotnet) -ArgumentList @(('"' + $dll + '"'), '--urls', $backendUrl) -WorkingDirectory (Join-Path $root 'src/backend/CyclingRoutes.Api') -Environment $backendEnvironment -RedirectStandardOutput (Join-Path $logs 'backend.log') -RedirectStandardError (Join-Path $logs 'backend-error.log')
     $children.Add($backend)
     $healthy = $false
     for ($i = 0; $i -lt 40; $i++) {
@@ -68,7 +83,7 @@ try {
     }
     if (-not $healthy) { throw 'Backend health check failed.' }
     $vite = Join-Path $root 'src/frontend/node_modules/vite/bin/vite.js'
-    $frontend = Start-Process @common -FilePath (Get-Command node).Source -ArgumentList @(('"' + $vite + '"'), '--host', '127.0.0.1', '--port', $frontendPort, '--strictPort') -WorkingDirectory (Join-Path $root 'src/frontend') -Environment @{ BACKEND_URL = $backendUrl } -RedirectStandardOutput (Join-Path $logs 'frontend.log') -RedirectStandardError (Join-Path $logs 'frontend-error.log')
+    $frontend = Start-Process @common -FilePath (Resolve-LocalExecutable -Name node) -ArgumentList @(('"' + $vite + '"'), '--host', '127.0.0.1', '--port', $frontendPort, '--strictPort') -WorkingDirectory (Join-Path $root 'src/frontend') -Environment @{ BACKEND_URL = $backendUrl } -RedirectStandardOutput (Join-Path $logs 'frontend.log') -RedirectStandardError (Join-Path $logs 'frontend-error.log')
     $children.Add($frontend)
     $ready = $false
     for ($i = 0; $i -lt 60; $i++) {
@@ -76,10 +91,11 @@ try {
         try { if ((Invoke-WebRequest $frontendUrl -TimeoutSec 2).StatusCode -eq 200) { $ready = $true; break } } catch { Start-Sleep -Milliseconds 250 }
     }
     if (-not $ready) { throw 'Frontend did not become ready.' }
-    @{ frontendUrl = $frontendUrl; backendUrl = $backendUrl; logDirectory = $logs; processes = @($children | ForEach-Object { @{ id = $_.Id; startTicks = $_.StartTime.ToUniversalTime().Ticks } }) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $statePath -Encoding utf8
+    @{ frontendUrl = $frontendUrl; backendUrl = $backendUrl; routingProvider = $RoutingProvider; logDirectory = $logs; processes = @($children | ForEach-Object { @{ id = $_.Id; startTicks = $_.StartTime.ToUniversalTime().Ticks } }) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $statePath -Encoding utf8
     $committed = $true
     Write-Output "Frontend: $frontendUrl"
     Write-Output "API: $backendUrl"
+    Write-Output "Routing provider: $RoutingProvider"
     Write-Output "Logs: $logs"
     Write-Output 'Stop with: pwsh -NoProfile -File tools/start-local.ps1 -Stop'
 } finally {

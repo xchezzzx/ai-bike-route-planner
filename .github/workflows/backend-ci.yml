@@ -57,6 +57,10 @@ jobs:
       shell: pwsh
       run: ./tools/tests/import-geonames.tests.ps1
 
+    - name: Verify local routing launcher isolation
+      shell: pwsh
+      run: ./tools/test-local-routing.ps1
+
     - name: Build and smoke-test API container without keys
       shell: bash
       run: |
@@ -80,6 +84,19 @@ jobs:
         status=$(curl --max-time 10 --silent --show-error -o /dev/null -w '%{http_code}' \
           -H 'Content-Type: application/json' -d '{' "$base/api/route-intents/interpret")
         test "$status" = 400
+
+  graphhopper-smoke:
+    name: Smoke local GraphHopper engine
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v7
+    - name: Import synthetic roads and verify engine restart
+      shell: pwsh
+      run: ./infra/graphhopper/tests/smoke.ps1
+    - name: Verify Linux persistent-data ownership without extra capabilities
+      shell: pwsh
+      run: ./infra/graphhopper/tests/linux-permissions.ps1
 
   protected-deployment:
     name: Smoke protected full-app container

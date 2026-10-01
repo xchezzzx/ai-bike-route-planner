@@ -89,3 +89,23 @@ it('updates the selected dot without rebuilding, destroys old charts and ignores
   second.options.onClick({ type: 'click', x: 50, y: 50 });
   expect(options.onInspect).toHaveBeenCalledTimes(calls);
 });
+
+it('keeps keyboard inspection when a theme redraw emits a stationary mouse event', () => {
+  const options = props();
+  const { rerender } = render(<ElevationProfilePanel {...options} />);
+  const pointer = (clientX: number) => ({ type: 'mousemove', x: 75, y: 50,
+    native: new MouseEvent('mousemove', { clientX, clientY: 50 }) });
+  state.charts[0].options.onHover(pointer(75));
+  fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
+  rerender(<ElevationProfilePanel {...options} inspectedIndex={3} theme="dark" />);
+  const inspect = options.onInspect as ReturnType<typeof vi.fn>;
+  const calls = inspect.mock.calls.length;
+  state.charts[1].options.onHover(pointer(75));
+  expect(inspect).toHaveBeenCalledTimes(calls);
+  state.charts[1].options.onHover(pointer(76));
+  expect(inspect).toHaveBeenCalledTimes(calls + 1);
+  const returning = pointer(76);
+  Object.defineProperty(returning.native, 'movementX', { value: 1 });
+  state.charts[1].options.onHover(returning);
+  expect(inspect).toHaveBeenCalledTimes(calls + 2);
+});
