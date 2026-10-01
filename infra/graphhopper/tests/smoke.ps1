@@ -65,7 +65,7 @@ try {
     & $launcher -DataDirectory $run -ProjectName $project -Port $port -Stop
     $graph = Join-Path $run "graphs/$($after.graphIdentity)"
     $input = Get-ChildItem -LiteralPath (Join-Path $run 'input') -Filter '*.osm' | Select-Object -First 1
-    foreach ($name in @('import-complete.sha256', 'nodes')) {
+    foreach ($name in @('import-complete.sha256', 'data-files.sha256', 'nodes')) {
         $file = Join-Path $graph $name
         Move-Item -LiteralPath $file -Destination "$file.test-backup"
         try {
@@ -75,7 +75,27 @@ try {
             Assert-True (($output -join "`n") -notmatch 'GRAPH_IMPORT|GRAPH_REUSE') 'Partial graph must not import or reuse silently'
         } finally { Move-Item -LiteralPath "$file.test-backup" -Destination $file }
     }
-    Write-Host 'PASS: synthetic profile/elevation/details, paved detour, bicycle access, cycleway retention, native loop, graph reuse, partial-cache refusal'
+    $geometry = Join-Path $graph 'geometry'
+    foreach ($damage in @('nonempty truncation', 'same-size corruption')) {
+        Copy-Item -LiteralPath $geometry -Destination "$geometry.test-backup"
+        try {
+            $stream = [IO.File]::Open($geometry, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite)
+            try {
+                if ($damage -eq 'nonempty truncation') { $stream.SetLength(100) }
+                else {
+                    $stream.Position = 128
+                    $byte = $stream.ReadByte()
+                    $stream.Position = 128
+                    $stream.WriteByte($byte -bxor 1)
+                }
+            } finally { $stream.Dispose() }
+            $output = & $dockerExecutable run --rm --network none --volume "${run}:/data" --env "GH_OSM_FILE=/data/input/$($input.Name)" --env GH_MIN_NETWORK_SIZE=0 --entrypoint timeout $after.imageId 15 /opt/graphhopper/entrypoint.sh 2>&1
+            $exitCode = $LASTEXITCODE
+            Assert-True ($exitCode -eq 4) "Expected refusal for geometry $damage; got $exitCode"
+            Assert-True (($output -join "`n") -notmatch 'GRAPH_IMPORT|GRAPH_REUSE') 'Corrupted geometry must be refused before Java opens it'
+        } finally { Move-Item -LiteralPath "$geometry.test-backup" -Destination $geometry -Force }
+    }
+    Write-Host 'PASS: synthetic profile/elevation/details, paved detour, bicycle access, cycleway retention, native loop, graph reuse, missing/truncated/corrupted-cache refusal'
 } finally {
     if ($started) { & $launcher -DataDirectory $run -ProjectName $project -Port $port -Stop }
     Write-Host "Synthetic evidence retained at $run"

@@ -73,12 +73,19 @@ Sources verified on 2026-10-01:
 
 The data root contains `input/`, `graphs/<identity>/`, and
 `elevation/srtm3-kurviger/`. The graph identity hashes the JAR, PBF/XML,
-configuration, road model and network-size override. Changed inputs select a
+configuration, road model, network-size override and cache-integrity format.
+Changed inputs select a
 new graph directory and log `GRAPH_IMPORT`; existing compatible inputs log
 `GRAPH_REUSE`. Old variants are preserved. An atomic completion marker is
 written only after explicit import succeeds. Missing markers, mismatching
 identity manifests, or missing essential graph files fail closed. There is
-no silent cleanup/reimport of an interrupted graph. Preserve that directory
+also an atomic SHA-256 manifest of the seven binary graph data files, verified
+before Java opens them. Nonempty truncation and same-size corruption fail closed;
+the diagnostic `properties.txt` is not used as graph data. The `sha256-v1` format
+selects a new graph variant for pre-integrity caches rather than trusting them.
+Previously root-owned Linux data requires an explicit ownership migration by
+its owner or a fresh data directory/project; the launcher does not chmod/chown it.
+There is no silent cleanup/reimport of an interrupted graph. Preserve that directory
 for diagnosis and choose a fresh data directory with a distinct project name.
 The data-root lock covers import, graph serving and shared elevation writes.
 
@@ -134,8 +141,11 @@ They generate a deterministic, flat 100m SRTM3 cache tile before import; no
 elevation-network request is needed. They check 100m 3D elevation, profile and
 details, paved detours around shortcuts, bicycle prohibition, cycleway retention,
 native loops without CH overrides, graph reuse and partial-cache refusal with
-network disabled. They stop their owned service in `finally` and preserve
-evidence, including failed imports. First-run image dependencies are public
+network disabled. Nonempty truncated geometry and same-size corruption are
+refused before Java opens the file. A Docker-managed Linux volume additionally
+verifies host UID:GID writes without capabilities or world-writable directories.
+Tests stop their owned service in `finally` and preserve evidence, including
+failed imports. First-run image dependencies are public
 downloads; subsequent routing is local. Regional tests output only numeric
 summaries, never response bodies or user GPS.
 
