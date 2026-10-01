@@ -23,6 +23,16 @@ $helper = Join-Path $PSScriptRoot 'local-routing.ps1'
 Assert-True (Test-Path -LiteralPath $helper) 'Routing helpers are missing: launcher cannot select a safe local provider.'
 . $helper
 
+& {
+    function Get-Command {
+        param($Name, $CommandType, $ErrorAction)
+        [pscustomobject]@{ Source = '/first/dotnet' }
+        [pscustomobject]@{ Source = '/second/dotnet' }
+    }
+    $executable = Resolve-LocalExecutable -Name dotnet
+    Assert-True ($executable -is [string] -and $executable -ceq '/first/dotnet') 'Multiple PATH matches must resolve to one executable, not an array.'
+}
+
 function Test-ChildConfiguration([string]$temp, [string[]]$launcherArguments = @()) {
     $probe = Join-Path $temp 'configuration-probe'
     [IO.Directory]::CreateDirectory($probe) | Out-Null
@@ -51,7 +61,7 @@ Console.WriteLine(JsonSerializer.Serialize(keys.ToDictionary(key => key, key => 
 })));
 '@
     [IO.File]::WriteAllText((Join-Path $probe 'Program.cs'), $source.Replace('__ID__', $id))
-    $dotnet = (Get-Command dotnet -CommandType Application).Source
+    $dotnet = Resolve-LocalExecutable -Name dotnet
     & $dotnet build (Join-Path $probe 'Probe.csproj') --configuration Release --verbosity quiet
     Assert-True ($LASTEXITCODE -eq 0) '.NET configuration probe build failed.'
     $dll = Join-Path $probe 'bin/Release/net10.0/Probe.dll'
@@ -193,7 +203,7 @@ try {
     foreach ($provider in @('OpenRouteService', 'GraphHopper')) {
         $output = Join-Path $temp "$provider.json"
         $parameters = @{
-            FilePath = (Get-Command pwsh).Source
+            FilePath = Resolve-LocalExecutable -Name pwsh
             ArgumentList = @('-NoProfile', '-File', ('"' + $PSCommandPath + '"'), '-EnvironmentProbe')
             Environment = (Get-LocalRoutingEnvironment -RoutingProvider $provider)
             RedirectStandardOutput = $output

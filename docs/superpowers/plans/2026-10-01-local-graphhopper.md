@@ -56,7 +56,7 @@ Files: `tools/start-local.ps1`, local docs/evaluation notes and regression check
 - [x] Write failing launcher checks for explicit provider and zero external credentials.
 - [x] Add GraphHopper opt-in and readiness to the owned-process launcher; preserve default behavior.
 - [x] Start frontend/backend with local engine; test A-B, loops, explicit ranges, GPX, elevation and nonblank map.
-- [ ] Run full verification and independent whole-branch review, fix blockers, create/attach PR and inspect CI.
+- [x] Run full verification and independent whole-branch review, fix blockers, create/attach PR and inspect CI. Final-head green CI remains the separate merge gate below.
 - [ ] Merge after green CI under existing authorization; leave a working owned local session for manual testing.
 
 ## Plan Review
@@ -76,3 +76,5 @@ Verification before final review: backend Release 637 integration + 434 unit tes
 PR #27 is attached. Initial Linux CI exposed host-owned bind-mount permissions with dropped root capabilities; runtime UID:GID mapping fixes it without relaxing permissions. A Docker-managed Linux-volume regression passed RED then GREEN, and the corrected synthetic engine job passed GitHub CI. Offline evaluation/importer and live desktop/mobile checks were rerun successfully.
 
 Independent full-branch review found one blocker: nonempty truncated MMAP graph data could pass the essential-file check. The new regression reproduced actual server startup with truncated geometry (timeout exit 124 rather than refusal), then passed after atomic completed-data SHA-256 verification was added before Java opens the graph. Cache-integrity format is part of identity; old variants remain preserved. Same-size corruption and missing checksum-manifest regressions were added. Remaining actual merge/CI outcome is tracked in PR #27 rather than predicted here.
+
+Follow-up review confirmed the cache blocker resolved. Final regional import completed in 39.8 seconds (1219 MiB peak), subsequent restart reused it in 7.4 seconds, and regional/live browser checks passed again. Linux backend CI exposed multiple executable matches from `Get-Command dotnet`; selecting one application is now shared by launcher and configuration probe. The multiple-match regression and the full launcher/configuration suite passed locally. No verification gate was bypassed; final merge outcome remains in PR #27.

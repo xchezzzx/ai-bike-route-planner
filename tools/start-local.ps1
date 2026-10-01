@@ -74,7 +74,7 @@ try {
     $dll = Join-Path $root 'src/backend/CyclingRoutes.Api/bin/Release/net10.0/CyclingRoutes.Api.dll'
     $backendEnvironment = @{ ASPNETCORE_ENVIRONMENT = 'Development'; DOTNET_ENVIRONMENT = 'Development'; Logging__LogLevel__Default = 'Warning' }
     foreach ($key in $routingEnvironment.Keys) { $backendEnvironment[$key] = $routingEnvironment[$key] }
-    $backend = Start-Process @common -FilePath (Get-Command dotnet).Source -ArgumentList @(('"' + $dll + '"'), '--urls', $backendUrl) -WorkingDirectory (Join-Path $root 'src/backend/CyclingRoutes.Api') -Environment $backendEnvironment -RedirectStandardOutput (Join-Path $logs 'backend.log') -RedirectStandardError (Join-Path $logs 'backend-error.log')
+    $backend = Start-Process @common -FilePath (Resolve-LocalExecutable -Name dotnet) -ArgumentList @(('"' + $dll + '"'), '--urls', $backendUrl) -WorkingDirectory (Join-Path $root 'src/backend/CyclingRoutes.Api') -Environment $backendEnvironment -RedirectStandardOutput (Join-Path $logs 'backend.log') -RedirectStandardError (Join-Path $logs 'backend-error.log')
     $children.Add($backend)
     $healthy = $false
     for ($i = 0; $i -lt 40; $i++) {
@@ -83,7 +83,7 @@ try {
     }
     if (-not $healthy) { throw 'Backend health check failed.' }
     $vite = Join-Path $root 'src/frontend/node_modules/vite/bin/vite.js'
-    $frontend = Start-Process @common -FilePath (Get-Command node).Source -ArgumentList @(('"' + $vite + '"'), '--host', '127.0.0.1', '--port', $frontendPort, '--strictPort') -WorkingDirectory (Join-Path $root 'src/frontend') -Environment @{ BACKEND_URL = $backendUrl } -RedirectStandardOutput (Join-Path $logs 'frontend.log') -RedirectStandardError (Join-Path $logs 'frontend-error.log')
+    $frontend = Start-Process @common -FilePath (Resolve-LocalExecutable -Name node) -ArgumentList @(('"' + $vite + '"'), '--host', '127.0.0.1', '--port', $frontendPort, '--strictPort') -WorkingDirectory (Join-Path $root 'src/frontend') -Environment @{ BACKEND_URL = $backendUrl } -RedirectStandardOutput (Join-Path $logs 'frontend.log') -RedirectStandardError (Join-Path $logs 'frontend-error.log')
     $children.Add($frontend)
     $ready = $false
     for ($i = 0; $i -lt 60; $i++) {

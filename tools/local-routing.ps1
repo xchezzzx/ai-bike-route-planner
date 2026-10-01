@@ -1,5 +1,9 @@
 #Requires -Version 7.4
 
+function Resolve-LocalExecutable([string]$Name) {
+    return (Get-Command -Name $Name -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+}
+
 function Get-GraphHopperRootUri([AllowEmptyString()][string]$GraphHopperUrl) {
     $uri = $null
     if (-not [Uri]::TryCreate($GraphHopperUrl, [UriKind]::Absolute, [ref]$uri) -or
