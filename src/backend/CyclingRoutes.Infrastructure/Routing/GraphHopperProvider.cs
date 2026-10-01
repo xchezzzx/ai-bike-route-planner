@@ -53,7 +53,7 @@ public sealed class GraphHopperProvider(HttpClient client, GraphHopperOptions op
 			string body;
 			try { body = await response.Content.ReadAsStringAsync(deadline.Token); }
 			catch (InvalidOperationException) { throw new RoutingException(RoutingFailure.InvalidResponse); }
-			if (!response.IsSuccessStatusCode) throw new RoutingException(ParseFailure(body));
+			if (!response.IsSuccessStatusCode) throw new RoutingException(ParseFailure(body, payload.ContainsKey("round_trip.distance")));
 			return GraphHopperResponseParser.Parse(body, deadline.Token);
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -66,7 +66,7 @@ public sealed class GraphHopperProvider(HttpClient client, GraphHopperOptions op
 		}
 	}
 
-	private static RoutingFailure ParseFailure(string body)
+	private static RoutingFailure ParseFailure(string body, bool roundTrip)
 	{
 		try
 		{
@@ -78,6 +78,12 @@ public sealed class GraphHopperProvider(HttpClient client, GraphHopperOptions op
 			{
 				if (hint.ValueKind != JsonValueKind.Object || !hint.TryGetProperty("details", out var details)
 					|| details.ValueKind != JsonValueKind.String) continue;
+				// The pinned 11.1 native loop lookup uses a generic exception for this
+				// ordinary no-route outcome; do not classify other argument errors as no-route.
+				if (roundTrip && details.GetString() == "java.lang.IllegalArgumentException"
+					&& hint.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String
+					&& message.GetString()!.StartsWith("Could not find a valid point after 3 tries, for the point:", StringComparison.Ordinal))
+					return RoutingFailure.NoRoute;
 				var failure = details.GetString() switch
 				{
 					"com.graphhopper.util.exceptions.ConnectionNotFoundException"

@@ -8,5 +8,5 @@ public sealed class RoutingOptions
 	public GraphHopperOptions GraphHopper { get; set; } = new();
 
 	public bool IsValid() => Provider == "OpenRouteService"
-		|| (Provider == "GraphHopper" && GraphHopper.IsValid());
+		|| (Provider == "GraphHopper" && GraphHopper is not null && GraphHopper.IsValid());
 }

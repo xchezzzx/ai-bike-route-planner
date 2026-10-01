@@ -8,6 +8,6 @@ public sealed class GraphHopperOptions
 	public bool IsValid() => Uri.TryCreate(BaseUrl, UriKind.Absolute, out var uri)
 		&& uri.Scheme is "http" or "https" && uri.UserInfo.Length == 0
 		&& uri.Query.Length == 0 && uri.Fragment.Length == 0 && uri.AbsolutePath == "/"
-		&& Profile.Length is > 0 and <= 64
+		&& Profile is { Length: > 0 and <= 64 }
 		&& Profile.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-');
 }

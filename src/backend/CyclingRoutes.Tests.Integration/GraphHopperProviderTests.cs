@@ -14,6 +14,12 @@ public class GraphHopperProviderTests
 	private static readonly GeoCoordinate Start = new(32.0853, 34.7818);
 	private static readonly GeoCoordinate Destination = new(32.1, 34.82);
 
+	[Fact]
+	public void NullProfile_IsInvalidWithoutThrowing()
+	{
+		Assert.False(new GraphHopperOptions { Profile = null! }.IsValid());
+	}
+
 	[Theory]
 	[InlineData(false)]
 	[InlineData(true)]
@@ -173,6 +179,23 @@ public class GraphHopperProviderTests
 		}));
 		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new GraphHopperProvider(client, new())
 			.GetRoadRouteAsync(Start, Destination, source.Token));
+	}
+
+	[Theory]
+	[InlineData(true, "Could not find a valid point after 3 tries, for the point:private location", RoutingFailure.NoRoute)]
+	[InlineData(false, "Could not find a valid point after 3 tries, for the point:private location", RoutingFailure.InvalidResponse)]
+	[InlineData(true, "The profile private is not available", RoutingFailure.InvalidResponse)]
+	public async Task NativeLoopPointFailure_IsNotConfusedWithInvalidConfiguration(bool loop, string message, RoutingFailure expected)
+	{
+		var body = JsonSerializer.Serialize(new { hints = new[] { new { details = "java.lang.IllegalArgumentException", message } } });
+		using var client = new HttpClient(new OpenRouteServiceProviderTests.StubHandler((_, _) =>
+			Task.FromResult(OpenRouteServiceProviderTests.Response(400, body))));
+		var provider = new GraphHopperProvider(client, new());
+		var error = await Assert.ThrowsAsync<RoutingException>(() => loop
+			? provider.GetRoadLoopAsync(Start, 20000, 1, TestContext.Current.CancellationToken)
+			: provider.GetRoadRouteAsync(Start, Destination, TestContext.Current.CancellationToken));
+		Assert.Equal(expected, error.Failure);
+		Assert.DoesNotContain("private", error.ToString());
 	}
 
 	[Theory]
