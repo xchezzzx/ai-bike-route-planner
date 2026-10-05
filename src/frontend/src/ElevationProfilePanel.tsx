@@ -24,8 +24,13 @@ export default function ElevationProfilePanel({ route, locale, theme, color, ins
   const chartRef = useRef<Chart<'line', Datum[]> | null>(null);
   const inspectRef = useRef(onInspect);
   const pointerPosition = useRef<{ x: number; y: number } | null>(null);
+  const controlSelectionTime = useRef(-Infinity);
   useEffect(() => { inspectRef.current = onInspect; }, [onInspect]);
   const current = inspectedIndex === null ? null : profile.points[inspectedIndex] ?? null;
+  const inspectFromControl = (index: number | null, timeStamp: number) => {
+    controlSelectionTime.current = timeStamp;
+    onInspect(index);
+  };
   const pointText = (index: number) => {
     const point = profile.points[index];
     return `${quantity(locale, point.distanceMeters, 'km', 1000)} · ${quantity(locale, point.elevationMeters, 'm')}`;
@@ -39,6 +44,9 @@ export default function ElevationProfilePanel({ route, locale, theme, color, ins
     let disposed = false;
     const inspect = (event: ChartEvent) => {
       if (disposed) return;
+      // Chart.js queues native events until the next frame. Older pointer input
+      // must not overwrite a newer selection made directly on the controls.
+      if (event.native && event.native.timeStamp < controlSelectionTime.current) return;
       // A redraw/scroll can emit a mouse event without user movement. Keep
       // keyboard inspection until the pointer actually moves or the user taps.
       if (event.type === 'mousemove' && event.native instanceof MouseEvent) {
@@ -103,12 +111,13 @@ export default function ElevationProfilePanel({ route, locale, theme, color, ins
       </div>
       <input className="elevation-position" type="range" min={0} max={profile.points.length - 1} step={1}
         value={current?.index ?? 0} aria-label={t(locale, 'trackPoint')} aria-valuetext={pointText(current?.index ?? 0)}
-        onFocus={() => onInspect(current?.index ?? 0)} onChange={event => onInspect(Number(event.target.value))}
-        onKeyDown={event => { if (event.key === 'Escape') onInspect(null); }} />
+        onFocus={event => inspectFromControl(current?.index ?? 0, event.timeStamp)}
+        onChange={event => inspectFromControl(Number(event.target.value), event.timeStamp)}
+        onKeyDown={event => { if (event.key === 'Escape') inspectFromControl(null, event.timeStamp); }} />
       <div className="elevation-inspector">
         <output aria-label={t(locale, 'elevationPoint')}>{current ? pointText(current.index) : '—'}</output>
         <button className="icon-button" title={t(locale, 'clearInspection')} aria-label={t(locale, 'clearInspection')}
-          disabled={!current} onClick={() => onInspect(null)}><X size={16} aria-hidden="true" /></button>
+          disabled={!current} onClick={event => inspectFromControl(null, event.timeStamp)}><X size={16} aria-hidden="true" /></button>
       </div>
     </>}
   </section>;
