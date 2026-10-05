@@ -9,9 +9,9 @@ public static class EvaluationCli
     {
         try
         {
-            if (args.Length is not (3 or 5) || (args[0] == "gpx" ? args.Length != 3 : args[0] != "ors" || args.Length != 5))
+            if (args.Length is not (3 or 5) || (args[0] == "gpx" ? args.Length != 3 : args[0] is not ("ors" or "graphhopper") || args.Length != 5))
             {
-                Console.Error.WriteLine("Usage: gpx INPUT OUTPUT | ors INPUT OUTPUT MIN_METERS MAX_METERS");
+                Console.Error.WriteLine("Usage: gpx INPUT OUTPUT | ors|graphhopper INPUT OUTPUT MIN_METERS MAX_METERS");
                 return 2;
             }
             var inputPath = Path.GetFullPath(args[1]);
@@ -23,6 +23,10 @@ public static class EvaluationCli
             await input.ReadExactlyAsync(bytes);
             var report = args[0] == "gpx"
                 ? await OfflineRouteEvaluator.GpxAsync(bytes, CancellationToken.None)
+                : args[0] == "graphhopper"
+                ? await OfflineRouteEvaluator.GraphHopperAsync(bytes,
+                    double.Parse(args[3], CultureInfo.InvariantCulture),
+                    double.Parse(args[4], CultureInfo.InvariantCulture), CancellationToken.None)
                 : await OfflineRouteEvaluator.OrsAsync(bytes,
                     double.Parse(args[3], CultureInfo.InvariantCulture),
                     double.Parse(args[4], CultureInfo.InvariantCulture), CancellationToken.None);

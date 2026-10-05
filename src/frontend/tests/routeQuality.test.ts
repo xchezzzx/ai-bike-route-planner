@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { validRoadCandidates } from '../src/routeQuality';
 import { candidates } from './fixtures';
+import { codeText, t } from '../src/i18n';
 
 export const quality = {
   policyVersion: 'road-v1', geometryLengthMeters: 10000, surfaceEvidenceState: 'partial', waytypeSupplied: false,
@@ -12,6 +13,11 @@ const result = () => ({ ...structuredClone(candidates), excludedCandidates: [], 
 const empty = () => ({ ...result(), candidates: [], warnings: ['no_candidate_meets_requirements'], excludedCandidates: [{ seed: 2, distanceMeters: 40000, estimatedDurationSeconds: 3600, assessment: { ...result().candidates[0].assessment, targetsMatched: false }, reasons: ['targets_not_met'] }] });
 
 describe('road quality response validation', () => {
+  it.each(['en', 'ru', 'he'] as const)('explains approximate returns without exposing an unknown code (%s)', locale => {
+    const message = codeText(locale, 'road_near_return', 'server_error');
+    expect(message).not.toBe(t(locale, 'server_error'));
+    expect(message).not.toBe('road_near_return');
+  });
   it('accepts three retained candidates and unavailable surface evidence', () => {
     const value = result();
     value.candidates = [1, 2, 3].map(seed => ({ ...value.candidates[0], seed }));

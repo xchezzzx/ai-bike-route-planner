@@ -153,6 +153,7 @@ const messages = {
   road_track_present: ['Includes mapped tracks; their surface is assessed separately.', 'Есть проезды категории track; покрытие оценивается отдельно.', 'כולל דרכי שטח במפה; המשטח נבדק בנפרד.'],
   road_footway_present: ['Includes mapped footways; check bicycle access.', 'Есть пешеходные участки; проверьте доступ для велосипеда.', 'כולל דרכים להולכי רגל; יש לבדוק גישה לאופניים.'],
   road_retracing: ['More than 5% repeats outside the shared start/return section.', 'Более 5% повторов вне общего участка выезда/возврата.', 'יותר מ-5% מקטעים חוזרים מחוץ למקטע היציאה והחזרה המשותף.'],
+  road_near_return: ['Long return passages run close to earlier parts of this loop. Check the track.', 'Длинные обратные проходы рядом с ранее пройденными участками кольца. Проверьте трек.', 'מקטעי חזרה ארוכים עוברים סמוך למקטעים קודמים בלולאה. בדקו את המסלול.'],
   way_unknown: ['Unknown', 'Неизвестно', 'לא ידוע'], way_stateRoad: ['Major road', 'Магистральная дорога', 'כביש ראשי'],
   way_road: ['Road', 'Дорога', 'כביש'], way_street: ['Street', 'Улица', 'רחוב'], way_path: ['Path', 'Тропа', 'שביל'],
   way_track: ['Track', 'Проезд', 'דרך שטח'], way_cycleway: ['Cycleway', 'Велодорожка', 'שביל אופניים'],

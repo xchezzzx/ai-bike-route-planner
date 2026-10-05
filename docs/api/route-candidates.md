@@ -182,8 +182,13 @@ Unknown coverage is not paved coverage and does not by itself reject a route.
 `assessment.quality` reports geometry length, surface/waytype metre totals, surface
 evidence state (`unavailable`, `partial`, `complete`), and exact repeated/shared-stem/
 remaining repeated metres. These are data-based diagnostics, not access/safety
-certification. `targetsMatched` concerns distance/time only. Score includes the
-remaining-repeat penalty used in ordering. See the
+certification. `targetsMatched` concerns distance/time only. Score includes a soft
+geometry penalty: `0.2 * max(exact remaining repeats, approximate sustained near
+returns) / geometry length`. The approximate check applies to loops only; it does
+not change the meaning of the exact `road-v1` fields or exclude candidates.
+`road_near_return` warns when the approximate signal exceeds 5% of geometry length;
+it is not proof of a repeated road or an instructed U-turn. See the
+[geometry checks and local experiment](../development/road-loop-geometry-quality.md) and
 [policy specification](../superpowers/specs/2026-09-29-road-loop-quality-design.md).
 
 `candidates_excluded` and `no_candidate_meets_requirements` explain filtering.

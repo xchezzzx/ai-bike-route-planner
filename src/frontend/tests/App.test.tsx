@@ -338,6 +338,17 @@ it.each([false, true])('shows explained no-match results after a successful resu
   if (advised) expect(screen.getByText('AI-guided search completed')).toBeInTheDocument();
 });
 
+it('shows a near-return warning without disabling the retained track or GPX', async () => {
+  const response = structuredClone(candidates);
+  response.candidates[0].route.warnings = ['road_near_return'];
+  replies.candidates = response;
+  const user = await setupPrompt();
+  await user.click(screen.getByRole('button', { name: 'Interpret request' }));
+  await user.click(screen.getByRole('button', { name: 'Generate routes' }));
+  expect(await screen.findByText('Long return passages run close to earlier parts of this loop. Check the track.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Download GPX' })).toBeEnabled();
+});
+
 it.each([false, true])('shows surface uncertainty and small known non-road coverage (unknown=%s)', async unknown => {
   const response = structuredClone(candidates);
   const q = response.candidates[0].assessment!.quality;

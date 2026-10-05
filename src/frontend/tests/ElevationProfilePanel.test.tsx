@@ -109,3 +109,21 @@ it('keeps keyboard inspection when a theme redraw emits a stationary mouse event
   state.charts[1].options.onHover(returning);
   expect(inspect).toHaveBeenCalledTimes(calls + 2);
 });
+
+it('ignores hover queued before a newer slider selection but accepts fresh pointer input', () => {
+  const options = props();
+  const { rerender } = render(<ElevationProfilePanel {...options} />);
+  const delayed = { type: 'mousemove', x: 75, y: 50,
+    native: new MouseEvent('mousemove', { clientX: 75, clientY: 50 }) };
+  Object.defineProperty(delayed.native, 'timeStamp', { value: 1 });
+  fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
+  rerender(<ElevationProfilePanel {...options} inspectedIndex={3} />);
+  const inspect = options.onInspect as ReturnType<typeof vi.fn>;
+  const calls = inspect.mock.calls.length;
+  state.charts[0].options.onHover(delayed);
+  expect(inspect).toHaveBeenCalledTimes(calls);
+  const fresh = { type: 'click', x: 0, y: 50, native: new MouseEvent('click') };
+  Object.defineProperty(fresh.native, 'timeStamp', { value: Number.MAX_SAFE_INTEGER });
+  state.charts[0].options.onClick(fresh);
+  expect(inspect).toHaveBeenLastCalledWith(0);
+});
