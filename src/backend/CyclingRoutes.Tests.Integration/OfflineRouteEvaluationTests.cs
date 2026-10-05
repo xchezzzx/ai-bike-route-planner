@@ -39,6 +39,23 @@ public class OfflineRouteEvaluationTests
     }
 
     [Fact]
+    public async Task GpxReportsApproximateReturnsSeparatelyWithoutInventingEligibility()
+    {
+        const string gpx = """
+            <gpx xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>
+            <trkpt lat="0" lon="0"/><trkpt lat="0.009" lon="0.009"/>
+            <trkpt lat="0.009" lon="0.027"/><trkpt lat="0.00909" lon="0.027"/>
+            <trkpt lat="0.00909" lon="0.009"/><trkpt lat="0.018" lon="-0.009"/>
+            <trkpt lat="0" lon="0"/></trkseg></trk></gpx>
+            """;
+        var report = await OfflineRouteEvaluator.GpxAsync(Bytes(gpx), Ct);
+        Assert.InRange(report.NearReturnMeters!.Value, 1650, 1900);
+        Assert.Equal(0, report.Quality.RemainingRepeatedMeters);
+        Assert.Null(report.PolicyEligible);
+        Assert.Null(report.ProviderDurationSeconds);
+    }
+
+    [Fact]
     public async Task GpxDetectsExactInternalRetracingAndAnOpenTrack()
     {
         const string gpx = """
@@ -62,6 +79,41 @@ public class OfflineRouteEvaluationTests
     public async Task InvalidOrDiscontinuousGpxFailsWithoutGuessing(string input, Type expected)
     {
         await Assert.ThrowsAsync(expected, () => OfflineRouteEvaluator.GpxAsync(Bytes(input), Ct));
+    }
+
+    [Fact]
+    public async Task GraphHopperReplayUsesRoadPolicyAndNeverUsesTheNetwork()
+    {
+        const string response = """
+            {"paths":[{"distance":40000,"time":7200000,"ascend":120,"descend":120,
+              "points_encoded":false,"points":{"type":"LineString","coordinates":[[0,0],[0.01,0],[0.01,0.01],[0,0]]},
+              "details":{"surface":[[0,3,"asphalt"]],"road_class":[[0,3,"residential"]],"road_environment":[[0,3,"road"]]}}]}
+            """;
+        var report = await OfflineRouteEvaluator.GraphHopperAsync(Bytes(response), 35000, 45000, Ct);
+        Assert.True(report.PolicyEligible);
+        Assert.Equal("graphhopper", report.Source);
+        Assert.Equal(7200, report.ProviderDurationSeconds);
+        Assert.Equal(0, report.NearReturnMeters);
+        var unpaved = await OfflineRouteEvaluator.GraphHopperAsync(Bytes(response.Replace("asphalt", "gravel")), 35000, 45000, Ct);
+        Assert.False(unpaved.PolicyEligible);
+        Assert.Contains("road_surface_limit_exceeded", unpaved.Reasons);
+        var outOfRange = await OfflineRouteEvaluator.GraphHopperAsync(Bytes(response), 41000, 45000, Ct);
+        Assert.False(outOfRange.TargetsMatched);
+        await Assert.ThrowsAsync<RoutingException>(() => OfflineRouteEvaluator.GraphHopperAsync(Bytes("{}"), 35000, 45000, Ct));
+        var folder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var input = Path.Combine(folder, "saved.json");
+            var output = Path.Combine(folder, "report.json");
+            await File.WriteAllTextAsync(input, response, Ct);
+            Assert.Equal(0, await EvaluationCli.Main(["graphhopper", input, output, "35000", "45000"]));
+            using var json = JsonDocument.Parse(await File.ReadAllTextAsync(output, Ct));
+            Assert.True(json.RootElement.GetProperty("policyEligible").GetBoolean());
+            Assert.Equal(0, json.RootElement.GetProperty("nearReturnMeters").GetDouble());
+            Assert.Equal(1, await EvaluationCli.Main(["graphhopper", input, output, "45000", "35000"]));
+        }
+        finally { Directory.Delete(folder, recursive: true); }
     }
 
     [Fact]

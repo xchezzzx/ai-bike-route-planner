@@ -15,7 +15,10 @@ public sealed record OfflineRouteReport(
     string InputSha256, string Source, int PointCount, double GeometryLengthMeters,
     double ClosureGapMeters, double? ProviderDistanceMeters, double? ProviderDurationSeconds,
     double? TargetMinimumMeters, double? TargetMaximumMeters, bool? TargetsMatched,
-    bool? PolicyEligible, IReadOnlyList<string> Reasons, IReadOnlyList<string> Warnings, RoadQualityAssessment Quality);
+    bool? PolicyEligible, IReadOnlyList<string> Reasons, IReadOnlyList<string> Warnings, RoadQualityAssessment Quality)
+{
+    public double? NearReturnMeters { get; init; }
+}
 
 public static class OfflineRouteEvaluator
 {
@@ -59,20 +62,36 @@ public static class OfflineRouteEvaluator
     {
         Check(input, ct);
         ValidateUnits(input);
-        var range = new DistanceRange(minMeters, maxMeters);
+        _ = new DistanceRange(minMeters, maxMeters);
         using var client = new HttpClient(new SavedResponseHandler(input));
         var provider = new OpenRouteServiceProvider(client, new() { ApiKey = "offline-placeholder" });
         var path = await provider.GetRoadLoopAsync(new(0, 0), (minMeters + maxMeters) / 2, 1, ct);
+        return SelectReport(input, "ors", path, minMeters, maxMeters, ct);
+    }
+
+    public static async Task<OfflineRouteReport> GraphHopperAsync(byte[] input, double minMeters, double maxMeters, CancellationToken ct)
+    {
+        Check(input, ct);
+        _ = new DistanceRange(minMeters, maxMeters);
+        using var client = new HttpClient(new SavedResponseHandler(input));
+        var provider = new GraphHopperProvider(client, new());
+        var path = await provider.GetRoadLoopAsync(new(0, 0), (minMeters + maxMeters) / 2, 1, ct);
+        return SelectReport(input, "graphhopper", path, minMeters, maxMeters, ct);
+    }
+
+    private static OfflineRouteReport SelectReport(byte[] input, string source, RoutedPath path,
+        double minMeters, double maxMeters, CancellationToken ct)
+    {
         // Mirror the loop service's structural gate before assessing eligibility.
         if (path.Points.Count < 4 || path.Points[0].Position != path.Points[^1].Position
             || path.Points.Select(x => x.Position).Distinct().Take(3).Count() < 3)
             throw new InvalidDataException();
         var intent = new RouteIntent(path.Points[0].Position, RouteShape.Loop, CyclingProfile.Road,
-            targetDistanceRange: range);
+            targetDistanceRange: new(minMeters, maxMeters));
         var selected = new RoadCandidateSelector(new(), new()).Select(intent, [new(1, path)], ct);
         var retained = selected.Retained.Count == 1;
         var assessment = retained ? selected.Retained[0].Assessment : selected.Excluded[0].Assessment;
-        return Report(input, "ors", path, path.DistanceMeters, path.EstimatedDurationSeconds,
+        return Report(input, source, path, path.DistanceMeters, path.EstimatedDurationSeconds,
             minMeters, maxMeters, assessment.TargetsMatched, retained,
             retained ? [] : selected.Excluded[0].Reasons, retained ? selected.Retained[0].Warnings : [], ct);
     }
@@ -84,7 +103,8 @@ public static class OfflineRouteEvaluator
         var quality = new RoadQualityAssessor().Assess(path, ct);
         return new(Convert.ToHexStringLower(SHA256.HashData(input)), source, path.Points.Count,
             quality.GeometryLengthMeters, RouteGeometryMetrics.DistanceMeters(path.Points[0].Position, path.Points[^1].Position),
-            providerDistance, providerDuration, min, max, matched, eligible, reasons, warnings, quality);
+            providerDistance, providerDuration, min, max, matched, eligible, reasons, warnings, quality)
+        { NearReturnMeters = LoopGeometryMetrics.NearReturnMeters(path, ct) };
     }
 
     private static void ValidateUnits(byte[] input)

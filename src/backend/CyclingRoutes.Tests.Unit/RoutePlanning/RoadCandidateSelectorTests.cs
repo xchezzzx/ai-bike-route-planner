@@ -72,6 +72,44 @@ public class RoadCandidateSelectorTests
 	}
 
 	[Fact]
+	public void NearReturn_IsSoftlyRankedBelowCleanRingWithoutChangingExactMetrics()
+	{
+		var clean = LoopGeometryMetricsTests.Meters((0, 0), (2000, 0), (2000, 2000), (0, 2000), (0, 0));
+		var result = new RoadCandidateSelector(new(), new()).Select(Intent(),
+			[new(1, LoopGeometryMetricsTests.ParallelReturn()), new(2, clean)], TestContext.Current.CancellationToken);
+		Assert.Equal(new[] { 2, 1 }, result.Retained.Select(x => x.Candidate.Seed));
+		Assert.Empty(result.Excluded);
+		Assert.Contains("road_near_return", result.Retained[1].Warnings);
+		Assert.DoesNotContain("road_retracing", result.Retained[1].Warnings);
+		Assert.Equal(0, result.Retained[1].Assessment.Quality!.RemainingRepeatedMeters);
+	}
+
+	[Fact]
+	public void PointToPoint_DoesNotReceiveLoopGeometryPenalty()
+	{
+		var intent = new RouteIntent(new(0, 0), RouteShape.PointToPoint, CyclingProfile.Road,
+			new(40000), TimeSpan.FromSeconds(3600), new(1, 1));
+		var result = new RoadCandidateSelector(new(), new()).Select(intent,
+			[new(1, LoopGeometryMetricsTests.ParallelReturn())], TestContext.Current.CancellationToken);
+		Assert.Equal(0, result.Retained[0].Assessment.Score);
+		Assert.DoesNotContain("road_near_return", result.Retained[0].Warnings);
+	}
+
+	[Fact]
+	public void UnavailableApproximateCheck_RetainsFiniteExactScore()
+	{
+		var path = LoopGeometryMetricsTests.Meters(Enumerable.Range(0, 900).SelectMany(_ => new (double, double)[]
+			{ (0, 0), (100, 0), (100, 100), (0, 100) }).Append((0d, 0d)).ToArray());
+		var result = Select(path);
+		var retained = Assert.Single(result.Retained);
+		Assert.Empty(result.Excluded);
+		Assert.True(double.IsFinite(retained.Assessment.Score));
+		Assert.True(retained.Assessment.Quality!.RemainingRepeatedMeters > 0);
+		Assert.Contains("road_retracing", retained.Warnings);
+		Assert.DoesNotContain("road_near_return", retained.Warnings);
+	}
+
+	[Fact]
 	public void InconsistentEvidence_IsNotTrusted()
 	{
 		var path = WithSurface(RoadQualityAssessorTests.Path((0, 0), (0, 1), (1, 0), (0, 0)), 0);
