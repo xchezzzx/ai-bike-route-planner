@@ -7,7 +7,9 @@ Current implementation: .NET 10 API, route-intent validation, provider-backed
 point-to-point road routing, ranked road-loop candidates, GPX export, and a
 Gemini-backed prompt interpretation API with clarifications, and a local React
 testing interface with map selection, manual preferences, candidates and GPX.
-Interpretation passes offline tests and the current 34-case live corpus (2026-09-29).
+Interpretation passes offline tests; extraction v3 passed the earlier 34-case
+live corpus (2026-09-29). Current extraction v4 and advisor input v3 still need
+fresh live qualification.
 Earlier runs had provider errors and semantic mismatches; this is not a production
 reliability guarantee. This branch adds opt-in bounded AI road-loop refinement,
 but its live qualification is incomplete; see [qualification results](docs/evaluation/route-refinement-2026-09-29.md).
@@ -15,23 +17,57 @@ Gravel-specific routing, persistence and public deployment are not implemented.
 
 ## Browser testing
 
-Install .NET 10 SDK, Node.js 24 and PowerShell 7.4+. Keep the ORS and Gemini
-keys in the API project's User Secrets, never in frontend variables. Start both
-loopback-only servers from the repository root:
+Install .NET 10 SDK, Node.js 24 and PowerShell 7.4+. Start Docker Desktop with
+Linux containers and wait for its engine to be ready. For current manual road-route
+testing, use self-hosted GraphHopper without ORS/Gemini keys. On this Windows
+machine, run from the primary checkout. Check ownership before stopping any
+older side-worktree session:
 
 ```powershell
-pwsh -NoProfile -File tools/start-local.ps1
+Set-Location D:\sources\ai-bike-route-planner
+pwsh -NoProfile -File tools/start-graphhopper.ps1
+pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
 ```
+
+On other machines, substitute your repository root for the `Set-Location` path.
+For a faster subsequent engine launch with an image built from the current
+engine files, use
+`pwsh -NoProfile -File tools/start-graphhopper.ps1 -SkipBuild -WaitSeconds 120`.
+Omit `-SkipBuild` on first setup or after changing engine files.
 
 The launcher builds the backend, installs frontend packages if absent and prints
 the actual browser URL (normally http://127.0.0.1:5173). It chooses another port
 if a preferred port is occupied. Logs and a PID/start-time manifest are under
-ignored `artifacts/`. Run it again to display the existing owned session, or stop:
+ignored `artifacts/`. Use **Manual**, **Road**, and keep **AI refinement** off;
+this isolated session intentionally disables prompt interpretation and AI advice.
+Run the app command again to display the existing owned session. To stop both:
 
 ```powershell
 pwsh -NoProfile -File tools/start-local.ps1 -Stop
+pwsh -NoProfile -File tools/start-graphhopper.ps1 -Stop
 ```
 
+The [local acceptance checklist](docs/development/local-mvp-acceptance.md)
+separates fixture tests from real engine, road, phone and cycling-device checks.
+
+To rebuild/restart only the app after code changes, leaving the engine running:
+
+```powershell
+pwsh -NoProfile -File tools/start-local.ps1 -Stop
+pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
+```
+
+### Optional ORS and Gemini testing
+
+Keep ORS and Gemini keys in the API project's User Secrets, never in frontend
+variables. Switching providers requires stopping the existing owned app session:
+
+```powershell
+pwsh -NoProfile -File tools/start-local.ps1 -Stop
+pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider OpenRouteService
+```
+
+Generating routes or interpreting prompts in this mode can consume provider quota.
 Select start/destination on the map or enter coordinates. Prompt mode interprets
 the text first; review its preferences and explicitly generate a route. Manual
 mode validates parameters without Gemini. Optional AI refinement of a prepared
@@ -42,16 +78,11 @@ provider call. No prompts or route history are stored by the UI.
 
 ### Self-hosted GraphHopper
 
-For local road-route testing without ORS/Gemini keys, start the pinned GraphHopper
-11.1 service (Docker Linux containers) and select it explicitly:
-
-```powershell
-pwsh -NoProfile -File tools/start-graphhopper.ps1
-pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
-```
+The browser-testing commands above start the pinned GraphHopper 11.1 service
+(Docker Linux containers) and select it explicitly.
 
 Use **Manual** mode; the GraphHopper launcher session disables ORS/Gemini credentials,
-so prompt interpretation and AI advice are intentionally unavailable. Start/stop
+so prompt interpretation and AI advice are intentionally unavailable. Stop
 any previous owned app session before switching providers. The UI launcher prints
 its actual URL and checks engine readiness; GraphHopper listens on loopback port
 8989. Engine data is persistent and ignored by Git. Stop the app and engine

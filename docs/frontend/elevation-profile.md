@@ -22,6 +22,13 @@ Large tracks are sampled to a soft budget of 1,200 plotted points, preserving en
 
 Chart updates ignore replayed pointer events so updating a selected dot cannot overwrite a keyboard selection with an old hover. Theme/locale/route changes dispose the prior chart and its callbacks. Missing inspected heights have an unknown-height readout and map marker, without an invented chart dot.
 
+Control inspection owns its selection through layout-induced canvas leave and
+stationary reentry. A leave event cannot select an in-chart point even when the
+canvas moves before Chart.js processes it. Queued pointer input updates the
+physical-position baseline without replacing a newer control selection; older
+events cannot move that baseline backwards. Deliberate movement, click or touch
+resumes pointer inspection, and leaving the chart then clears pointer inspection.
+
 This feature does not estimate slopes, smooth elevations, color slopes, navigate during a ride, or improve route quality. It does not change provider budgets or deployment decisions.
 
 ## Verification

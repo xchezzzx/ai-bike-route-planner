@@ -4,6 +4,11 @@ The user authorized autonomous implementation, logical commits, PRs and merges
 after green CI on 2026-09-29. This plan uses that authorization; paid services,
 new live Gemini/ORS qualification and real-device acceptance are not implied.
 
+Dot's 2026-10-06 iteration was local-only. On 2026-10-07 the owner approved
+execution of the [post-dot plan](../superpowers/plans/2026-10-06-post-dot-route-quality.md)
+using the standing commit/PR/green-CI merge authorization. See the
+[local acceptance checklist](../development/local-mvp-acceptance.md).
+
 ## Delivery sequence
 
 - [x] Distance/time ranges: domain, strict API, selection/calibration, prompt
@@ -12,14 +17,21 @@ new live Gemini/ORS qualification and real-device acceptance are not implied.
   fencing, translated errors, browser tests; separate PR.
 - [x] Geographic track names: licensed local settlement data, deterministic
   naming, consistent API/GPX/UI/download; separate PR.
+- [x] Local GraphHopper 11.1 integration: delivered in PR #27; persistent regional
+  graph/elevation data, manual testing without ORS/Gemini credentials.
 - [x] Protected deployment preparation: same-origin container, tester access, bounded API
   consumption, secret configuration, CI-controlled deployment and runbook.
 - [ ] Public environment verification: deferred to a separate joint task;
   hosting provider is not selected.
 - [ ] User manual road-quality and device checks (not an automated claim).
 - [ ] Road-loop search reliability: evaluate fixed-seed calibration, prototype
-  road-network waypoints if needed, and clarify empty-result wording. See the
+  road-network waypoints if needed. Empty-result wording is delivered and PR #28
+  adds a soft geometric ranking signal; actual route quality remains open. See the
   [backlog and acceptance criteria](../mvp-roadmap.md#backlog-road-loop-search-reliability-2026-09-30).
+- [x] Interactive elevation profile for the selected track (PR #26): distance/elevation
+  chart below the map, point inspection linked to the map, elevation metrics,
+  missing-data handling and desktop/mobile EN/RU/HE support. See the
+  [MVP backlog and acceptance criteria](../mvp-roadmap.md#mvp-backlog-interactive-elevation-profile-2026-09-30).
 
 Geolocation was independently ready first and merged as PR #18 after green PR CI.
 The ranges branch is integrated on that main revision; remaining PRs are delivered

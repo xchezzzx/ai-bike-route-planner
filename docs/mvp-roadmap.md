@@ -4,6 +4,51 @@ This is the staged direction agreed in the project conversation. Backend:
 C#/.NET 10 modular monolith. Frontend: React + TypeScript, web only. Initial
 service area: Israel. Languages: English, Hebrew (RTL), and Russian.
 
+## Current local MVP priority (2026-10-07)
+
+GraphHopper 11.1 integration is delivered in PR #27, linked elevation inspection
+and the compact selector in PR #26, and soft near-return ranking in PR #28.
+Dot's bounded elevation-input stabilization is being integrated; these features
+do not need reimplementation. A geometric warning does not certify rideability.
+
+Use local GraphHopper, Manual/Road and AI refinement off. Follow the
+[post-dot plan](superpowers/plans/2026-10-06-post-dot-route-quality.md): stabilize
+inspection, consolidate launch/runtime, freeze route-quality controls, propagate
+elevation preference into construction, then evaluate native turn-aware loops.
+Keep exact targets, surface/access gates and the existing call/deadline budgets.
+
+The [local acceptance checklist](development/local-mvp-acceptance.md) separates
+automated fixtures from owner road/device/phone checks. ORS/Gemini live
+qualification and cloud hosting remain separate; no host is selected.
+
+## First priority: local GraphHopper route-quality evaluation (2026-10-01)
+
+The user selected a self-hosted GraphHopper engine and local testing as the
+first implementation priority, ahead of other feature additions and cloud
+deployment. The integration was subsequently delivered in PR #27, not proof
+of improved route quality. The original decision and its acceptance criteria
+below remain useful for the ongoing quality evaluation.
+
+- Run a pinned GraphHopper release in a separate local Docker service; retain
+  the C# modular monolith and the existing provider boundary.
+- Prepare a regional OpenStreetMap graph and a configurable road-bike profile.
+  Persist and version the generated graph separately from source code; do not
+  rebuild it on every normal server start or commit large datasets to Git.
+- Write and review the integration design and implementation plan before
+  product-code changes, dependencies or engine setup.
+- First compare road selection through fixed control points; then assess loop
+  generation, distance-range matching, retracing, unnecessary maneuvers, known
+  surface coverage and unknown data. Do not infer road safety from road class.
+- Use local requests and existing saved evidence for initial evaluation.
+  Self-hosted routing needs no commercial GraphHopper API account or key.
+  No new live ORS/Gemini calls are authorized by this priority change; retain
+  ORS as a baseline without silently calling it as a fallback.
+- Record import time, graph size, peak memory, startup/readiness time and route
+  latency before choosing resource settings or recommending cloud hosting.
+- Azure Container Apps is a possible later destination, not a selected or
+  provisioned deployment. Cloud setup, billing and credentials remain deferred
+  to a separate joint task.
+
 ## Current release acceptance (2026-09-30)
 
 The user approved merging PRs #15-#17 after green CI, including adaptive loop
@@ -149,9 +194,9 @@ lanes or legal access, and it does not change the ORS routing profile.
    V2 advisor corpus passed 6/6. Adaptive length calibration is implemented and
    offline-tested and merged under the limited release acceptance above; real
    route-quality improvement remains unverified.
-5. Simplify start selection with a Loop / A-B control and opt-in browser
-   geolocation, then add automatic track names and verify actual Israeli
-   route/GPX quality.
+5. Loop / A-B selection, opt-in geolocation, canonical track names, settlement
+   search and linked elevation inspection are implemented. Stabilize and verify
+   these together, then complete actual Israeli route/GPX/device acceptance.
 6. Cloud deployment is deferred to a separate joint task: choose a provider,
    verify its current terms, then configure hosting, secrets and HTTPS acceptance.
 
@@ -199,6 +244,41 @@ The [bounded live comparison](evaluation/road-loop-live-2026-09-30.md) used
 The simple fixed-seed arm lost diversity in Tel Aviv; the Haifa comparison
 remains incomplete. Keep the existing production strategy and the live/manual
 quality gate open.
+
+## MVP backlog: interactive elevation profile (2026-09-30)
+
+Requested using the supplied RouteCycle screenshot as a visual reference.
+Display a responsive elevation chart below the map for the selected generated
+track, using the route's existing geometry and elevation samples first.
+
+The core chart/inspection feature below was delivered in PR #26 using Chart.js.
+Slope calculation and slope-based colors remain separate, unimplemented extras.
+
+- [x] Plot cumulative distance along the track in kilometres on the horizontal
+  axis and elevation in metres on the vertical axis, with a filled profile.
+  Keep route order from start to finish, including loops and repeated sections.
+- [x] Show distance and elevation at the inspected point on hover, keyboard
+  focus or touch selection, and highlight the corresponding point on the map.
+  Update the chart and clear the inspected point when the selected route changes
+  or planning results are invalidated.
+- [x] Show minimum/maximum known elevation and the existing route ascent/descent
+  metrics.
+- [ ] Add slope values and slope-based section colours only where the data
+  supports a meaningful calculation; define sampling and noise handling during
+  implementation. Do not infer surface coverage from the elevation chart.
+- [x] Treat missing elevation as missing data: show gaps or an unavailable state,
+  never replace unknown samples with zero or fabricate a continuous profile.
+  Support valid zero and below-sea-level elevations. Route selection and GPX
+  export must remain available when elevation data is absent.
+- [x] Support desktop/mobile, light/dark themes, EN/RU/HE and accessible units
+  and labels in automated fixtures. Real phone acceptance remains open; no
+  external elevation calls are introduced.
+
+Acceptance: test flat, climbing, descending and loop tracks, duplicate points,
+partial/missing elevation and below-sea-level samples; verify chart/map point
+correspondence, route switching and invalidation. Inspect desktop/mobile layouts
+and Hebrew RTL without overflow or overlapping labels. Large tracks must remain
+responsive, and display downsampling must preserve track-to-map correspondence.
 
 ## Implemented addition: automatic track names
 

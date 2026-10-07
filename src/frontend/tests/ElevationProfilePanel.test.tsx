@@ -127,3 +127,73 @@ it('ignores hover queued before a newer slider selection but accepts fresh point
   state.charts[0].options.onClick(fresh);
   expect(inspect).toHaveBeenLastCalledWith(0);
 });
+
+it('preserves control inspection through canvas leave and stationary reentry', () => {
+  const options = props();
+  const { rerender } = render(<ElevationProfilePanel {...options} />);
+  const pointer = new MouseEvent('mousemove', { clientX: 75, clientY: 50 });
+  state.charts[0].options.onHover({ type: 'mousemove', x: 75, y: 50, native: pointer });
+  fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
+  rerender(<ElevationProfilePanel {...options} inspectedIndex={3} />);
+  const inspect = options.onInspect as ReturnType<typeof vi.fn>;
+  const calls = inspect.mock.calls.length;
+  fireEvent.mouseLeave(screen.getByRole('img', { name: 'Elevation profile' }), { clientX: 75, clientY: 50 });
+  state.charts[0].options.onHover({ type: 'mouseout', x: 75, y: 50,
+    native: new MouseEvent('mouseout', { clientX: 75, clientY: 50 }) });
+  state.charts[0].options.onHover({ type: 'mousemove', x: 75, y: 50,
+    native: new MouseEvent('mousemove', { clientX: 75, clientY: 50 }) });
+  expect(inspect).toHaveBeenCalledTimes(calls);
+  expect(screen.getByRole('slider')).toHaveValue('3');
+  state.charts[0].options.onClick({ type: 'click', x: 75, y: 50,
+    native: new MouseEvent('click', { clientX: 75, clientY: 50 }) });
+  expect(inspect).toHaveBeenLastCalledWith(2);
+  fireEvent.mouseLeave(screen.getByRole('img', { name: 'Elevation profile' }), { clientX: 75, clientY: 50 });
+  expect(inspect).toHaveBeenLastCalledWith(null);
+});
+
+it('records rejected queued movement so stationary reentry cannot overwrite control inspection', () => {
+  const options = props();
+  const { rerender } = render(<ElevationProfilePanel {...options} />);
+  const pointer = (clientX: number, timeStamp: number) => {
+    const native = new MouseEvent('mousemove', { clientX, clientY: 50 });
+    Object.defineProperty(native, 'timeStamp', { value: timeStamp });
+    return { type: 'mousemove', x: 75, y: 50, native };
+  };
+  state.charts[0].options.onHover(pointer(75, 0));
+  const queued = pointer(76, 1);
+  fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
+  rerender(<ElevationProfilePanel {...options} inspectedIndex={3} />);
+  const inspect = options.onInspect as ReturnType<typeof vi.fn>;
+  const calls = inspect.mock.calls.length;
+  state.charts[0].options.onHover(queued);
+  state.charts[0].options.onHover(pointer(76, Number.MAX_SAFE_INTEGER - 1));
+  expect(inspect).toHaveBeenCalledTimes(calls);
+  state.charts[0].options.onHover(pointer(77, Number.MAX_SAFE_INTEGER));
+  expect(inspect).toHaveBeenLastCalledWith(2);
+});
+
+it('keeps keyboard-only inspection on the first stationary pointer event', () => {
+  const options = props();
+  const { rerender } = render(<ElevationProfilePanel {...options} />);
+  fireEvent.focus(screen.getByRole('slider'));
+  fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
+  rerender(<ElevationProfilePanel {...options} inspectedIndex={3} />);
+  const inspect = options.onInspect as ReturnType<typeof vi.fn>;
+  const calls = inspect.mock.calls.length;
+  const stationary = new MouseEvent('mousemove', { clientX: 75, clientY: 50 });
+  state.charts[0].options.onHover({ type: 'mousemove', x: 75, y: 50, native: stationary });
+  expect(inspect).toHaveBeenCalledTimes(calls);
+  state.charts[0].options.onHover({ type: 'mousemove', x: 75, y: 50,
+    native: new MouseEvent('mousemove', { clientX: 76, clientY: 50 }) });
+  expect(inspect).toHaveBeenLastCalledWith(2);
+});
+
+it('accepts deliberate first pointer movement after keyboard-only inspection', () => {
+  const options = props();
+  render(<ElevationProfilePanel {...options} />);
+  fireEvent.change(screen.getByRole('slider'), { target: { value: '3' } });
+  const moving = new MouseEvent('mousemove', { clientX: 75, clientY: 50 });
+  Object.defineProperty(moving, 'movementX', { value: 1 });
+  state.charts[0].options.onHover({ type: 'mousemove', x: 75, y: 50, native: moving });
+  expect(options.onInspect).toHaveBeenLastCalledWith(2);
+});
