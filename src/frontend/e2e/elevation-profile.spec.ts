@@ -97,6 +97,29 @@ for (const locale of ['en', 'ru', 'he'] as const) test(`elevation profile, compa
   await expect(page.locator('.elevation-point')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+test('keyboard inspection survives viewport leave and reentry until deliberate pointer input', async ({ page }) => {
+  await generate(page, 'ru');
+  const canvas = page.locator('.elevation-chart canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + box.width * .75, box.y + box.height / 2);
+  await expect(page.locator('.elevation-point')).toHaveCount(1);
+  const slider = page.locator('.elevation-position');
+  await slider.focus();
+  await page.keyboard.press('End');
+  await expect(slider).toHaveValue('20');
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await expect(slider).toHaveValue('20');
+  await expect(page.locator('.elevation-point')).toHaveCount(1);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await canvas.scrollIntoViewIfNeeded();
+  await canvas.screenshot();
+  await expect(slider).toHaveValue('20');
+  const restored = (await canvas.boundingBox())!;
+  await page.mouse.move(restored.x + restored.width * .25, restored.y + restored.height / 2);
+  await expect(slider).not.toHaveValue('20');
+  await expect(page.locator('.elevation-point')).toHaveCount(1);
+});
 test('missing elevations retain route switching and GPX', async ({ page }) => {
   const requests = await generate(page, 'en', route);
   const profile = page.getByRole('region', { name: 'Elevation profile', exact: true });

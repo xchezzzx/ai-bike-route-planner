@@ -23,13 +23,24 @@ export default function ElevationProfilePanel({ route, locale, theme, color, ins
   const canvas = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart<'line', Datum[]> | null>(null);
   const inspectRef = useRef(onInspect);
-  const pointerPosition = useRef<{ x: number; y: number } | null>(null);
+  const pointerPosition = useRef<{ x: number; y: number; timeStamp: number } | null>(null);
   const controlSelectionTime = useRef(-Infinity);
+  const controlOwnsInspection = useRef(false);
   useEffect(() => { inspectRef.current = onInspect; }, [onInspect]);
   const current = inspectedIndex === null ? null : profile.points[inspectedIndex] ?? null;
   const inspectFromControl = (index: number | null, timeStamp: number) => {
     controlSelectionTime.current = timeStamp;
+    controlOwnsInspection.current = true;
     onInspect(index);
+  };
+  const recordPointer = (event: MouseEvent) => {
+    const { clientX: x, clientY: y, timeStamp, movementX, movementY } = event;
+    const previous = pointerPosition.current;
+    if (previous && timeStamp < previous.timeStamp) return false;
+    pointerPosition.current = { x, y, timeStamp };
+    if (!previous) return !controlOwnsInspection.current || Boolean(movementX || movementY);
+    return previous.x !== x || previous.y !== y
+      || (!controlOwnsInspection.current && Boolean(movementX || movementY));
   };
   const pointText = (index: number) => {
     const point = profile.points[index];
@@ -44,17 +55,18 @@ export default function ElevationProfilePanel({ route, locale, theme, color, ins
     let disposed = false;
     const inspect = (event: ChartEvent) => {
       if (disposed) return;
+      // Record even queued input rejected below, so reentry at that physical
+      // position is not mistaken for new movement after a control selection.
+      const moved = event.native instanceof MouseEvent ? recordPointer(event.native) : true;
       // Chart.js queues native events until the next frame. Older pointer input
       // must not overwrite a newer selection made directly on the controls.
       if (event.native && event.native.timeStamp < controlSelectionTime.current) return;
       // A redraw/scroll can emit a mouse event without user movement. Keep
       // keyboard inspection until the pointer actually moves or the user taps.
-      if (event.type === 'mousemove' && event.native instanceof MouseEvent) {
-        const { clientX: x, clientY: y, movementX, movementY } = event.native;
-        const previous = pointerPosition.current;
-        pointerPosition.current = { x, y };
-        if (previous?.x === x && previous.y === y && !(movementX || movementY)) return;
-      }
+      // A leave event can still have in-chart coordinates after layout moves.
+      // React handles pointer-owned leave; it must not become a new hover.
+      if (event.type === 'mouseout' || (event.type === 'mousemove' && !moved)) return;
+      controlOwnsInspection.current = false;
       if (event.x == null || event.y == null || event.x < chart.chartArea.left || event.x > chart.chartArea.right
         || event.y < chart.chartArea.top || event.y > chart.chartArea.bottom) {
         inspectRef.current(null);
@@ -107,7 +119,10 @@ export default function ElevationProfilePanel({ route, locale, theme, color, ins
       {profile.knownCount < profile.points.length && <p className="elevation-status">{t(locale, 'elevationPartial')}</p>}
       <div className="elevation-chart">
         <canvas ref={canvas} role="img" aria-label={t(locale, 'elevationProfile')}
-          onMouseLeave={() => onInspect(null)} />
+          onMouseLeave={event => {
+            recordPointer(event.nativeEvent);
+            if (!controlOwnsInspection.current) onInspect(null);
+          }} />
       </div>
       <input className="elevation-position" type="range" min={0} max={profile.points.length - 1} step={1}
         value={current?.index ?? 0} aria-label={t(locale, 'trackPoint')} aria-valuetext={pointText(current?.index ?? 0)}
