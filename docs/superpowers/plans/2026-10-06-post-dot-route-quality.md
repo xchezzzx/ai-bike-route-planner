@@ -27,8 +27,9 @@
 - [Road-network waypoint design](../specs/2026-10-14-road-network-waypoint-design.md)
   is a proposal awaiting owner architecture review, not an implemented subsystem
   or approved implementation plan. Typed provider propagation remains pending.
-- Narrow source-map-js dev-dependency patch1.2.2 is tracked separately in PR32;
-  no new dependency or product behavior is bundled with this evaluation.
+- Narrow source-map-js dev-dependency patch1.2.2 delivered in PR32 after green CI;
+  npm audit reports zero findings and GitHub marked alert1 fixed. No new dependency
+  or product behavior is bundled with this evaluation.
 
 ### Original analysis snapshot, 2026-10-06
 

@@ -91,6 +91,22 @@ Request latency was 65-518 ms, including cold first request. Long close returns
 survive despite turn-aware weighting. Changing junction/reversal cost alone does
 not demonstrate the intended logical-ring improvement on these controls.
 
+## Final application smoke
+
+The primary API was restarted through the tracked persistent launcher. One
+explicit public Haifa 35-45 km / Minimize request returned HTTP 200, three routing
+attempts, two retained candidates, zero exclusions. Candidates were 39.73 km /
+449.93 m ascent (score 0.09982) and 39.52 km / 1093.47 m (score 0.22983); the lower
+ascent candidate is first. Selected `Haifa-loop-road-40` GPX has 1003 points and
+matches the selected API geometry's count, order, coordinates, optional heights
+and name exactly. No extra routing call was made for GPX validation.
+
+This adds three application attempts beyond the 18 comparison requests. The
+public API does not expose the third attempt's duplicate/no-route distinction;
+do not infer it from the retained count. Original request/response and redacted
+smoke summary are saved locally. This is automated API/GPX verification, not
+browser-owner, cycling-device or real-road acceptance.
+
 ## What this does not close
 
 Automated geometry warnings do not establish that every reported passage is

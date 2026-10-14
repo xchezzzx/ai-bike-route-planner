@@ -20,7 +20,7 @@ other native profiles, but do not justify promoting either tested model.
 | Hand-curated regional anchor templates | Fast in familiar regions | Manual coverage/maintenance; too close to a ready-route catalog for the original product intent |
 | Local road-network anchor catalog + complete GraphHopper paths | Reproducible network-based construction, no extra online waypoint queries | Offline export and bounded catalog/selection module; must prove quality |
 
-**Recommended proposal:** third option, initially opt-in for local road loops.
+**Recommended proposal:** third option, initially opt-in for local **manual** road loops.
 Keep .NET modular monolith, React and GraphHopper. No database, cloud, mobile app,
 new AI agent framework or paid service is required for this phase.
 
@@ -70,21 +70,28 @@ and local during the prototype.
 
 ## Runtime and budgets
 
-- Default construction remains native. A future explicit local configuration mode
-  opts into waypoints only with a compatible catalog; missing/mismatched catalog
+- Default construction remains native. A future explicit local **manual-search**
+  configuration mode opts into waypoints only with a compatible catalog; missing/mismatched catalog
   returns an honest configuration error, not an undisclosed provider switch.
 - Exact requested start remains the route start; normal provider road snapping is
   visible, not an arbitrary move to a convenient settlement or anchor.
-- Reuse current initial-length/calibration and seeds 1-3. Maximum **three HTTP
+- For manual search, reuse current initial-length/calibration and seeds 1-3. Maximum **three HTTP
   routing calls total**, sequential, with the existing 45-second application
   deadline and 15-second client deadline. No extra `/nearest`, `/isochrone`, ORS
   or Gemini calls are hidden outside that count.
+- Advisor-assisted search is outside this prototype. Keep its native construction,
+  existing 90-second overall deadline, three routing calls/one advisor call and
+  accepted third-attempt seeds 3-16 unchanged. Do not put a global provider switch
+  or mutable singleton flag in front of both workflows. Enabling waypoint
+  construction for the advisor requires a separately reviewed extension and fresh
+  Gemini qualification budget; manual limits must not silently replace its limits.
 - Before implementation, verify whether engine `timeout_ms`/visited-node bounds
   apply per request or per leg. If per leg, divide a fixed total budget between
   legs or use an engine-supported total deadline. A multi-point HTTP request
   must not conceal multiplied server work after client cancellation.
 - Provider input should carry typed original preferences through normal/advisor
-  orchestration, with bounded supported behavior. No public preference overwrite,
+  orchestration as separately qualified preparatory work; that does not enable
+  this manual waypoint prototype for the advisor. No public preference overwrite,
   fabricated speed/duration, hard ascent cap or unqualified SeekClimbs promise.
 - Existing closure/deduplication, target/surface/waytype gates, missing-data
   warnings, eligible-only scores and exact selected GPX remain authoritative.
@@ -100,6 +107,9 @@ and local during the prototype.
 4. Add multi-point payload and orchestration tests before product code. Prove
    three-call/45-second cancellation behavior, closure, no-route outcomes, existing
    A-B/native compatibility and selected GPX identity.
+   Verify via-point traversal continuity and no forced immediate reversal at
+   anchors; choose supported pass-through/heading behavior only after pinned-engine
+   tests. Do not assume separate leg optimization creates a coherent ring.
 5. Compare native/waypoint arms on the frozen public corpus and private replay-only
    controls. Record all failures/duplicates/exclusions, not only attractive paths.
    No new routing-call experiment budget is implied by approving this proposal.
