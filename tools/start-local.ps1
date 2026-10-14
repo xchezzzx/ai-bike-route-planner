@@ -2,6 +2,7 @@
 [CmdletBinding()]
 param(
     [switch]$Stop,
+    [switch]$Persistent,
     [ValidateSet('OpenRouteService', 'GraphHopper')][string]$RoutingProvider = 'OpenRouteService',
     [string]$GraphHopperUrl = 'http://127.0.0.1:8989/'
 )
@@ -9,6 +10,12 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'local-routing.ps1')
 $root = Split-Path $PSScriptRoot -Parent
 $statePath = Join-Path $root 'artifacts/local-servers.json'
+if ($Persistent) {
+    if ($Stop) { throw '-Persistent and -Stop are mutually exclusive; stop uses the existing ownership manifest.' }
+    . (Join-Path $PSScriptRoot 'local-persistent.ps1')
+    Invoke-PersistentLocalSession -Root $root -RoutingProvider $RoutingProvider -GraphHopperUrl $GraphHopperUrl
+    return
+}
 
 function Get-OwnedProcess($entry) {
     $process = Get-Process -Id $entry.id -ErrorAction SilentlyContinue
@@ -32,6 +39,13 @@ if (Test-Path -LiteralPath $statePath) {
     }
     if ($owned.Count -gt 0) {
         Assert-LocalRoutingSession -State $state -RoutingProvider $RoutingProvider
+        if ($owned.Count -ne 2 -or @($state.processes).Count -ne 2) {
+            throw 'Local session is incomplete. Use tools/start-local.ps1 -Stop before restarting.'
+        }
+        $persistentSession = $state.PSObject.Properties['launchMode'] -and $state.launchMode -ceq 'persistent'
+        if ($env:CYCLING_LOCAL_PERSISTENT_BROKER -eq '1' -and -not $persistentSession) {
+            throw 'Existing session has no persistent-launch provenance. Use tools/start-local.ps1 -Stop before restarting with -Persistent.'
+        }
         Write-Output "Existing local session: $($state.frontendUrl) (API $($state.backendUrl))."
         Write-Output 'Use tools/start-local.ps1 -Stop before starting another session.'
         return
@@ -91,7 +105,8 @@ try {
         try { if ((Invoke-WebRequest $frontendUrl -TimeoutSec 2).StatusCode -eq 200) { $ready = $true; break } } catch { Start-Sleep -Milliseconds 250 }
     }
     if (-not $ready) { throw 'Frontend did not become ready.' }
-    @{ frontendUrl = $frontendUrl; backendUrl = $backendUrl; routingProvider = $RoutingProvider; logDirectory = $logs; processes = @($children | ForEach-Object { @{ id = $_.Id; startTicks = $_.StartTime.ToUniversalTime().Ticks } }) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $statePath -Encoding utf8
+    $launchMode = if ($env:CYCLING_LOCAL_PERSISTENT_BROKER -eq '1') { 'persistent' } else { 'ordinary' }
+    @{ frontendUrl = $frontendUrl; backendUrl = $backendUrl; routingProvider = $RoutingProvider; launchMode = $launchMode; logDirectory = $logs; processes = @($children | ForEach-Object { @{ id = $_.Id; startTicks = $_.StartTime.ToUniversalTime().Ticks } }) } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $statePath -Encoding utf8
     $committed = $true
     Write-Output "Frontend: $frontendUrl"
     Write-Output "API: $backendUrl"
