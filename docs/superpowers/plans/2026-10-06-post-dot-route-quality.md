@@ -12,6 +12,26 @@
 
 ## Verified starting point
 
+### Execution update, 2026-10-14
+
+- Task1 delivered PR29; persistent Windows launch/runtime consolidation delivered
+  PR30; eligible-only ranking and frozen native controls delivered PR31. All
+  merges required exact-head green CI, including the new Windows broker check.
+- Physical obsolete-worktree cleanup is policy-blocked; preserve its data.
+  Full assistant-turn survival and real owner/device/phone acceptance need a later
+  independent check. Launcher-exit/reuse/stop/restart checks passed.
+- Both reviewed bounded native construction experiments completed (18 regional
+  calls total, zero ORS/Gemini). Slope median ascent benefit2.14% and turn median
+  near-return benefit0.86% fail their declared screens; neither model is adopted.
+  See [construction evidence](../../evaluation/graphhopper-construction-2026-10-14.md).
+- [Road-network waypoint design](../specs/2026-10-14-road-network-waypoint-design.md)
+  is a proposal awaiting owner architecture review, not an implemented subsystem
+  or approved implementation plan. Typed provider propagation remains pending.
+- Narrow source-map-js dev-dependency patch1.2.2 is tracked separately in PR32;
+  no new dependency or product behavior is bundled with this evaluation.
+
+### Original analysis snapshot, 2026-10-06
+
 - Primary checkout and origin/main: `fd4e9ea` (PR #28). No new published PR or commit from dot was found.
 - Dot's worktree: `C:/Users/milyu/Documents/Codex/2026-10-06/task/mvp-stability`, branch `oleg/local-mvp-stability`, same base commit. Nine changed/new files remain uncommitted: three frontend files and six documents.
 - The code change adds control ownership of elevation inspection, timestamped pointer-position tracking, layout-induced mouseout suppression, four unit regressions and one browser scenario run on both projects.
@@ -102,10 +122,10 @@ job and Linux unsupported-platform coverage.
 
 - [ ] Write and review the small provider-contract/experiment design, including Balanced baseline, Minimize behavior, unsupported SeekClimbs behavior, and the scope of A-B support.
 - [ ] Add payload and orchestration tests: Minimize reaches the adapter; Balanced preserves baseline behavior; all fakes/providers compile; limits/cancellation/range gates are unchanged; no ORS fallback occurs.
-- [ ] Probe a request-level priority rule using imported `average_slope` on the current flexible-routing profile. Check signed-direction behavior and unknown elevation handling. Do not assume `max_slope` is available.
+- [x] Probe a request-level priority rule using imported `average_slope` on the current flexible-routing profile. Six matched local calls completed after independent design review; signed-direction semantics verified from pinned source, unknown states retained, no max_slope assumption.
 - [ ] Keep the base racingbike/elevation/road models and access/surface restrictions. Prefer priority changes for the experiment rather than falsifying speed/provider duration.
-- [ ] Compare Balanced and Minimize on matched starts, seeds, lengths and graph identity. Report retained counts, ascent distribution, duration, near returns and latency, including failed or empty cases.
-- [ ] Adopt a model only if evidence shows an ascent benefit without materially degrading eligibility, geometry or budgets. Otherwise preserve baseline and publish the failed experiment; Minimize is not a guarantee or hard cap.
+- [x] Compare Balanced baseline and the experimental slope model on matched starts, seeds, lengths and graph identity. All outcomes published in graphhopper-construction-2026-10-14.md; this is a native model probe, not implemented product Minimize behavior.
+- [x] Adopt a model only if evidence passes the declared screens. The tested model failed the 10% median ascent screen (2.14% observed); preserve baseline and publish the negative result. Typed preference propagation/product adoption remain unimplemented, not silently claimed complete.
 
 **Deliverable:** Evidence-backed construction preference, or a documented negative result. Average-slope capability already exists, so reimporting the graph is not the first prerequisite for this experiment.
 
@@ -116,10 +136,10 @@ Reference: [GraphHopper 11.1 custom models](https://github.com/graphhopper/graph
 **Files:** Separate design, `infra/graphhopper/config.yml`, `road.json`, engine launcher/import tests, adapter integration tests and saved-response evaluation. A larger waypoint generator requires its own reviewed module boundaries.
 
 - [ ] Use the same corpus to distinguish instructed reversals/junction penalties from long close return passages on different graph edges.
-- [ ] Verify exact GraphHopper 11.1 turn-cost/encoded-value prerequisites before selecting penalty expressions. The previous `orientation` probe failed; do not add ineffective request values.
-- [ ] Import a separately named experimental graph/profile with a distinct cache identity, preserving the baseline cache. Measure import time, memory and route latency.
-- [ ] Compare baseline and experimental profiles under identical controls. Judge complete route geometry, not only maneuver count; necessary access stems and hairpins must remain viable.
-- [ ] If native construction still produces inadequate rings, design road-network waypoint generation and use GraphHopper for connected legs. Account for leg calls in a separately approved total budget before implementation.
+- [x] Verify exact GraphHopper 11.1 turn-cost/encoded-value prerequisites before selecting penalty expressions. Independent pinned-source review confirmed orientation import, bicycle turn costs and finite same-edge U-turn semantics.
+- [x] Import a separately named experimental graph/profile with a distinct cache identity, preserving the baseline cache. Import 85.891s, peak1.09GiB, graph112MB; separate ignored graph/config, own container cleaned up.
+- [x] Compare baseline and experimental profiles under identical controls. Six calls, same5/6eligible; median near-return reduction0.86% fails20% screen. Both tested models leave logical-ring symptoms; full riding suitability still requires owner assessment.
+- [x] Draft road-network waypoint generation proposal with connected GraphHopper paths and three total HTTP calls, no hidden per-leg work. Separate architecture approval/feasibility and experiment budget are still required before implementation.
 - [ ] Promote only verified changes; do not make unsafe main-road preferences or broaden access rules to obtain simpler-looking tracks.
 
 **Deliverable:** A demonstrated construction improvement or evidence that justifies the separate waypoint project. Soft warnings alone do not close this task.
@@ -141,3 +161,8 @@ Reference: [GraphHopper 11.1 custom models](https://github.com/graphhopper/graph
 Task 1 -> Task 2 -> Task 3 -> Task 4 -> Task 5 -> Task 6.
 
 The immediate next action is to integrate and publish dot's existing bounded UI fix with green Linux CI. The next major product investment is Task 4 (construction-aware Minimize), followed by Task 5 (logical loop construction), not more cosmetic UI features or cloud deployment.
+
+The paragraph above records the original ordering. After the 2026-10-14 execution,
+the next architectural action is owner review of the waypoint proposal and its
+read-only-export/total-budget prerequisites. Do not repeat completed UI/launcher
+work or adopt failed native experiments to make the checklist look complete.
