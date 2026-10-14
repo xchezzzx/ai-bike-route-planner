@@ -117,6 +117,54 @@ public class RoadCandidateSelectorTests
 		Assert.Equal(RoutingFailure.InvalidResponse, Assert.Throws<RoutingException>(() => Select(path)).Failure);
 	}
 
+	[Theory]
+	[InlineData(ElevationPreference.Minimize, "target", 0.06, 0.2)]
+	[InlineData(ElevationPreference.Minimize, "surface", 0.06, 0.2)]
+	[InlineData(ElevationPreference.Minimize, "way", 0.06, 0.2)]
+	[InlineData(ElevationPreference.SeekClimbs, "target", 0.02, 0.16)]
+	[InlineData(ElevationPreference.SeekClimbs, "surface", 0.02, 0.16)]
+	[InlineData(ElevationPreference.SeekClimbs, "way", 0.02, 0.16)]
+	public void ExcludedHighAscentOutlier_DoesNotChangeEligibleScoresOrOrder(
+		ElevationPreference elevation, string exclusion, double firstScore, double secondScore)
+	{
+		var path = WithSurface(LoopGeometryMetricsTests.Meters((0, 0), (10000, 0), (10000, 10000), (0, 10000), (0, 0)), 0);
+		var first = new RouteCandidate(1, path with { DistanceMeters = 40000, AscentMeters = elevation == ElevationPreference.Minimize ? 500 : 100 });
+		var second = new RouteCandidate(2, path with { DistanceMeters = 41000, AscentMeters = elevation == ElevationPreference.Minimize ? 100 : 500 });
+		var outlier = path with { DistanceMeters = exclusion == "target" ? 200000 : 40000, AscentMeters = 10000 };
+		if (exclusion == "surface") outlier = WithSurface(outlier, path.Evidence!.GeometryLengthMeters * 0.1);
+		if (exclusion == "way") outlier = outlier with { Evidence = outlier.Evidence! with {
+			WaytypeSupplied = true, Ways = new(path.Evidence!.GeometryLengthMeters - 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0) } };
+		var intent = new RouteIntent(new(0, 0), RouteShape.Loop, CyclingProfile.Road, new(40000), elevation: elevation);
+		var selector = new RoadCandidateSelector(new(), new());
+		var baseline = selector.Select(intent, [first, second], TestContext.Current.CancellationToken);
+		var result = selector.Select(intent, [first, second, new(3, outlier)], TestContext.Current.CancellationToken);
+		Assert.Equal(new[] { 2, 1 }, baseline.Retained.Select(x => x.Candidate.Seed));
+		Assert.Equal(new[] { 2, 1 }, result.Retained.Select(x => x.Candidate.Seed));
+		Assert.Equal(firstScore, result.Retained[0].Assessment.Score, 10);
+		Assert.Equal(secondScore, result.Retained[1].Assessment.Score, 10);
+		Assert.Equal(baseline.Retained.Select(x => x.Assessment.Score), result.Retained.Select(x => x.Assessment.Score));
+		var excluded = Assert.Single(result.Excluded);
+		Assert.Equal(3, excluded.Seed);
+		Assert.Contains(exclusion switch { "target" => "targets_not_met", "surface" => "road_surface_limit_exceeded", _ => "road_waytype_excluded" }, excluded.Reasons);
+		Assert.True(result.AnyTargetsMatched);
+	}
+
+	[Fact]
+	public void AllRoadExcluded_KeepFullSetTargetMatchAndDiagnostics()
+	{
+		var path = WithSurface(LoopGeometryMetricsTests.Meters((0, 0), (10000, 0), (10000, 10000), (0, 10000), (0, 0)), 1000);
+		var result = new RoadCandidateSelector(new(), new()).Select(
+			new(new(0, 0), RouteShape.Loop, CyclingProfile.Road, new(40000), elevation: ElevationPreference.Minimize),
+			[new(1, path with { DistanceMeters = 40000, AscentMeters = null })], TestContext.Current.CancellationToken);
+		Assert.Empty(result.Retained);
+		Assert.True(result.AnyTargetsMatched);
+		var excluded = Assert.Single(result.Excluded);
+		Assert.True(excluded.Assessment.TargetsMatched);
+		Assert.Equal(0.2, excluded.Assessment.Score, 10);
+		Assert.NotNull(excluded.Assessment.Quality);
+		Assert.Equal(new[] { "road_surface_limit_exceeded" }, excluded.Reasons);
+	}
+
 	internal static RoutedPath WithSurface(RoutedPath path, double nonRoad)
 	{
 		var length = RouteGeometryMetrics.EdgeLengths(path.Points, default).Sum();

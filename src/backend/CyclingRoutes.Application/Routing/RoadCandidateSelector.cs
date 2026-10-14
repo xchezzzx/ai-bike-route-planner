@@ -12,7 +12,7 @@ public sealed class RoadCandidateSelector(RouteCandidateRanker ranker, RoadQuali
 	public RouteSelectionResult Select(RouteIntent intent, IReadOnlyList<RouteCandidate> candidates, CancellationToken cancellationToken)
 	{
 		cancellationToken.ThrowIfCancellationRequested();
-		var retained = new List<RankedRouteCandidate>();
+		var retained = new List<(RankedRouteCandidate Item, double RepeatPenalty)>();
 		var excluded = new List<ExcludedRouteCandidate>();
 		var ranked = ranker.Rank(intent, candidates);
 		foreach (var item in ranked)
@@ -23,8 +23,8 @@ public sealed class RoadCandidateSelector(RouteCandidateRanker ranker, RoadQuali
 			if (!item.Assessment.TargetsMatched) reasons.Add("targets_not_met");
 			if (q.Surface.NonRoadMeters > Math.Max(NonRoadMinimumMeters, NonRoadFraction * q.GeometryLengthMeters)) reasons.Add("road_surface_limit_exceeded");
 			if (q.Ways.StepsMeters > 0 || q.Ways.FerryMeters > 0 || q.Ways.ConstructionMeters > 0) reasons.Add("road_waytype_excluded");
-			var assessment = item.Assessment with { Quality = q, Score = item.Assessment.Score
-				+ RepeatScoreWeight * Math.Max(q.RemainingRepeatedMeters, nearReturn ?? 0) / q.GeometryLengthMeters };
+			var repeatPenalty = RepeatScoreWeight * Math.Max(q.RemainingRepeatedMeters, nearReturn ?? 0) / q.GeometryLengthMeters;
+			var assessment = item.Assessment with { Quality = q, Score = item.Assessment.Score + repeatPenalty };
 			if (reasons.Count > 0)
 			{
 				excluded.Add(new(item.Candidate.Seed, item.Candidate.Path.DistanceMeters, item.Candidate.Path.EstimatedDurationSeconds, assessment, reasons.ToArray()));
@@ -39,10 +39,18 @@ public sealed class RoadCandidateSelector(RouteCandidateRanker ranker, RoadQuali
 			if (q.Ways.FootwayMeters > 0) warnings.Add("road_footway_present");
 			if (q.RemainingRepeatedMeters / q.GeometryLengthMeters > RepeatWarningFraction) warnings.Add("road_retracing");
 			if (nearReturn / q.GeometryLengthMeters > RepeatWarningFraction) warnings.Add("road_near_return");
-			retained.Add(item with { Assessment = assessment, Warnings = warnings.ToArray() });
+			retained.Add((item with { Assessment = assessment, Warnings = warnings.ToArray() }, repeatPenalty));
 		}
 		cancellationToken.ThrowIfCancellationRequested();
-		return new(retained.OrderBy(x => x.Assessment.Score).ThenBy(x => x.Candidate.Seed).ToArray(), excluded.ToArray(), ranked.Any(x => x.Assessment.TargetsMatched));
+		// Excluded outliers must not change the elevation/target tradeoff between
+		// eligible routes. Keep their original assessments for exclusion diagnostics.
+		var reranked = ranker.Rank(intent, retained.Select(x => x.Item.Candidate).ToArray()).Select(item =>
+		{
+			var original = retained.First(x => ReferenceEquals(x.Item.Candidate, item.Candidate));
+			return item with { Assessment = item.Assessment with { Quality = original.Item.Assessment.Quality,
+				Score = item.Assessment.Score + original.RepeatPenalty }, Warnings = original.Item.Warnings };
+		});
+		return new(reranked.OrderBy(x => x.Assessment.Score).ThenBy(x => x.Candidate.Seed).ToArray(), excluded.ToArray(), ranked.Any(x => x.Assessment.TargetsMatched));
 	}
 
 	public static void AddWarnings(RouteSelectionResult result, List<string> warnings)
