@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "purpose": "Public-city engine controls, not verified riding starts or safety certification. Private reference GPXs stay local.",
+  "engineVersion": "11.1",
+  "graphIdentity": "da4d12ea274e7e6b7d6443bb72acad7119400dc4ace9c5cc43ec64446f283545",
+  "profile": "road",
+  "algorithm": "round_trip",
+  "requestedLengthMeters": 40000,
+  "selectionRangeMeters": { "min": 35000, "max": 45000 },
+  "seeds": [1, 2],
+  "maxCallsPerArm": 6,
+  "providerDeadlineSeconds": 15,
+  "engineTimeoutMs": 14000,
+  "cases": [
+    { "id": "tel-aviv", "start": { "latitude": 32.0853, "longitude": 34.7818 } },
+    { "id": "haifa", "start": { "latitude": 32.8191, "longitude": 34.9984 } },
+    { "id": "jerusalem", "start": { "latitude": 31.7839, "longitude": 35.2183 } }
+  ]
+}

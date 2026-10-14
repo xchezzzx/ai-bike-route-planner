@@ -109,10 +109,15 @@ at the boundary. This does not round route metrics, signed deviations or scores.
 
 When all known ascents are zero, their elevation penalty is zero. Missing ascent
 gets penalty 1 and elevation_data_unavailable for minimize/seekClimbs; it is
-never treated as zero ascent. Normalization happens after deduplication.
+never treated as zero ascent. Retained scores normalize over candidates remaining
+after deduplication and target/surface/waytype exclusions. An excluded ascent
+outlier cannot change eligible ordering. Excluded diagnostic assessments retain
+their original full-search normalization; compare their reasons/metrics, not
+their scores against retained scores.
 
 The road-v1 selector removes target failures and road-policy exclusions, then
-adds `0.2 * remainingRepeatedMeters / geometryLengthMeters` to the base score.
+adds `0.2 * max(remainingRepeatedMeters, nearReturnMeters or 0) / geometryLengthMeters`
+to the eligible-only base score, avoiding double-counted return penalties.
 Retained candidates sort by that score then seed. Elevation preference selects among
 the sampled candidates; it does not change road access rules or guarantee a
 specific ascent. Conflicting time/distance requests are not silently rewritten.

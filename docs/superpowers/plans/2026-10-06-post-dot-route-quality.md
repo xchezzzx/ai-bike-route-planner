@@ -86,11 +86,11 @@ job and Linux unsupported-platform coverage.
 **Interfaces:** Existing candidate response, `excludedCandidates`, offline replay, exact-repeat diagnostics and near-return heuristic. Any new local diagnostic export must be opt-in and kept out of Git.
 
 - [ ] Capture one exact problematic request and response locally: start, requested ranges, elevation preference, provider/profile, seeds and requested search lengths. The historic 1400+ m complaint cannot be reconstructed from engine logs alone.
-- [ ] Freeze a public-city corpus including flat and mountainous starts plus the user's private good/bad GPXs as local-only controls. Record graph/model identities and bounds before comparison.
+- [x] Freeze a public-city corpus including flat and mountainous starts plus the user's private good/bad GPXs as local-only controls. See graphhopper-road-control-v1.json and the 2026-10-14 quality report.
 - [ ] For each attempt record provider outcome, duplication, actual distance/time/ascent, retained/excluded reasons, unknown surface/elevation, exact repeats and approximate near returns. Avoid logging prompt text, coordinates or full GPXs by default.
-- [ ] Add a selector regression asserting that adding an excluded outlier does not alter eligible ascent ordering. Current normalization uses the maximum ascent before eligibility filtering; this is pre-existing, not introduced by dot.
-- [ ] Review the scoring change separately: preserve 80/20 weights unless explicitly redefined, compute the comparison normalization over eligible candidates, and retain honest excluded diagnostics and full-set target-match bookkeeping.
-- [ ] Publish baseline counts and timing, with field/manual judgments distinct from automated heuristics.
+- [x] Add a selector regression asserting that adding an excluded outlier does not alter eligible ascent ordering. Six target/surface/waytype counterexamples observed RED, then GREEN; pre-existing defect, not introduced by dot.
+- [x] Review the scoring change separately: 80/20 retained, eligible-only reranking implemented, honest excluded diagnostics/full-set bookkeeping preserved; fresh scoped review found no actionable defects. Full backend 459 unit + 639 integration PASS.
+- [x] Publish baseline counts and timing, with field/manual judgments distinct from automated heuristics. Six native local calls, five policy-eligible; actual riding safety remains unverified.
 
 **Deliverable:** An exact reproducible failure and a baseline suitable for comparing construction changes. Weight tuning alone cannot improve the geometry or ascent of a lone surviving route.
 
