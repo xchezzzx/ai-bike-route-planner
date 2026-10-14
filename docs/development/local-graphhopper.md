@@ -11,12 +11,96 @@ the container still drops all capabilities and disallows new privileges.
 
 ## Commands
 
-Run from the repository root:
+Start Docker Desktop with Linux containers and wait for `docker info` to succeed.
+Use the primary checkout on this Windows machine, not an archived side worktree.
+On other machines, substitute your repository root for the path below.
+
+### Start For Manual Testing
 
 ```powershell
+Set-Location D:\sources\ai-bike-route-planner
 pwsh -NoProfile -File tools/start-graphhopper.ps1
-pwsh -NoProfile -File tools/start-graphhopper.ps1 -SkipBuild -Restart -WaitSeconds 120
+pwsh -NoProfile -File tools/start-local.ps1 -Persistent -RoutingProvider GraphHopper
+```
+
+For subsequent starts with an image built from the current engine files:
+
+```powershell
+pwsh -NoProfile -File tools/start-graphhopper.ps1 -SkipBuild -WaitSeconds 120
+pwsh -NoProfile -File tools/start-local.ps1 -Persistent -RoutingProvider GraphHopper
+```
+
+Omit `-SkipBuild` on first setup or after changing engine files. Engine startup
+validates the cached inputs and graph; compatible data is reused, not imported
+again. The default local data now lives under the primary checkout at
+`D:\sources\ai-bike-route-planner\infra\graphhopper\artifacts\regional`.
+
+The Windows-only `-Persistent` switch starts the existing app launcher through a
+hidden WMI broker with `CREATE_BREAKAWAY_FROM_JOB`, preserving shell environment
+in memory and explicitly clearing ORS/Gemini credentials for GraphHopper. It does
+not install a service or scheduled task, enable reboot startup, or change TLS,
+firewall or loopback bindings. On Linux/macOS omit the switch. Ordinary launching
+remains available on Windows too, but task-host cleanup can terminate its children.
+See [Microsoft's process creation contract](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/create-method-in-class-win32-process).
+
+Unique ignored `artifacts/persistent-*` folders contain nonsecret routing parameters,
+startup logs and an atomic completion result. Broker errors do not trigger a
+fallback. After the 10-minute acknowledgement timeout, startup may still complete:
+inspect its log and the session manifest before retrying; stop with the ordinary
+`-Stop` command, not `-Persistent -Stop`. Provider routing deadlines are unchanged.
+
+Open the frontend URL printed by the app launcher (normally
+<http://127.0.0.1:5173/>). The API normally uses <http://127.0.0.1:5080/>;
+both ports can change if occupied. Choose **Manual**, **Road**, and keep
+**AI refinement** off. No ORS/Gemini keys are needed in this session.
+
+### Stop Or Restart
+
+Stop the app and engine separately; persistent data is retained:
+
+```powershell
+pwsh -NoProfile -File tools/start-local.ps1 -Stop
 pwsh -NoProfile -File tools/start-graphhopper.ps1 -Stop
+```
+
+Rebuild/restart the app after code changes, leaving the engine running:
+
+```powershell
+pwsh -NoProfile -File tools/start-local.ps1 -Stop
+pwsh -NoProfile -File tools/start-local.ps1 -Persistent -RoutingProvider GraphHopper
+```
+
+Restart only the engine with an unchanged, already-built image:
+
+```powershell
+pwsh -NoProfile -File tools/start-graphhopper.ps1 -SkipBuild -Restart -WaitSeconds 120
+```
+
+Without `-SkipBuild`, the same restart command rebuilds the image first. Avoid
+generating routes until readiness is reported. Running the app start command
+again reports an existing owned session; it does not rebuild/restart it or prove
+that the engine is still healthy. If changing from ORS to GraphHopper, stop the
+owned app session before starting it with `-RoutingProvider GraphHopper`.
+
+### Check Readiness
+
+From the repository root, read the actual API URL from the launcher manifest:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8989/info | Select-Object version, elevation, profiles
+$session = Get-Content -Raw artifacts/local-servers.json | ConvertFrom-Json
+Invoke-RestMethod "$($session.backendUrl)/health"
+```
+
+The engine must report version `11.1`, `elevation: true`, and profile `road`;
+the API must return `Healthy`. The manifest records the last launcher session,
+not proof that its processes are still running. Test API and engine separately.
+
+Offline launcher regression checks (not required for a manual test session):
+
+```powershell
+pwsh -NoProfile -File tools/test-local-routing.ps1
+pwsh -NoProfile -File tools/tests/persistent-local.tests.ps1
 ```
 
 The service remains running after the launcher exits. `-Stop` stops only the
@@ -167,15 +251,14 @@ Observed on 2026-10-01, not a benchmark or quality qualification:
 
 ## Application Manual Testing
 
-After engine readiness, start the app explicitly:
+Use the [start commands](#start-for-manual-testing) above, then check:
 
-```powershell
-pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
-# App stop (does not stop GraphHopper):
-pwsh -NoProfile -File tools/start-local.ps1 -Stop
-# Offline launcher regression checks:
-pwsh -NoProfile -File tools/test-local-routing.ps1
-```
+1. An A-B road route: start/destination selection, road choice and maneuvers.
+2. A road loop with a 35-45 km range: accepted and excluded candidates, actual
+   distance, and repeated sections. The range is not a guarantee of a result.
+3. Track surface/road-type patterns and warnings for unknown surfaces or paths.
+4. The elevation profile and its linked marker on the map.
+5. Selected-route GPX download: generated name, distance and geometry.
 
 Use the printed frontend URL; occupied 5173/5080 ports cause new ports to be
 selected without stopping unrelated processes. Choose Manual and keep AI

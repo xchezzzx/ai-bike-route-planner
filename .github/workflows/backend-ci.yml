@@ -61,6 +61,10 @@ jobs:
       shell: pwsh
       run: ./tools/test-local-routing.ps1
 
+    - name: Verify persistent launcher rejects unsupported platforms
+      shell: pwsh
+      run: ./tools/tests/persistent-local.tests.ps1
+
     - name: Build and smoke-test API container without keys
       shell: bash
       run: |
@@ -97,6 +101,25 @@ jobs:
     - name: Verify Linux persistent-data ownership without extra capabilities
       shell: pwsh
       run: ./infra/graphhopper/tests/linux-permissions.ps1
+
+  windows-launcher:
+    name: Verify Windows persistent launcher
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: "10.0.x"
+    - uses: actions/setup-node@v7
+      with:
+        node-version: "24"
+    - name: Verify native broker and safe startup failures without provider calls
+      shell: pwsh
+      run: ./tools/tests/persistent-local.tests.ps1
+    - name: Verify ownership and configuration isolation
+      shell: pwsh
+      run: ./tools/test-local-routing.ps1
 
   protected-deployment:
     name: Smoke protected full-app container

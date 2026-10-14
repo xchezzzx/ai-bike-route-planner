@@ -26,10 +26,21 @@ older side-worktree session:
 ```powershell
 Set-Location D:\sources\ai-bike-route-planner
 pwsh -NoProfile -File tools/start-graphhopper.ps1
-pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
+pwsh -NoProfile -File tools/start-local.ps1 -Persistent -RoutingProvider GraphHopper
 ```
 
 On other machines, substitute your repository root for the `Set-Location` path.
+`-Persistent` is Windows-only: a hidden local WMI broker keeps the app outside
+the launching terminal/task lifetime. On Linux/macOS omit this switch and use
+your terminal's normal process management. This is not an installed service,
+scheduled task, automatic reboot startup or a network/security configuration change.
+The broker receives the caller environment in memory; validated routing parameters,
+result and startup logs go under ignored `artifacts/persistent-*`, never API keys.
+Broker/child errors are explicit, with no ordinary-launch fallback. Startup has
+a 10-minute acknowledgement limit; on timeout the child may still complete.
+Inspect the printed log and session manifest before retrying or stopping.
+Existing ordinary/legacy sessions cannot be silently upgraded: stop them first,
+then launch with `-Persistent`. Only broker-created sessions can be reused by it.
 For a faster subsequent engine launch with an image built from the current
 engine files, use
 `pwsh -NoProfile -File tools/start-graphhopper.ps1 -SkipBuild -WaitSeconds 120`.
@@ -54,7 +65,7 @@ To rebuild/restart only the app after code changes, leaving the engine running:
 
 ```powershell
 pwsh -NoProfile -File tools/start-local.ps1 -Stop
-pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
+pwsh -NoProfile -File tools/start-local.ps1 -Persistent -RoutingProvider GraphHopper
 ```
 
 ### Optional ORS and Gemini testing

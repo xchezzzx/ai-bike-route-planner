@@ -250,6 +250,7 @@ try {
     & $launcher | Out-Null
     Assert-True ($capture.starts.Count -eq 2 -and $capture.starts[0].Routing__Provider -ceq 'OpenRouteService') 'Launcher default environment changed.'
     $state = Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
+    Assert-True ($state.launchMode -ceq 'ordinary') 'Ordinary startup claimed broker provenance.'
     Assert-True ($state.routingProvider -ceq 'OpenRouteService' -and $state.processes[0].startTicks -eq (Get-Process -Id $PID).StartTime.ToUniversalTime().Ticks) 'Manifest lost provider or process ownership.'
     Assert-True (([Uri]$state.backendUrl).Port -ne 5080 -and ([Uri]$state.frontendUrl).Port -ne 5173) 'Busy-port fallback failed.'
     Assert-True (-not (Get-Content -LiteralPath $manifest -Raw).Contains('sensitive-marker')) 'Manifest leaked credentials.'
@@ -268,6 +269,13 @@ try {
     $state | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifest
     & $launcher -Stop | Out-Null
     Assert-True ($capture.stops -eq 2) 'Stop touched a reused/unrelated process ID.'
+    # One surviving child is not a complete reusable app session.
+    $self = Get-Process -Id $PID
+    $state.processes = @(@{ id=$PID; startTicks=$self.StartTime.ToUniversalTime().Ticks }, @{ id=$PID; startTicks=0 })
+    $state | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifest
+    Assert-Rejected { & $launcher } 'Partial session was reported as an existing healthy app.'
+    & $launcher -Stop | Out-Null
+    Assert-True ($capture.stops -eq 3) 'Partial session stop did not limit itself to the surviving owned child.'
     $lock = [IO.File]::Open((Join-Path $temp 'artifacts/local-servers.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     try { Assert-Rejected { & $launcher } 'Concurrent session lock ignored.' } finally { $lock.Dispose() }
     foreach ($ready in @($false, $true)) {
@@ -303,13 +311,52 @@ try {
                 Assert-True ($state.routingProvider -ceq 'GraphHopper') 'GH session not identified in manifest.'
                 Assert-Rejected { & $launcher } 'GH session reused as default ORS.'
                 & $launcher -Stop -GraphHopperUrl 'sensitive-marker' | Out-Null
-                Assert-True ($capture.stops -eq 4) 'GH stop failed or unnecessarily validated URL.'
+                Assert-True ($capture.stops -eq 5) 'GH stop failed or unnecessarily validated URL.'
             }
             Assert-True ($null -ne (Wait-Job $job -Timeout 5)) 'Launcher readiness fixture did not finish.'
             Assert-True ((Receive-Job $job).StartsWith('GET /info HTTP/1.1')) 'Launcher skipped /info readiness.'
         } finally { $listener.Stop(); Stop-Job $job -ErrorAction SilentlyContinue; Remove-Job $job -Force }
     }
     Write-Output 'PASS launcher: GH readiness/configuration, ORS default, manifest, reuse mismatch, legacy state, process ownership, port fallback and exclusive lock.'
+    $previousBroker = [Environment]::GetEnvironmentVariable('CYCLING_LOCAL_PERSISTENT_BROKER', 'Process')
+    try {
+        $env:CYCLING_LOCAL_PERSISTENT_BROKER = '1'
+        & $launcher | Out-Null
+        $persistentState = Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
+        Assert-True ($persistentState.launchMode -ceq 'persistent') 'Broker startup did not record provenance.'
+        $startCount = $capture.starts.Count
+        & $launcher | Out-Null
+        Assert-True ($capture.starts.Count -eq $startCount) 'A matching persistent session was unnecessarily restarted.'
+        & $launcher -Stop | Out-Null
+    } finally { [Environment]::SetEnvironmentVariable('CYCLING_LOCAL_PERSISTENT_BROKER', $previousBroker, 'Process') }
+    foreach ($failureStage in @('backend', 'frontend')) {
+        & {
+            $started = [Collections.Generic.List[Diagnostics.Process]]::new()
+            function Start-Process {
+                $parameters = @{ FilePath=(Resolve-LocalExecutable -Name pwsh); ArgumentList=@('-NoProfile', '-Command', 'Start-Sleep -Seconds 120'); PassThru=$true }
+                if ($IsWindows) { $parameters.WindowStyle = 'Hidden' }
+                $process = Microsoft.PowerShell.Management\Start-Process @parameters
+                $started.Add($process)
+                return $process
+            }
+            function Invoke-WebRequest {
+                param($Uri)
+                if ($failureStage -eq 'frontend' -and "$Uri".EndsWith('/health')) { return [pscustomobject]@{ Content='Healthy'; StatusCode=200 } }
+                throw 'fixture readiness failure'
+            }
+            function Start-Sleep { param($Milliseconds) }
+            try {
+                Assert-Rejected { & $launcher } 'Failed startup unexpectedly succeeded.'
+                Assert-True ($started.Count -eq $(if ($failureStage -eq 'backend') { 1 } else { 2 })) 'Startup failure used the wrong stage.'
+                Assert-True (@($started | Where-Object { -not $_.HasExited }).Count -eq 0) 'Partial startup leaked an owned child.'
+                Assert-True (-not (Test-Path -LiteralPath $manifest)) 'Failed startup committed a reusable session manifest.'
+                Assert-True (-not (Get-Process -Id $PID).HasExited) 'Cleanup touched the unrelated test process.'
+            } finally {
+                foreach ($process in $started) { if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit() }; $process.Dispose() }
+            }
+        }
+    }
+    Write-Output 'PASS partial startup: backend/frontend readiness failure reaps only owned children, no manifest.'
     Test-ChildConfiguration -temp $temp -launcherArguments @($capture.arguments[2] | Select-Object -Skip 1)
 } finally {
     foreach ($listener in $occupied) { $listener.Stop() }

@@ -47,10 +47,10 @@
 **Interfaces:** Keep `onInspect(index: number | null)` and original geometry indices. No routing or public API changes.
 
 - [x] Reconcile dot's document changes with the four existing primary-checkout edits; do not replace primary files wholesale with worktree copies. Launch runbook edits remain preserved for Task 2.
-- [ ] Review and commit the three frontend files and directly related documentation as a logically complete fix; keep private runtime artifacts ignored.
+- [x] Review and commit the three frontend files and directly related documentation as a logically complete fix; keep private runtime artifacts ignored. Delivered in PR #29.
 - [x] Run the eleven component tests, all frontend tests, production build, and the full 122-case browser suite without retries, relaxed assertions or larger timeouts. Primary integration: 313 unit and 122 browser tests PASS; three regressions observed RED before applying the production fix.
-- [ ] Open a PR and require green Linux frontend/backend/container checks for the exact head. A local Windows pass does not close the main CI failure.
-- [ ] After green CI and authorized merge, fast-forward the primary checkout and confirm its committed tree matches the tested head.
+- [x] Open a PR and require green Linux frontend/backend/container checks for the exact head. PR #29 passed all four checks.
+- [x] After green CI and authorized merge, fast-forward the primary checkout and confirm its committed tree matches the tested head. Main `e9f29ea` matches the tested tree; both post-merge workflows passed.
 
 **Check:** `npm --prefix src/frontend test -- --maxWorkers=1`; `npm --prefix src/frontend run build`; `npm --prefix src/frontend run test:e2e`. Verify preserved keyboard selection, theme/viewport transitions, touch, Hebrew RTL, and selected GPX. Existing map dimensions must remain stable.
 
@@ -62,14 +62,22 @@
 
 **Interfaces:** Preserve existing `-Stop`, `-RoutingProvider`, `-GraphHopperUrl`, PID/start-time ownership checks, port fallback, hidden windows, and loopback-only networking.
 
-- [ ] Audit the ignored WMI prototype and separate production launch logic from diagnostic Windows job probes. Do not copy machine-specific wrappers blindly.
-- [ ] Add tests for broker rejection, unavailable dependencies, stale manifests, provider mismatch, partial startup and foreign PID reuse before changing the launcher.
-- [ ] Implement a documented persistent launch option if the audited approach is suitable. Retain normal shell startup and safe failure behavior on unsupported platforms.
+- [x] Audit the ignored WMI prototype and separate production launch logic from diagnostic Windows job probes. Tracked helper/runner contain no diagnostic P/Invoke probes.
+- [x] Add tests for broker rejection, unavailable dependencies, stale manifests, provider mismatch, partial startup and foreign PID reuse before changing the launcher. Native Windows and existing launcher fixture suites pass; missing helper and incomplete-session defects observed RED.
+- [x] Implement a documented persistent launch option if the audited approach is suitable. Windows-only `-Persistent` approved 2026-10-14; normal startup remains available elsewhere, no fallback on broker error.
 - [ ] Test owned stop/restart and verify frontend/API remain available with identical PID/start-time identities after the launching task ends.
-- [ ] Transfer the app runtime to the primary checkout at the tested version. Preserve engine/cache ownership and stop only the stability worktree's owned app processes.
+- [x] Transfer the app runtime to the primary checkout at the tested version. Original primary graph reused; actual API/frontend paths point into the primary checkout. Stop/restart/reuse passed; the old side session has no owned live processes.
 - [ ] Recover needed ignored evidence and confirm no process/cache depends on the side worktree before archiving it. Do not delete caches as cleanup.
 
 **Deliverable:** A tracked launch command, verified after-task survival, and matching documentation. No firewall/TLS/service changes are implicit.
+
+2026-10-14: API Healthy and frontend HTTP 200 after the launching process exits;
+owned PID/start-time identities survive separate tool calls. Confirmation after the
+entire assistant turn ends remains an explicit follow-up, not a simulated claim.
+The environment rejected physical side-worktree archive/removal before execution;
+leave its source/evidence/cache intact. Cleanup is deferred and must not block
+independent quality work on the primary runtime. CI adds a native Windows broker
+job and Linux unsupported-platform coverage.
 
 ## Task 3: Establish a reproducible quality baseline and isolate ranking effects
 

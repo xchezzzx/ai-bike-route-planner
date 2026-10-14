@@ -14,7 +14,7 @@ use the cache in that checkout and preserve unrelated sessions/data.
 
 ```powershell
 pwsh -NoProfile -File tools/start-graphhopper.ps1 -SkipBuild -WaitSeconds 120
-pwsh -NoProfile -File tools/start-local.ps1 -RoutingProvider GraphHopper
+pwsh -NoProfile -File tools/start-local.ps1 -Persistent -RoutingProvider GraphHopper
 $session = Get-Content -Raw artifacts/local-servers.json | ConvertFrom-Json
 Invoke-RestMethod "$($session.backendUrl)/health"
 Invoke-RestMethod http://127.0.0.1:8989/info | Select-Object version, elevation, profiles
@@ -26,6 +26,12 @@ Readiness must report Healthy, engine 11.1, elevation true and profile road. Ope
 the actual frontend URL printed by the launcher; occupied ports use a fallback.
 An existing-session message or old manifest alone is not proof of readiness.
 
+`-Persistent` is Windows-only; omit it on Linux/macOS. Its hidden local WMI broker
+survives launching-task cleanup without installing services/tasks or changing
+network security. Broker/child errors do not fall back. A 10-minute startup
+acknowledgement timeout may leave startup in progress; inspect its ignored log
+before retrying, and use the ordinary ownership-safe `-Stop` command.
+
 Historical runtime ownership (2026-10-06): the isolated HAL9000 worktree used
 `C:\Users\milyu\Documents\Codex\2026-10-06\task\mvp-stability` and add
 `-ProjectName ai-bike-gh-stability` for engine start/stop commands. That worktree
@@ -34,6 +40,15 @@ checkout at `D:\sources\ai-bike-route-planner` retains its original data and
 uncommitted documents. Do not reuse one workspace's ownership manifest in another.
 
 ## Owner checklist
+
+2026-10-14 launch follow-up: the tracked Windows `-Persistent` broker/runner has
+native broker, failure, timeout and entry-point fixtures. The full local-routing
+suite covers incomplete sessions, reused PIDs, locking, readiness, actual child
+cleanup and credential isolation. Actual primary GraphHopper reused its graph;
+API/frontend readiness and owned stop/restart/reuse passed after launcher exit.
+Check survival again after the complete assistant turn ends. The obsolete dot
+worktree is retained: archive/removal was rejected by the execution environment;
+its cached data and private diagnostic evidence were not deleted.
 
 - [ ] In Manual/Road with refinement off, select A-B endpoints by settlement
   search/map. Start selection advances to destination; review actual coordinates.
@@ -109,7 +124,7 @@ verified against SHA-256 backups; no push, PR, merge or deployment occurred.
 - PASS: production build and all 122 browser cases without retries (6.1 minutes);
   independent scoped code review found no actionable defects. The existing bundle
   size warning remains. Neither timeouts nor assertions were relaxed.
-- IN PROGRESS: exact-head Linux CI. Windows passes do not close that gate.
+- PASS: PR #29 exact-head CI and both post-merge main workflows on `e9f29ea`.
 - NOT RUN: road/device/real-phone acceptance and live Gemini/ORS qualification.
 
 With existing cached dependencies:
