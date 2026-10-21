@@ -12,6 +12,22 @@
 
 ## Verified starting point
 
+### Execution update, 2026-10-21
+
+- Owner approved a local geometric-waypoint experiment without a catalog, with
+  conditional product adoption only after demonstrated improvement. The paired
+  experiment completed 24 local GraphHopper calls, zero ORS/Gemini, preserving
+  three attempts/45 seconds, exact ranges and all production selection rules.
+- Native retained 6 candidates across 3/4 scenarios; waypoints retained 1 across 1/4.
+  The only common selected pair adds 940 m near-return and 27.88% ascent. Promotion
+  fails; no routing code/profile/default or dependency is changed. See
+  [full protocol, all attempts and independent offline replay](../../evaluation/graphhopper-geometric-waypoints-2026-10-21.md).
+- The disposable harness stays ignored/local; public evidence excludes private
+  start coordinates and geometry. Network-aware anchors/corridors remain an
+  architectural decision, not an automatically approved catalog implementation.
+- The earlier Minimize propagation and real owner/device/phone acceptance tasks
+  remain open. Negative experiments do not close those requirements.
+
 ### Execution update, 2026-10-14
 
 - Task1 delivered PR29; persistent Windows launch/runtime consolidation delivered
@@ -167,3 +183,8 @@ The paragraph above records the original ordering. After the 2026-10-14 executio
 the next architectural action is owner review of the waypoint proposal and its
 read-only-export/total-budget prerequisites. Do not repeat completed UI/launcher
 work or adopt failed native experiments to make the checklist look complete.
+
+After the 2026-10-21 paired geometric experiment, keep native construction. Review
+network-aware anchor/corridor selection before further construction work; a
+catalog alone is not a demonstrated solution. Do not promote the tested geometric
+strategy, increase attempts or relax the owner's requirements to hide its loss.
