@@ -11,7 +11,8 @@ LABEL org.opencontainers.image.title="Local GraphHopper road engine" \
       org.opencontainers.image.source="https://github.com/graphhopper/graphhopper" \
       org.opencontainers.image.revision="ebb578f4e94db72e82f2f8d3bc69417758e16e1c"
 WORKDIR /opt/graphhopper
-RUN apt-get update && apt-get install -y --no-install-recommends curl=8.18.0-1ubuntu2.7 && \
+# Ubuntu security updates replace older package revisions in the live repository.
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 COPY --from=artifact /engine/graphhopper-web-11.1.jar ./graphhopper.jar
 COPY config.yml road.json entrypoint.sh ./
