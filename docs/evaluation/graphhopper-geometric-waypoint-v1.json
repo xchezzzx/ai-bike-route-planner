@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "purpose": "Public reproducibility parameters for the throwaway 2026-10-21 comparison; not a production routing configuration.",
+  "baselineCommit": "13f55f6c3afced83792771fb6d229ca293943938",
+  "engineVersion": "11.1",
+  "graphIdentity": "da4d12ea274e7e6b7d6443bb72acad7119400dc4ace9c5cc43ec64446f283545",
+  "profile": "road",
+  "elevationPreference": "Balanced",
+  "arms": ["production-native-round-trip", "geometric-via-routing"],
+  "maxCallsPerSearch": 3,
+  "applicationDeadlineSeconds": 45,
+  "providerDeadlineSeconds": 15,
+  "maxTotalRegionalCalls": 24,
+  "retries": 0,
+  "orsCalls": 0,
+  "geminiCalls": 0,
+  "seeds": [1, 2, 3],
+  "calibration": "Unmodified production LoopSearchLength.Correct, separately within each arm; original ranges unchanged.",
+  "geometry": {
+    "earthRadiusMeters": 6371000,
+    "anchorRadius": "requestedLengthMeters / (3 * 1.35)",
+    "anchorBearingsDegreesBySeed": [[30, 90], [150, 210], [270, 330]],
+    "orderedPoints": ["start", "anchorA", "anchorB", "start"],
+    "algorithm": "astarbi",
+    "passThrough": true,
+    "maxIntermediateAnchorSnapMeters": 1000,
+    "engineTimeoutPerLegMs": 4666,
+    "maxVisitedNodesPerLeg": 333333
+  },
+  "publicCases": [
+    { "id": "tel-aviv", "start": { "latitude": 32.0853, "longitude": 34.7818 }, "distanceRangeMeters": [35000, 45000] },
+    { "id": "haifa", "start": { "latitude": 32.8191, "longitude": 34.9984 }, "distanceRangeMeters": [35000, 45000] },
+    { "id": "jerusalem", "start": { "latitude": 31.7839, "longitude": 35.2183 }, "distanceRangeMeters": [35000, 45000] }
+  ],
+  "privateCase": { "id": "private-reference-start", "start": "First point of owner good GPX, local only", "distanceRangeMeters": [41000, 51000] },
+  "promotion": {
+    "noLossOfSuccessfulScenarios": true,
+    "noLossOfTotalEligibleCandidates": true,
+    "minimumMatchedSelectedPairsWithNonzeroBaselineNearReturn": 3,
+    "minimumImprovedPairs": 2,
+    "minimumMedianNearReturnReduction": 0.20,
+    "maxPerPairNearReturnFractionIncrease": 0.02,
+    "maxPerPairRepeatOrSharedStemFractionIncrease": 0.02,
+    "maxPerPairUnknownSurfaceFractionIncrease": 0.05,
+    "noLossOfKnownElevationFraction": true,
+    "maxPerPairAscentOrDurationIncrease": 0.15,
+    "maxPerPairRelativeDistanceErrorIncrease": 0.05,
+    "incompleteOrNonNoRouteFailuresPreventPromotion": true
+  },
+  "result": {
+    "adopt": false,
+    "nativeSuccessfulScenarios": 3,
+    "waypointSuccessfulScenarios": 1,
+    "nativeEligibleCandidates": 6,
+    "waypointEligibleCandidates": 1,
+    "matchedNonzeroBaselineNearReturnPairs": 0,
+    "medianNearReturnReduction": null
+  }
+}

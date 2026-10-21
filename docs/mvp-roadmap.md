@@ -4,18 +4,25 @@ This is the staged direction agreed in the project conversation. Backend:
 C#/.NET 10 modular monolith. Frontend: React + TypeScript, web only. Initial
 service area: Israel. Languages: English, Hebrew (RTL), and Russian.
 
-## Current local MVP priority (2026-10-07)
+## Current local MVP priority (2026-10-21)
 
 GraphHopper 11.1 integration is delivered in PR #27, linked elevation inspection
 and the compact selector in PR #26, and soft near-return ranking in PR #28.
-Dot's bounded elevation-input stabilization is being integrated; these features
+Dot's bounded elevation-input stabilization shipped in PR #29; tracked persistent
+Windows startup and eligible-only ranking shipped in PRs #30/#31. These features
 do not need reimplementation. A geometric warning does not certify rideability.
 
-Use local GraphHopper, Manual/Road and AI refinement off. Follow the
-[post-dot plan](superpowers/plans/2026-10-06-post-dot-route-quality.md): stabilize
-inspection, consolidate launch/runtime, freeze route-quality controls, propagate
-elevation preference into construction, then evaluate native turn-aware loops.
-Keep exact targets, surface/access gates and the existing call/deadline budgets.
+Use local GraphHopper, Manual/Road and AI refinement off. In the
+[post-dot plan](superpowers/plans/2026-10-06-post-dot-route-quality.md),
+inspection/launch stabilization and baseline controls are delivered. The bounded slope/turn
+probes did not justify adoption; elevation-aware product construction remains
+open. The owner-approved geometric-waypoint comparison without a catalog also
+failed promotion: native retained 6 eligible candidates across 3/4 scenarios,
+versus 1 across 1/4 for waypoints.
+See the [2026-10-21 protocol and results](evaluation/graphhopper-geometric-waypoints-2026-10-21.md).
+Keep native construction, exact targets, surface/access gates and existing
+call/deadline budgets. Network-aware anchors/corridors need a separate decision;
+the catalog proposal is not approved or implemented.
 
 The [local acceptance checklist](development/local-mvp-acceptance.md) separates
 automated fixtures from owner road/device/phone checks. ORS/Gemini live
